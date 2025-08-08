@@ -164,7 +164,6 @@ jobs:
         if [[ ${{ matrix.runner_print_label }} == "TGL" ]]; then
           echo "TEST_CONFIGS=on_host/samples_TGL.json" >> $GITHUB_ENV
           echo "Selected test configuration file: on_host/samples_TGL.json ✅" >> $GITHUB_STEP_SUMMARY
-        fi
         elif [[ ${{ matrix.runner_print_label }} == "ARL" ]]; then
           echo "TEST_CONFIGS=on_host/samples_ARL.json" >> $GITHUB_ENV
           echo "Selected test configuration file: on_host/samples_ARL.json ✅" >> $GITHUB_STEP_SUMMARY
