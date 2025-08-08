@@ -672,6 +672,9 @@ def on_benchmark(data):
             duration=10,
         )
 
+    # Enable Live Preview checkbox must not be taken into account for benchmarking
+    param_grid["live_preview_enabled"] = [False]
+
     # Initialize the benchmark class
     bm = Benchmark(
         video_path=arguments["input_video_player"],
