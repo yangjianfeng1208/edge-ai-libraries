@@ -94,23 +94,22 @@ class TensorConvert : public BaseTransform {
 };
 
 extern "C" {
-ElementDesc tensor_convert = {.name = "tensor_convert",
-                              .description =
-                                  "Convert (zero-copy if possible) between video/audio and tensors media type",
-                              .author = "Intel Corporation",
-                              .params = nullptr,
-                              .input_info =
-                                  MAKE_FRAME_INFO_VECTOR({
-                                      FrameInfo(ImageFormat::RGB, MemoryType::Any),
-                                      FrameInfo(ImageFormat::BGR, MemoryType::Any),
-                                      FrameInfo(ImageFormat::RGBX, MemoryType::Any),
-                                      FrameInfo(ImageFormat::BGRX, MemoryType::Any),
-                                      FrameInfo(ImageFormat::RGBP, MemoryType::Any),
-                                      FrameInfo(ImageFormat::BGRP, MemoryType::Any),
-                                  }),
-                              .output_info = MAKE_FRAME_INFO_VECTOR({FrameInfo(MediaType::Tensors, MemoryType::Any, {{{}, DataType::UInt8}})}),
-                              .create = create_element<TensorConvert>,
-                              .flags = 0};
+ElementDesc tensor_convert = {
+    .name = "tensor_convert",
+    .description = "Convert (zero-copy if possible) between video/audio and tensors media type",
+    .author = "Intel Corporation",
+    .params = nullptr,
+    .input_info = MAKE_FRAME_INFO_VECTOR({
+        FrameInfo(ImageFormat::RGB, MemoryType::Any),
+        FrameInfo(ImageFormat::BGR, MemoryType::Any),
+        FrameInfo(ImageFormat::RGBX, MemoryType::Any),
+        FrameInfo(ImageFormat::BGRX, MemoryType::Any),
+        FrameInfo(ImageFormat::RGBP, MemoryType::Any),
+        FrameInfo(ImageFormat::BGRP, MemoryType::Any),
+    }),
+    .output_info = MAKE_FRAME_INFO_VECTOR({FrameInfo(MediaType::Tensors, MemoryType::Any, {{{}, DataType::UInt8}})}),
+    .create = create_element<TensorConvert>,
+    .flags = 0};
 }
 
 } // namespace dlstreamer

@@ -105,28 +105,26 @@ ElementDesc opencv_cropscale = {.name = "opencv_cropscale",
                                                "Crop operation supports GstVideoCropMeta if attached to input buffer",
                                 .author = "Intel Corporation",
                                 .params = &params_desc,
-                                .input_info =
-                                    MAKE_FRAME_INFO_VECTOR({
-                                        //{ImageFormat::I420},
-                                        //{ImageFormat::NV12},
-                                        {ImageFormat::RGB},
-                                        {ImageFormat::BGR},
-                                        {ImageFormat::RGBX},
-                                        {ImageFormat::BGRX},
-                                        //{ImageFormat::RGBP},
-                                        //{ImageFormat::BGRP},
-                                    }),
-                                .output_info =
-                                    MAKE_FRAME_INFO_VECTOR({
-                                        //{ImageFormat::I420},
-                                        //{ImageFormat::NV12},
-                                        {ImageFormat::RGB},
-                                        {ImageFormat::BGR},
-                                        {ImageFormat::RGBX},
-                                        {ImageFormat::BGRX},
-                                        //{ImageFormat::RGBP},
-                                        //{ImageFormat::BGRP}
-                                    }),
+                                .input_info = MAKE_FRAME_INFO_VECTOR({
+                                    //{ImageFormat::I420},
+                                    //{ImageFormat::NV12},
+                                    {ImageFormat::RGB},
+                                    {ImageFormat::BGR},
+                                    {ImageFormat::RGBX},
+                                    {ImageFormat::BGRX},
+                                    //{ImageFormat::RGBP},
+                                    //{ImageFormat::BGRP},
+                                }),
+                                .output_info = MAKE_FRAME_INFO_VECTOR({
+                                    //{ImageFormat::I420},
+                                    //{ImageFormat::NV12},
+                                    {ImageFormat::RGB},
+                                    {ImageFormat::BGR},
+                                    {ImageFormat::RGBX},
+                                    {ImageFormat::BGRX},
+                                    //{ImageFormat::RGBP},
+                                    //{ImageFormat::BGRP}
+                                }),
                                 .create = create_element<OpencvCropscale>,
                                 .flags = ELEMENT_FLAG_EXTERNAL_MEMORY};
 }

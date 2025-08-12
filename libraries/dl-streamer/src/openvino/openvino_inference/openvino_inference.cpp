@@ -356,7 +356,8 @@ ElementDesc openvino_tensor_inference = {
     .description = "Inference on OpenVINO™ toolkit backend",
     .author = "Intel Corporation",
     .params = &params_desc,
-    .input_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}, {MediaType::Tensors, MemoryType::CPU}}),
+    .input_info =
+        MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}, {MediaType::Tensors, MemoryType::CPU}}),
     .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenVINO}}),
     .create = create_element<OpenVinoTensorInference>,
     .flags = ELEMENT_FLAG_SHARABLE};
@@ -368,7 +369,8 @@ ElementDesc openvino_video_inference = {.name = "openvino_video_inference",
                                         .author = "Intel Corporation",
                                         .params = &params_desc,
                                         .input_info = MAKE_FRAME_INFO_VECTOR({{ImageFormat::NV12, MemoryType::VAAPI}}),
-                                        .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenVINO}}),
+                                        .output_info =
+                                            MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenVINO}}),
                                         .create = create_element<OpenVinoVideoInference>,
                                         .flags = ELEMENT_FLAG_SHARABLE};
 }
