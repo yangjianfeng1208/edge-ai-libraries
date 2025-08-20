@@ -47,29 +47,56 @@ jobs:
           report_suffix: "-fs-chat-qna-CT7"
       
          
-      - name: Run trivy Scan - chat-qna-backend
+      - name: Run trivy Scan - chat-qna-backend (HTML Report)
         uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        id: chat-qna-backend
+        id: chat-qna-backend-html
         with:
           scan_type: "image"  
-          scan-scope: all
+          scan-scope: "all"
           scan_target: "chatqna-backend:latest"  
           severity: "HIGH,CRITICAL"  
-          format: "json"
-          report_suffix: "-image-chat-qna-backend-CT248"
+          format: "template"
+          report_suffix: "-image-chat-qna-backend-html-CT248"
+          generate_sbom: "false"
 
-          
-
-      - name: Run trivy Scan - chat-qna-frontend
+      - name: Run trivy Scan - chat-qna-backend (SPDX SBOM)
         uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
-        id: chat-qna-frontend
+        id: chat-qna-backend-spdx
         with:
           scan_type: "image"  
-          scan-scope: all
+          scan-scope: "all"
+          scan_target: "chatqna-backend:latest"  
+          severity: "HIGH,CRITICAL"  
+          format: "spdx-json"
+          report_suffix: "-image-chat-qna-backend-spdx-CT248"
+          generate_sbom: "true"
+          sbom_format: "spdx-json"
+          
+
+      - name: Run trivy Scan - chat-qna-frontend (HTML Report)
+        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
+        id: chat-qna-frontend-html
+        with:
+          scan_type: "image"  
+          scan-scope: "all"
           scan_target: "chatqna-frontend:latest"  
           severity: "HIGH,CRITICAL"  
-          format: "json"
-          report_suffix: "-image-chat-qna-frontend-CT248"
+          format: "template"
+          report_suffix: "-image-chat-qna-frontend-html-CT248"
+          generate_sbom: "false"
+
+      - name: Run trivy Scan - chat-qna-frontend (SPDX SBOM)
+        uses: open-edge-platform/orch-ci/.github/actions/security/trivy@27276444a9bcf247a27369406686b689933bd1ff
+        id: chat-qna-frontend-spdx
+        with:
+          scan_type: "image"  
+          scan-scope: "all"
+          scan_target: "chatqna-frontend:latest"  
+          severity: "HIGH,CRITICAL"  
+          format: "spdx-json"
+          report_suffix: "-image-chat-qna-frontend-spdx-CT248"
+          generate_sbom: "true"
+          sbom_format: "spdx-json"
 
       
       - name: Scan Dockerfile with Trivy-backend
