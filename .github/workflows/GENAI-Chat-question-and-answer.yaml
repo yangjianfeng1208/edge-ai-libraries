@@ -292,10 +292,11 @@ jobs:
           npm install
           npm run coverage
           
-      - name: Upload test results
-        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
-        with:
-          name: chat-qna-frontend-results
+      # - name: Upload test results
+      #   uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+      #   with:
+      #     name: chat-qna-frontend-results
+      #     path: sample-applications/chat-question-and-answer/ui/react/
 
 #Run Unit test cases for Backend
   run-unit-tests-backend:
@@ -329,4 +330,3 @@ jobs:
         uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
         with:
           name: chat-qna-backend-test-results
-          path: 
