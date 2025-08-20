@@ -289,14 +289,16 @@ jobs:
       - name: Install dependencies
         run: |
           cd sample-applications/chat-question-and-answer/ui/react/
-          rm -rf .npmrc
-          npm install
-          npm install -D vitest@2.1.9
-          npm run test
-          npm run test:ui
+          # rm -rf .npmrc
+          # npm install
+          # npm install -D vitest@2.1.9
+          # npm run test
+          # npm run test:ui
+          # npm run coverage
+          # npx vitest run --reporter=html --outputFile=chatqna-ui-results.html --coverage --coverage.reporter=html --coverage.reportsDirectory=chat-qna-ui-coverage-html
+          # npm run test -- --watchAll=false --coverage
+          npm ci --legacy-peer-deps
           npm run coverage
-          npx vitest run --reporter=html --outputFile=chatqna-ui-results.html --coverage --coverage.reporter=html --coverage.reportsDirectory=chat-qna-ui-coverage-html
-          npm run test -- --watchAll=false --coverage
           
       - name: Upload test results
         uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
