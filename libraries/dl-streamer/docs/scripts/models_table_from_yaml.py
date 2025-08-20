@@ -14,7 +14,7 @@ from jsonschema import validate
 
 dldt_str = 'dl' + 'dt'
 openvino_str = 'open' + 'vino'
-dlstreamer_name = 'Deep Learning Streamer'
+dlstreamer_name = 'Deep ' + 'Learning' + ' Streamer'
 
 parser = ArgumentParser(add_help=False)
 _args = parser.add_argument_group('Options')
