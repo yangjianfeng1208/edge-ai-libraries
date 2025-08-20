@@ -19,26 +19,12 @@ on:
       - 'sample-applications/chat-question-and-answer/**'
 
 jobs:
-  build-images:
-    runs-on: ubuntu-22.04-32core-128GB
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
-        with:
-          persist-credentials: false
-
-      - name: Build Docker images
-        run: |
-          docker build -f ./sample-applications/chat-question-and-answer/Dockerfile -t chatqna-backend:latest ./sample-applications/chat-question-and-answer/
-          docker build -t="chatqna-frontend:latest" ./sample-applications/chat-question-and-answer/ui/react
-    
+   
 
   trivy-scan:
     runs-on: ubuntu-22.04-32core-128GB
     permissions:
       contents: read
-    needs: build-images
     steps:
       - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
         with:
