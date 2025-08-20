@@ -341,7 +341,7 @@ jobs:
         run: |
           cd sample-applications/chat-question-and-answer/
           # Backend Coverage (including all production Python files)
-          python3.12 -m chat-qna-venv venv
+          python3.12 -m venv chat-qna-venv
           source chat-qna-venv/bin/activate
           pip install poetry
           poetry install --with dev || true
