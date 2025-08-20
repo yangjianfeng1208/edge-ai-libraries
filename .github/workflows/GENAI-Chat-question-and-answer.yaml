@@ -344,7 +344,7 @@ jobs:
           # Backend Coverage (including all production Python files)
           pip install poetry
           poetry install --with dev || true
-          poetry add --group dev pytest-cov
+          poetry add --group dev pytest-cov || true
           poetry run pytest tests/unit_tests/ \
             --cov=app \
             --cov=ovms_config \
