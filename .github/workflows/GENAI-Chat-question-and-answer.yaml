@@ -68,9 +68,9 @@ jobs:
           scan_target: "chatqna-backend:latest"  
           severity: "HIGH,CRITICAL"  
           format: "spdx-json"
+          scanners: "vuln"
           report_suffix: "-image-chat-qna-backend-spdx-CT248"
-          generate_sbom: "true"
-          sbom_format: "spdx-json"
+          generate_sbom: "false"
           
 
       - name: Run trivy Scan - chat-qna-frontend (HTML Report)
@@ -94,9 +94,9 @@ jobs:
           scan_target: "chatqna-frontend:latest"  
           severity: "HIGH,CRITICAL"  
           format: "spdx-json"
+          scanners: "vuln"
           report_suffix: "-image-chat-qna-frontend-spdx-CT248"
-          generate_sbom: "true"
-          sbom_format: "spdx-json"
+          generate_sbom: "false"
 
       
       - name: Scan Dockerfile with Trivy-backend
