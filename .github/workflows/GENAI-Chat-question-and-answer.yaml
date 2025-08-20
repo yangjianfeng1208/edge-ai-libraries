@@ -20,7 +20,6 @@ on:
 
 jobs:
    
-
   trivy-scan:
     runs-on: ubuntu-22.04-32core-128GB
     permissions:
@@ -339,24 +338,11 @@ jobs:
           python-version: '3.12'
     
       - name: Run unit tests
-        env:
-          # Mock environment variables for testing
-          PG_CONNECTION_STRING: "postgresql+asyncpg://test:test@localhost:5432/test_db"
-          POSTGRES_HOST: "localhost"
-          POSTGRES_PORT: "5432"
-          POSTGRES_DB: "test_db"
-          POSTGRES_USER: "test"
-          POSTGRES_PASSWORD: "test"
-          # Optional environment variables with defaults
-          LLM_SERVICE_HOST_IP: "localhost"
-          LLM_SERVICE_PORT: "8080"
-          EMBEDDING_SERVICE_HOST_IP: "localhost"
-          EMBEDDING_SERVICE_PORT: "8081"
-          RERANK_SERVICE_HOST_IP: "localhost"
-          RERANK_SERVICE_PORT: "8082"
         run: |
           cd sample-applications/chat-question-and-answer/
           # Backend Coverage (including all production Python files)
+          python3.12 -m chat-qna-venv venv
+          source chat-qna-venv/bin/activate
           pip install poetry
           poetry install --with dev || true
           poetry add --group dev pytest-cov || true
@@ -367,8 +353,5 @@ jobs:
             --cov-report=xml:coverage-backend.xml \
             --cov-report=term-missing \
             --cov-branch || true
-
-      - name: Upload test results
-        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
-        with:
-          name: chat-qna-backend-test-results
+          deactivate
+          rm -rf chat-qna-venv
