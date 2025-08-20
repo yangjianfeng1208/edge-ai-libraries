@@ -106,7 +106,7 @@ jobs:
           scan_target: "sample-applications/chat-question-and-answer/"
           severity: "HIGH,CRITICAL"
           format: "json"
-          misconfig_scanners: "Dockerfile"
+          misconfig_scanners: "dockerfile"
           report_suffix: "-config-chat-qna-backend-CT222"
 
       - name: Scan Dockerfile with Trivy-frontend
@@ -116,7 +116,7 @@ jobs:
           scan_target: "sample-applications/chat-question-and-answer/ui/react/"
           severity: "HIGH,CRITICAL"
           format: "json"
-          misconfig_scanners: "Dockerfile"
+          misconfig_scanners: "dockerfile"
           report_suffix: "-config-chat-qna-frontend-CT222"
            
       - name: Upload Report
@@ -343,7 +343,7 @@ jobs:
           cd sample-applications/chat-question-and-answer/
           # Backend Coverage (including all production Python files)
           pip install poetry
-          poetry install || true
+          poetry install --with dev || true
           poetry add --group dev pytest-cov
           poetry run pytest tests/unit_tests/ \
             --cov=app \
