@@ -29,7 +29,7 @@ Guidance for Authors:
 
 <!--
 **User Story US-2: Understanding Use Cases**
-- **As a developer**, I want to learn how this microservice applies to real-world scenarios so that I can evaluate its relevance.
+- **As a developer**, I want to learn how this microservice applies to real-world scenarios so that I can evaluate its relevance..
 
 **Acceptance Criteria**:
 1. At least two practical use cases demonstrating the microservice in action.
