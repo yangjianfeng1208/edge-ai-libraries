@@ -23,7 +23,7 @@ Deep Learning Streamer Pipeline Server (DL Streamer Pipeline Server) is a Python
 Video analytics involves the conversion of video streams into valuable insights through the application of video processing, inference, and analytics operations. It finds applications in various business sectors including healthcare, retail, entertainment, and industrial domains. The algorithms utilized in video analytics are responsible for performing tasks such as object detection, classification, identification, counting, and tracking on the input video stream.
 
 
-Note - The detailed documentation of Deep Learning Streamer Pipeline Server can be found [here](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/main/user-guide/Overview.html)
+Note - The detailed documentation of Deep Learning Streamer Pipeline Server can be found [here](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/1.2.0/user-guide/Overview.html)
 
 ## Architecture
 
@@ -35,14 +35,14 @@ Note - The detailed documentation of Deep Learning Streamer Pipeline Server can 
 
 ## Quick try out
 
-Follow the steps in this section to quickly pull the latest pre-built Deep Learning Streamer Pipeline Server docker image followed by running a sample usecase. 
+Follow the steps in this section to quickly pull the latest pre-built Deep Learning Streamer Pipeline Server docker image followed by running a sample usecase.
 
 ### Pull the image and start container
 
 - Clone the repository and change to the docker directory inside DL Streamer Pipeline Server project.
 
   ```sh
-    git clone <link-to-repository>
+    git clone <link-to-repository> -b release-1.2.0
     cd <path/to/dlstreamer-pipeline-server/docker>
   ```
 
@@ -100,7 +100,7 @@ The REST request will return a pipeline instance ID, which can be used as an ide
     tail -f /tmp/results.jsonl
   ```
 
-- RTSP Stream will be accessible at `rtsp://<SYSTEM_IP_ADDRESS>:8554/pallet-defect-detection`.  Users can view this on any media player e.g. vlc (as a network stream), ffplay etc 
+- RTSP Stream will be accessible at `rtsp://<SYSTEM_IP_ADDRESS>:8554/pallet-defect-detection`.  Users can view this on any media player e.g. vlc (as a network stream), ffplay etc
 
   ![sample frame RTSP stream](./docs/user-guide/images/sample-pallet-defect-detection.png)
 
@@ -111,7 +111,7 @@ To check the pipeline status and stop the pipeline send the following requests,
     curl --location -X GET http://localhost:8080/pipelines/status
    ```
 
- - stop a running pipeline instance, 
+ - stop a running pipeline instance,
    ```sh
     curl --location -X DELETE http://localhost:8080/pipelines/{instance_id}
    ```
@@ -119,7 +119,7 @@ To check the pipeline status and stop the pipeline send the following requests,
 Now you have successfully run the Deep Learning Streamer Pipeline Server container, sent a curl request to start a pipeline within the microservice which runs the Geti based pallet defect detection model on a sample warehouse video. Then, you have also looked into the status of the pipeline to see if everything worked as expected and eventually stopped the pipeline as well.
 
 ---
-## Build from source 
+## Build from source
 
 You can build either an optimized or an extended DL Streamer Pipeline Server image (for both Ubuntu22 and Ubuntu24) based on your use case. The extended image contains the Geti SDK, the OpenVINO Model API and ROS2 on top of the optimized image.
 
@@ -147,7 +147,7 @@ Update the following lines in [.env file](./docker/.env) for choosing the right 
   BUILD_TARGET=
   ```
 
-  Note: If you do not have access to the above mentioned `BASE_IMAGE`, then you can build [DL Streamer docker image from source](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer#build-the-dlstreamer-docker-image-with) and use it as `BASE_IMAGE` in the above mentioned `.env` file
+  Note: If you do not have access to the above mentioned `BASE_IMAGE`, then you can build [DL Streamer docker image from source](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer#build-the-dlstreamer-docker-image-with) and use it as `BASE_IMAGE` in the above mentioned `.env` file
 
 ### Build Deep Learning Streamer Pipeline Server image and start container <a name="build-image-and-start-container"></a>
 
@@ -158,16 +158,16 @@ Run the following commands:
      source .env # sometimes this is needed as docker compose doesn't always pick up the necessary env variables
      docker compose build
    ```
-   
+
    The docker image of DL Streamer Pipeline Server is now built (based on the .env changes done above) and available for you to run.
-   
+
    ```sh
      docker compose up
    ```
 
 ---
 ### Run default sample
-Refer [here](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/main/user-guide/get-started.html) to run default sample upon bringing up Intel® Deep Learning Streamer Pipeline Server container.
+Refer [here](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/1.2.0/user-guide/get-started.html) to run default sample upon bringing up Intel® Deep Learning Streamer Pipeline Server container.
 
 ---
 ## Legal compliance: Build a docker image containing sources for GPL/LGPL/AGPL binary distributed components
@@ -188,6 +188,6 @@ Refer [here](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreame
 ---
 ## Learn More
 
--   Understand the components, services, architecture, and data flow, in the [Overview](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/main/user-guide/Overview.html)
--   For more details on advanced configuration, usage of features refer to [Advanced User Guide](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/main/user-guide/advanced-guide/Overview.html). 
--   For more tutorials refer [here](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/main/user-guide/get-started.html)
+-   Understand the components, services, architecture, and data flow, in the [Overview](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/1.2.0/user-guide/Overview.html)
+-   For more details on advanced configuration, usage of features refer to [Advanced User Guide](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/1.2.0/user-guide/advanced-guide/Overview.html).
+-   For more tutorials refer [here](https://docs.openedgeplatform.intel.com/edge-ai-libraries/dlstreamer-pipeline-server/1.2.0/user-guide/get-started.html)
