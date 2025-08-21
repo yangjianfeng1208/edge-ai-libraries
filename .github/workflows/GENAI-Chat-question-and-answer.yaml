@@ -298,6 +298,37 @@ jobs:
           name: shellcheck-report-chat-qna
           path: security-results/shellcheck-report-chat-qna.txt
 
+#Run jslinter Frontend
+  run-jslinter-frontend:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+      
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - name: Install dependencies
+        run: |
+          cd sample-applications/chat-question-and-answer/ui/react/
+          npm install
+      
+      - name: Run linting with reports
+        run: |
+          cd sample-applications/chat-question-and-answer/ui/react/
+          mkdir -p lint-results
+          
+          # Use project's npm scripts (for project-specific config)
+          npm run lint > lint-results/npm-lint-output.txt 2>&1 || true
+          npm run prettier > lint-results/prettier-check.txt 2>&1 || true
+          
+          # Also generate structured reports with global ESLint
+          eslint . --format json --output-file lint-results/eslint-report.json || true
+          eslint . --format html --output-file lint-results/eslint-report.html || true
+
 
 #Run Unit test cases Frontend
   run-unit-tests-frontend:
