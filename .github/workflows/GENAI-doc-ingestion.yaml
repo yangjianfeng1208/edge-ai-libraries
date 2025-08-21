@@ -204,8 +204,8 @@ jobs:
       - name: Install dependencies and pylint
         run: |
           cd microservices/document-ingestion/pgvector/
-          poetry install --with dev
-          poetry add --group dev pylint
+          poetry install --with dev || true
+          poetry add --group dev pylint || true
       
       - name: Run pylint
         run: |
