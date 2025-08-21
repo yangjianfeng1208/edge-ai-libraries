@@ -55,13 +55,13 @@ The following table lists commands lines recommended pipelines for various combi
 
 GStreamer supports several memory types, but the most common formats found in DL Streamer pipelines are *video/x-raw*, which typically resolves to *video/x-raw(memory:SystemMemory)* — suitable for CPU processing — and *video/x-raw(memory:VAMemory)*, which is optimized for GPU acceleration.
 
-DL Streamer inference elements (such as `gvadetect`, `gvaclassify`, and `gvainference`) can apply different preprocessing backends, including ie (Inference Engine), opencv, or va-surface-sharing. Users can set these explicitly using the pre-process-backend option or allow DL Streamer to make the decision internally.
+DL Streamer inference elements (such as `gvadetect`, `gvaclassify`, and `gvainference`) can apply different preprocessing backends, including `ie` (Inference Engine), `opencv`, or `va-surface-sharing`. Users can set these explicitly using the pre-process-backend option or allow DL Streamer to make the decision internally.
 If the pipeline is defined correctly, GStreamer can negotiate the optimal memory type for a given device, allowing DL Streamer to automatically set the optimal preprocessing backend. 
 
 For example:
- The `decodebin3` element recognizes the presence of a GPU in the system and attempts to introduce the optimal VAMemory setting. This automatically results in using the efficient va-surface-sharing backend in DL Streamer if the inference element device is set to GPU or NPU.
+ The `decodebin3` element recognizes the presence of a GPU in the system and attempts to introduce the optimal VAMemory setting. This automatically results in using the efficient `va-surface-sharing` backend in DL Streamer if the inference element device is set to GPU or NPU.
 
-However, if the pipeline is suboptimal (e.g., using `decodebin` instead of `decodebin3`), DL Streamer will switch to a less efficient preprocessing backend (e.g., opencv for the GPU) to ensure the pipeline functions. In such cases, the user will receive a warning, and a pipeline correction will be suggested.
+However, if the pipeline is suboptimal (e.g., using `decodebin` instead of `decodebin3`), DL Streamer will switch to a less efficient preprocessing backend (e.g., `opencv`` for the GPU) to ensure the pipeline functions. In such cases, the user will receive a warning, and a pipeline correction will be suggested.
 
 .. list-table::
    :header-rows: 1
@@ -70,11 +70,11 @@ However, if the pipeline is suboptimal (e.g., using `decodebin` instead of `deco
      - Memory Type
      - Preprocessing Backend
    * - CPU
-     - only video/x-raw available
-     - ie or opencv
+     - only `video/x-raw` available
+     - `ie` or `opencv`
    * - GPU / NPU
-     - use video/x-raw(memory:VAMemory) for optimal performance
-     - use va-surface-sharing to avoid memory copying
+     - use `video/x-raw(memory:VAMemory)` for optimal performance
+     - use `va-surface-sharing` to avoid memory copying
 
 
 
