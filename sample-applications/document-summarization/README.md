@@ -20,7 +20,7 @@ The following are links to detailed documentation to help you get started, confi
   - [FAQ](docs/user-guide/faq.md): Answers for common questions.
 
 - **API Reference**
-  - [API Reference](docs/user-guide/api-reference.md): Comprehensive reference for the available REST API endpoints.
+  - [API Reference](docs/user-guide/api-reference.md): Comprehensive reference for the available REST API endpoints..
 
 - **Release Notes**
   - [Release Notes](docs/user-guide/release-notes.md): Information on the latest updates, improvements, and bug fixes.
