@@ -337,7 +337,7 @@ jobs:
         run: |
           cd microservices/vlm-openvino-serving/
           poetry install --with dev
-          poetry add --group dev flake8
+          poetry add flake8
       
       - name: Run flake8 linting check
         run: |
