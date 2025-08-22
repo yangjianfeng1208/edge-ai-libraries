@@ -6,3 +6,6 @@
 
 add_subdirectory(check)
 add_subdirectory(test_utils)
+if(${ENABLE_FUZZING})
+    add_subdirectory(fuzzing)
+endif()

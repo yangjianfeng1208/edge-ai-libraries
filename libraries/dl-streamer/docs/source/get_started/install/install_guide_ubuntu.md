@@ -30,7 +30,7 @@ resources when additional configuration is required.
 ```bash
 mkdir -p ~/intel/dlstreamer_gst
 cd ~/intel/dlstreamer_gst/
-wget -O DLS_install_prerequisites.sh https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/scripts/DLS_install_prerequisites.sh && chmod +x DLS_install_prerequisites.sh
+wget -O DLS_install_prerequisites.sh https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/release-1.2.0/libraries/dl-streamer/scripts/DLS_install_prerequisites.sh && chmod +x DLS_install_prerequisites.sh
 ```
 
 ### Step 2: Execute the script and follow its instructions
@@ -122,7 +122,7 @@ sudo apt-get install intel-dlstreamer
 use!**
 
 To see the full list of installed components check the
-[Dockerfile content for Ubuntu 24](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile)
+[Dockerfile content for Ubuntu 24](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile)
 
 ### [Optional] Step 4: Python dependencies
 

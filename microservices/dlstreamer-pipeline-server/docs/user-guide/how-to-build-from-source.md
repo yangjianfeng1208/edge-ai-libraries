@@ -11,7 +11,7 @@ Note: Ensure to set the right values in the `[WORKDIR]/edge-ai-libraries/microse
 1. Clone the Edge-AI-Libraries repository from open edge platform and change to the docker directory inside DL Streamer Pipeline Server project.
 
     ```sh
-    git clone https://github.com/open-edge-platform/edge-ai-libraries.git
+    git clone https://github.com/open-edge-platform/edge-ai-libraries.git -b release-1.2.0
     cd edge-ai-libraries/microservices/dlstreamer-pipeline-server/
     ```
 
@@ -36,7 +36,7 @@ Note: Ensure to set the right values in the `[WORKDIR]/edge-ai-libraries/microse
     BUILD_TARGET=
     ```
 
-    Note: If you do not have access to the above mentioned `BASE_IMAGE`, then you can build [DL Streamer docker image from source](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer#build-the-dlstreamer-docker-image-with) and use it as `BASE_IMAGE` in the above mentioned `.env` file
+    Note: If you do not have access to the above mentioned `BASE_IMAGE`, then you can build [DL Streamer docker image from source](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer#build-the-dlstreamer-docker-image-with) and use it as `BASE_IMAGE` in the above mentioned `.env` file
 
 ### Build DL Streamer Pipeline Server image and start container
 

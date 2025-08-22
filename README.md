@@ -10,8 +10,6 @@
 
 The **Edge AI Libraries** project hosts a collection of libraries, microservices, and tools for Edge application development. This project also includes sample applications to showcase the generic AI use cases.
 
-Some of these components are available as git submodules, and can be fetched with `git submodule update --init --recursive`
-
 Key components of the **Edge AI Libraries**:
 
 | Component | Category | Get Started | Developers Docs |
@@ -51,8 +49,6 @@ Key components of the **Edge AI Libraries**:
 | [PLCopen Benchmark](plcopen-benchmark) | Sample Application | [Link](sample-applications/plcopen-benchmark) | [Build](sample-applications/plcopen-benchmark/README.md) |
 | [PLCopen Databus](plcopen-databus) | Sample Application | [Link](sample-applications/plcopen-databus) | [Build](sample-applications/plcopen-databus/README.md) |
 | [Video Search and Summarization](sample-applications/video-search-and-summarization) | Sample Application | [Link](sample-applications/video-search-and-summarization/docs/user-guide/get-started.md) | [Build](sample-applications/video-search-and-summarization/docs/user-guide/build-from-source.md) instructions |
-| [Optimized Isolation Forest Classifier Training and Inference Microservice](https://github.com/intel/isolation-forest-microservice) | Microservice| [Link](https://github.com/intel/isolation-forest-microservice/blob/main/README.md)| [Build](https://github.com/intel/isolation-forest-microservice/blob/main/README.md) |
-| [Optimizied Random Forest Training and Inference Microservice](https://github.com/intel/random-forest-microservice) | Microservice | [Link](https://github.com/intel/random-forest-microservice/blob/main/README.md) | [Build](https://github.com/intel/random-forest-microservice/blob/main/README.md) |
 
 > Intel, the Intel logo, OpenVINO, and the OpenVINO logo are trademarks of Intel Corporation or its subsidiaries.
 
@@ -78,6 +74,6 @@ The **Edge AI Libraries** project is licensed under the [APACHE 2.0](LICENSE) li
 |:----------|:--------|
 | Dataset Management Framework (Datumaro) | [MIT License](https://github.com/open-edge-platform/datumaro/blob/develop/LICENSE) |
 | Intel® Geti™ | [Limited Edge Software Distribution License](https://github.com/open-edge-platform/geti/blob/main/LICENSE) |
-| Intel® SceneScape | [Limited Edge Software Distribution License](https://github.com/open-edge-platform/scenescape/blob/main/LICENSE) |
+| Intel® SceneScape | [Limited Edge Software Distribution License](https://github.com/open-edge-platform/scenescape/tree/main/LICENSES) |
 
 

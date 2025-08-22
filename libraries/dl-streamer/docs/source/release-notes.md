@@ -31,15 +31,15 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 
 | Title | High-level description |
 |---|---|
-| Custom model post-processing | End user can now create a custom post-processing library (.so); [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc) added as reference.  |
+| Custom model post-processing | End user can now create a custom post-processing library (.so); [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc) added as reference.  |
 | Latency mode support | Default scheduling policy for DL Streamer is throughput. With this change user can add scheduling-policy=latency for scenarios that prioritize latency requirements over throughput. |
 |  |  |
-| Visual Embeddings enabled | New models enabled to convert input video into feature embeddings, validated with Clip-ViT-Base-B16/Clip-ViT-Base-B32 models; [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/lvm) added as reference. |
-| VLM models support | new gstgenai element added to convert video into text (with VLM models), validated with miniCPM2.6, available in advanced installation option when building from sources; [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/gvagenai) added as reference. |
+| Visual Embeddings enabled | New models enabled to convert input video into feature embeddings, validated with Clip-ViT-Base-B16/Clip-ViT-Base-B32 models; [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch/lvm) added as reference. |
+| VLM models support | new gstgenai element added to convert video into text (with VLM models), validated with miniCPM2.6, available in advanced installation option when building from sources; [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch/gvagenai) added as reference. |
 | INT8 automatic quantization support for Yolo models | Performance improvement, automatic INT8 quantization for Yolo models |
 | MS Windows 11 support  | Native support for Windows 11 |
 | New Linux distribution (Azure Linux derivative) | New distribution added, DL Streamer can be now installed on Edge Microvisor Toolkit. |
-| License plate recognition use case support | Added support for models that allow to recognize license plates; [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/license_plate_recognition) added as reference.  |
+| License plate recognition use case support | Added support for models that allow to recognize license plates; [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch/license_plate_recognition) added as reference.  |
 | Deep Scenario model support | Commercial 3D model support |
 | OpenVINO 2025.2 version support | Support of recent OpenVINO version added. |
 | GStreamer 1.26.4 version support | Support of recent GStreamer version added. |

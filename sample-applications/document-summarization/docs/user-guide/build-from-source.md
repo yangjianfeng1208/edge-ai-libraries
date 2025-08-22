@@ -16,7 +16,7 @@ Before you begin, ensure that you have the following prerequisites:
 1. **Clone the Repository**:
     - Clone the Document Summarization Sample Application repository:
       ```bash
-      git clone https://github.com/open-edge-platform/edge-ai-libraries.git edge-ai-libraries
+      git clone https://github.com/open-edge-platform/edge-ai-libraries.git edge-ai-libraries -b release-1.2.0
       ```
       **Note**: Adjust the repo link appropriately in case of forked repo.
 
@@ -36,7 +36,7 @@ Before you begin, ensure that you have the following prerequisites:
 
       # Docker Image Registry Configuration
       export REGISTRY="intel/"
-      export TAG=1.0.1
+      export TAG=1.0.0
       ```
 
       To run a **GATED MODEL** like Llama models, the user will need to pass their [huggingface token](https://huggingface.co/docs/hub/security-tokens#user-access-tokens). The user will need to request access to specific model by going to the respective model page on HuggingFace.

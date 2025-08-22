@@ -68,12 +68,6 @@ Please go through prerequisites 1 & 2 described in
   sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip   glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel   libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
   ```
 
-### EMT 3.x
-
-```bash
-sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
-```
-
 ## Step 3: Set up a Python environment
 
 Create a Python virtual environment and install required Python
@@ -325,6 +319,7 @@ source /opt/intel/openvino_2025/setupvars.sh
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
+
 
   # Download, compile and install `librdkafka`. This step is not required on EMT, because `librdkafka`
   # is installed as part of build dependencies, in the steps above.
