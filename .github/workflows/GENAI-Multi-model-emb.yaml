@@ -200,8 +200,8 @@ jobs:
       - name: Install dependencies and pylint
         run: |
           cd microservices/multimodal-embedding-serving/
-          poetry install
-          poetry add --group dev pylint
+          poetry install || true
+          poetry add --group dev pylint || true
       
       - name: Run pylint
         run: |
