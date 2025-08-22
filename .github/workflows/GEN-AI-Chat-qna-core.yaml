@@ -14,7 +14,7 @@ concurrency:
 on:
   pull_request:
     branches:
-      - chat-qna-workflow
+      - main
     paths:
       - 'sample-applications/chat-question-and-answer-core/**'
 
