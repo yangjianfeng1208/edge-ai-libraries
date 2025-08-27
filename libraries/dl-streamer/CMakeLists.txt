@@ -130,7 +130,7 @@ cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_VPUX "Enables VPUX specific features" OFF)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
-option(ENABLE_GENAI "Enables GenAI elements" OFF)
+option(ENABLE_GENAI "Enables GenAI elements" ON)
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
 message("ENABLE_REALSENSE=${ENABLE_REALSENSE}")
