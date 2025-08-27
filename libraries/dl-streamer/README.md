@@ -67,7 +67,7 @@ export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 #### Install Deep Learning Streamer onto your system with
 > Note: DL Streamer will be installed in the `/opt/intel/dlstreamer` directory during this process.
 ```bash
-make install
+sudo -E make install
 ```
 
 You can run the installed DL Streamer by configuring your environment with these values:
