@@ -8,6 +8,8 @@ cmake_minimum_required(VERSION 3.20)
 
 project(DL_Streamer C CXX)
 
+include_directories("${CMAKE_BINARY_DIR}/deps/install/include;${CMAKE_BINARY_DIR}/deps/gstreamer-bin/include;${CMAKE_BINARY_DIR}/deps/opencv-bin/include")
+
 if (WIN32)
     add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
     add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
@@ -41,10 +43,10 @@ set(PLUGIN_VERSION ${PRODUCT_VERSION})
 
 add_definitions(-DPLUGIN_VERSION="${PLUGIN_VERSION}")
 add_definitions(-DPACKAGE="dlstreamer")
-add_definitions(-DPACKAGE_NAME="Intel® DL Streamer elements")
+add_definitions(-DPACKAGE_NAME="Deep Learning Streamer elements")
 add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer")
 add_definitions(-DPLUGIN_LICENSE="MIT/X11")
-add_definitions(-DPRODUCT_FULL_NAME="Intel® DL Streamer")
+add_definitions(-DPRODUCT_FULL_NAME="Deep Learning Streamer")
 
 # Helper macros and functions
 
@@ -123,6 +125,7 @@ cmake_dependent_option(ENABLE_ITT "Enable ITT for tracing" ON "UNIX AND NOT ${CM
 cmake_dependent_option(ENABLE_VAAPI "Parameter to enable VAAPI for image pre-processing" ON "UNIX" ON)
 cmake_dependent_option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF "UNIX" OFF)
 cmake_dependent_option(ENABLE_TESTS "Parameter to enable tests building" ON "UNIX" OFF)
+cmake_dependent_option(ENABLE_FUZZING "Parameter to enable fuzzy tests building" OFF "UNIX" OFF)
 cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF "UNIX" OFF)
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_VPUX "Enables VPUX specific features" OFF)
@@ -215,5 +218,5 @@ endif()
 
 if(${ENABLE_TESTS} AND NOT(WIN32))
     enable_testing()
-    add_subdirectory(tests/unit_tests)
+    add_subdirectory(tests)
 endif()

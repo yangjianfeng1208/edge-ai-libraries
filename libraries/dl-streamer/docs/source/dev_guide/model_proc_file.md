@@ -9,7 +9,7 @@
 > in [Model Info
 > Section](https://dlstreamer.github.io/dev_guide/model_info_xml.html)
 
-## Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Pre-processing description](#pre-processing-description)
@@ -19,7 +19,7 @@
   - [Post-processing configuration](#post-processing-configuration)
   - [Example](#example-of-output-post-processing)
 
-## Overview
+## Summary
 
 A model-proc file is a regular JSON file with pre- and post-processing
 configuration.
@@ -64,8 +64,8 @@ models.
 
 This file has specific fields:
 
-- `json_schema_version`. Service information needed by Intel® Deep
-  Learning Streamer (Intel® DL Streamer) Pipeline Framework. **The
+- `json_schema_version`. Service information needed by Deep
+  Learning Streamer Pipeline Framework. **The
   latest version should be used: 2.2.0**.
 - `input_preproc`. Describes how to process an input tensor before
   inference.
@@ -302,7 +302,7 @@ the code snippet below.
 ...
 ```
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 2
 
 how_to_create_model_proc_file
