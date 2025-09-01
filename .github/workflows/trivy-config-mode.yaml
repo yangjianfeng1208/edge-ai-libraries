@@ -12,6 +12,11 @@ on:
         required: false
         default: 'json'
         type: string
+      trivy-config-path:
+        description: 'Path to custom Trivy config file'
+        required: false
+        default: ''
+        type: string
       severity-levels:
         description: 'Severity levels to check (comma-separated, e.g. LOW,MEDIUM,HIGH,CRITICAL)'
         required: false
@@ -87,7 +92,7 @@ jobs:
           output_report_path: ${{ inputs.output-report-path }}
           severity_levels: ${{ inputs.severity-levels }}
           trivy_report_format: ${{ inputs.trivy-report-format }}
-          trivy_config_path: ${{ inputs.trivy_config_path }}
+          trivy_config_path: ${{ inputs.trivy-config-path }}
         run: |
           echo "🔍 Scanning: ${dockerfile_path}"
           echo "📁 Saving report to: ${output_report_path}"

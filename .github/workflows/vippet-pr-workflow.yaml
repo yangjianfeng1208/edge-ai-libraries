@@ -55,7 +55,7 @@ jobs:
     uses: ./.github/workflows/trivy-config-mode.yaml
     with:
       dockerfile-path: ${{ matrix.path }}
-      trivy_config_path: 'tools/visual-pipeline-and-platform-evaluation-tool/trivy.yaml'
+      trivy-config-path: 'tools/visual-pipeline-and-platform-evaluation-tool/trivy.yaml'
       trivy-report-format: 'json'
       severity-levels: 'HIGH,CRITICAL'
       output-report-path: ${{ matrix.output }}
