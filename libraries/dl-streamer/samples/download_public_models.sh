@@ -215,7 +215,9 @@ echo "Activating virtual environment in $VENV_DIR..."
 source "$VENV_DIR/bin/activate"
 
 # Upgrade pip in the virtual environment
-pip install --no-cache-dir --upgrade pip
+if [[ "${ID}" != "fedora" ]]; then
+  pip install --no-cache-dir --upgrade pip
+fi
 
 # Install OpenVINO module
 pip install --no-cache-dir openvino==2024.6.0 || handle_error $LINENO
@@ -229,9 +231,6 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
   pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
-  if [[ "${ID}" == "fedora" ]]; then
-    pip install --force-reinstall numpy==1.16.6 || handle_error $LINENO
-  fi
 fi
 
 # Install dependencies for CLIP models
