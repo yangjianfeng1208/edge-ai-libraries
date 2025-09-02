@@ -48,7 +48,7 @@ jobs:
       trivy-report-format: 'json'
       severity-levels: 'HIGH,CRITICAL'
       output-report-path: vippet-trivy-dockerfiles.json
-      name: ViPPET Dockerfiles Scan
+      name: vippet-dockerfiles-scan
   final-check:
     permissions:
       contents: read
