@@ -59,7 +59,7 @@ jobs:
           CHANGED_FILES=$(git diff --name-only origin/main HEAD)
           echo "📄 Changed files:"
           echo "$CHANGED_FILES"
-          if echo "$CHANGED_FILES" | grep -q '^tools/visual-pipeline-and-platform-evaluation-tool/'; then
+          if echo "$CHANGED_FILES" | grep -q '^tools/visual-pipeline-and-platform-evaluation-tool/.*Dockerfile'; then
             echo "docker_changed=true" >> "$GITHUB_OUTPUT"
             echo "🟡 Docker-related changes detected."
           else
