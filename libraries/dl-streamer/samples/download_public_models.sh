@@ -229,6 +229,9 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
   pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
+  if [[ "${ID}" == "fedora" ]]; then
+    pip install --force-reinstall numpy=1.26.4 || handle_error $LINENO
+  fi
 fi
 
 # Install dependencies for CLIP models
