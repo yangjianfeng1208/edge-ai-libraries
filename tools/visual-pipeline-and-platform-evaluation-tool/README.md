@@ -1,5 +1,3 @@
-# Trigger CI pipeline
-
 # Visual Pipeline and Platform Evaluation Tool
 <!-- required for catalog, do not remove -->
 Assess Intel® hardware options, benchmark performance, and analyze key metrics to optimize hardware selection for AI workloads.
