@@ -365,7 +365,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN \
+    mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
+    find /opt/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -450,13 +452,6 @@ COPY --from=deb-builder /*.deb /debs/
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# OpenVINO Gen AI
-ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_2025.2.0.0_x86_64
-ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/${OPENVINO_GENAI_VER}.tar.gz
-
-RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
-    mv ${OPENVINO_GENAI_VER} /opt/openvino_genai
-
 RUN \
     apt-get update && \
     apt-get install -y -q --no-install-recommends ./debs/*.deb && \
@@ -489,4 +484,4 @@ USER dlstreamer
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD [ "bash", "-c", "pgrep bash > /dev/null || exit 1" ]
 
-CMD ["/bin/bash", "-c", "source /opt/openvino_genai/setupvars.sh > /dev/null && /bin/bash"]
+CMD ["/bin/bash"]
