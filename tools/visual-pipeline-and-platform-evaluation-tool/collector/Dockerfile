@@ -1,5 +1,5 @@
 FROM docker.io/library/rust:1.87 AS qmassa
-#test CI
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libudev-dev && \
