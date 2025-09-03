@@ -9,7 +9,6 @@
 #include "safe_arithmetic.hpp"
 #include "utils.h"
 #include "video_frame.h"
-#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 #include <gst/analytics/analytics.h>
 #include <inference_backend/logger.h>
 
