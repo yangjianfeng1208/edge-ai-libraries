@@ -215,9 +215,7 @@ echo "Activating virtual environment in $VENV_DIR..."
 source "$VENV_DIR/bin/activate"
 
 # Upgrade pip in the virtual environment
-if [[ "${ID}" != "fedora" ]]; then
-  pip install --no-cache-dir --upgrade pip
-fi
+pip install --no-cache-dir --upgrade pip
 
 # Install OpenVINO module
 pip install --no-cache-dir openvino==2024.6.0 || handle_error $LINENO
