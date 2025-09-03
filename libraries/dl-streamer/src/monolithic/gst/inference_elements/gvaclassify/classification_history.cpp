@@ -13,7 +13,6 @@
 #include <video_frame.h>
 
 #include <algorithm>
-#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 
 ClassificationHistory::ClassificationHistory(GstGvaClassify *gva_classify)
     : gva_classify(gva_classify), current_num_frame(0), history(CLASSIFICATION_HISTORY_SIZE) {

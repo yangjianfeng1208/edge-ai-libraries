@@ -30,7 +30,6 @@
 #include <assert.h>
 #include <cmath>
 #include <cstring>
-#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 #include <exception>
 #include <gst/analytics/analytics.h>
 #include <map>
@@ -1174,13 +1173,6 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
 
             //         roi.roi_type = gst_analytics_od_mtd_get_obj_type(&od_meta);
             //         roi.id = od_meta.id;
-
-            //         GstAnalyticsODExtMtd od_ext_meta;
-            //         if (gst_analytics_relation_meta_get_direct_related(
-            //                 relation_meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
-            //                 gst_analytics_od_ext_mtd_get_mtd_type(), nullptr, &od_ext_meta)) {
-            //             roi.params = gst_analytics_od_ext_mtd_get_params(&od_ext_meta);
-            //         }
 
             //         if (!gva_base_inference->is_roi_inference_needed ||
             //             gva_base_inference->is_roi_inference_needed(gva_base_inference,

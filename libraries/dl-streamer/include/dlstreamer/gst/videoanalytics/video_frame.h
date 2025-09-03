@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include "../metadata/objectdetectionmtdext.h"
 #include "region_of_interest.h"
 
 #include "../metadata/gva_json_meta.h"

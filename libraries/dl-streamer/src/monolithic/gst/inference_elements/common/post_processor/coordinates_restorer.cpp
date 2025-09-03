@@ -13,7 +13,6 @@
 
 #include "inference_backend/logger.h"
 
-#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 #include <exception>
 
 using namespace post_processing;
