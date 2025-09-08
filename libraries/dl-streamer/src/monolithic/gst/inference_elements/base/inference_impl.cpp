@@ -1093,8 +1093,8 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
                 image.reset();
             std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> input_preprocessors;
             if (!model.input_processor_info.empty() && gva_base_inference->input_prerocessors_factory)
-                input_preprocessors = gva_base_inference->input_prerocessors_factory(
-                    model.inference, model.input_processor_info, &meta, buffer);
+                input_preprocessors =
+                    gva_base_inference->input_prerocessors_factory(model.inference, model.input_processor_info, &meta);
             model.inference->SubmitImage(std::move(result), input_preprocessors);
         }
     } catch (const std::exception &e) {

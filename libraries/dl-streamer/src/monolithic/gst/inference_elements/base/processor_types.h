@@ -49,8 +49,7 @@ typedef InputPreprocessingFunction (*InputPreprocessingFunctionGetter)(
     GstVideoRegionOfInterestMeta *roi_meta);
 typedef std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> (*InputPreprocessorsFactory)(
     const std::shared_ptr<InferenceBackend::ImageInference> &inference,
-    const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info, GstVideoRegionOfInterestMeta *roi,
-    GstBuffer *buffer);
+    const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info, GstVideoRegionOfInterestMeta *roi);
 typedef void (*PreProcFunction)(GstStructure *preproc, InferenceBackend::Image &image);
 typedef bool (*FilterROIFunction)(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
                                   GstVideoRegionOfInterestMeta *roi);
