@@ -7,6 +7,8 @@ import struct
 from gstpipeline import GstPipeline
 from utils import UINT8_DTYPE_SIZE, VIDEO_STREAM_META_PATH, is_yolov10_model
 
+logger = logging.getLogger("smartnvr")
+
 
 class SmartNVRPipeline(GstPipeline):
     def __init__(self):
@@ -20,7 +22,7 @@ class SmartNVRPipeline(GstPipeline):
 
         self._sink = "sink_{id}::xpos={xpos} sink_{id}::ypos={ypos} sink_{id}::alpha=1 "
 
-        # Add shmsink for live streaming (shared memory)
+        # Add shmsink for live-streaming (shared memory)
         self._shmsink = (
             "shmsink socket-path=/tmp/shared_memory/video_stream "
             "wait-for-connection=false "
@@ -137,14 +139,14 @@ class SmartNVRPipeline(GstPipeline):
         if elements is None:
             elements = []
 
-        # Set pre process backed for object detection
+        # Set pre-process backend for object detection
         parameters["object_detection_pre_process_backend"] = (
             "opencv"
             if parameters["object_detection_device"] in ["CPU", "NPU"]
             else "va-surface-sharing"
         )
 
-        # Set pre process backed for object classification
+        # Set pre-process backend for object classification
         parameters["object_classification_pre_process_backend"] = (
             "opencv"
             if parameters["object_classification_device"] in ["CPU", "NPU"]
@@ -162,100 +164,30 @@ class SmartNVRPipeline(GstPipeline):
             ypos = 360 * (i // grid_size)
             sinks += self._sink.format(id=i, xpos=xpos, ypos=ypos)
 
-        # Find the available compositor in elements dynamically
-        if (
-            parameters["object_detection_device"].startswith("GPU.")
-            and int(parameters["object_detection_device"].split(".")[1]) > 0
-        ):
-            gpu_index = parameters["object_detection_device"].split(".")[1]
-            # Map GPU index to the corresponding VAAPI element suffix (e.g., "129" for GPU.1)
-            vaapi_suffix = str(
-                128 + int(gpu_index)
-            )  # 128 + 1 = 129, 128 + 2 = 130, etc.
-            _compositor_element = f"varenderD{vaapi_suffix}compositor"
-        else:
-            _compositor_element = next(
-                (
-                    "vacompositor"
-                    for element in elements
-                    if element[1] == "vacompositor"
-                ),
-                next(
-                    (
-                        "compositor"
-                        for element in elements
-                        if element[1] == "compositor"
-                    ),
-                    None,  # Fallback to None if no compositor is found
-                ),
-            )
+        # Use PipelineElementsSelector for element selection
+        selector = PipelineElementsSelector(parameters, elements)
+        _compositor_element = selector.compositor_element()
+        _encoder_element = selector.encoder_element()
+        _decoder_element = selector.decoder_element()
+        _postprocessing_element = selector.postprocessing_element()
 
-        # Find the available encoder dynamically
-        if (
-            parameters["object_detection_device"].startswith("GPU.")
-            and int(parameters["object_detection_device"].split(".")[1]) > 0
+        # If any of the essential elements is not found, log an error and return an empty string
+        if not all(
+            [
+                _compositor_element,
+                _encoder_element,
+                _decoder_element,
+                _postprocessing_element,
+            ]
         ):
-            gpu_index = parameters["object_detection_device"].split(".")[1]
-            # Map GPU index to the corresponding VAAPI element suffix (e.g., "129" for GPU.1)
-            vaapi_suffix = str(
-                128 + int(gpu_index)
-            )  # 128 + 1 = 129, 128 + 2 = 130, etc.
-            _encoder_element = f"varenderD{vaapi_suffix}h264lpenc"
+            logger.error("Could not find all necessary elements for the pipeline.")
+            logger.error(
+                f"Compositor: {_compositor_element}, Encoder: {_encoder_element}, Decoder: {_decoder_element}, Postprocessing: {_postprocessing_element}"
+            )
+            return ""
         else:
-            # Fallback to default encoder if no specific GPU is selected
-            _encoder_element = next(
-                ("vah264lpenc" for element in elements if element[1] == "vah264lpenc"),
-                next(
-                    ("vah264enc" for element in elements if element[1] == "vah264enc"),
-                    next(
-                        (
-                            "x264enc bitrate=16000 speed-preset=superfast"
-                            for element in elements
-                            if element[1] == "x264enc"
-                        ),
-                        None,  # Fallback to None if no encoder is found
-                    ),
-                ),
-            )
-
-        # Find the available decoder and postprocessing elements dynamically
-        if (
-            parameters["object_detection_device"].startswith("GPU.")
-            and int(parameters["object_detection_device"].split(".")[1]) > 0
-        ):
-            # Extract the GPU index (e.g., "1" from "GPU.1")
-            gpu_index = parameters["object_detection_device"].split(".")[1]
-            # Map GPU index to the corresponding VAAPI element suffix (e.g., "129" for GPU.1)
-            vaapi_suffix = str(
-                128 + int(gpu_index)
-            )  # 128 + 1 = 129, 128 + 2 = 130, etc.
-            _decoder_element = (
-                f"varenderD{vaapi_suffix}h264dec ! video/x-raw(memory:VAMemory)"
-            )
-            _postprocessing_element = f"varenderD{vaapi_suffix}postproc"
-        else:
-            # Fallback to default elements if no specific GPU is selected
-            _decoder_element = next(
-                (
-                    "vah264dec ! video/x-raw(memory:VAMemory)"
-                    for element in elements
-                    if element[1] == "vah264dec"
-                ),
-                next(
-                    ("decodebin" for element in elements if element[1] == "decodebin"),
-                    None,  # Fallback to None if no decoder is found
-                ),
-            )
-            _postprocessing_element = next(
-                ("vapostproc" for element in elements if element[1] == "vapostproc"),
-                next(
-                    (
-                        "videoscale"
-                        for element in elements
-                        if element[1] == "videoscale"
-                    ),
-                    None,  # Fallback to None if no postprocessing is found
-                ),
+            logger.info(
+                f"Using pipeline elements - Compositor: {_compositor_element}, Encoder: {_encoder_element}, Decoder: {_decoder_element}, Postprocessing: {_postprocessing_element}"
             )
 
         # Create the streams
@@ -276,9 +208,9 @@ class SmartNVRPipeline(GstPipeline):
 
             # Set inference config parameter for GPU if using YOLOv10
             ie_config_parameter = ""
-            if parameters["object_detection_device"] == "GPU" and is_yolov10_model(
-                constants["OBJECT_DETECTION_MODEL_PATH"]
-            ):
+            if parameters.get("object_detection_device", "").startswith(
+                "GPU"
+            ) and is_yolov10_model(constants["OBJECT_DETECTION_MODEL_PATH"]):
                 ie_config_parameter = "ie-config=GPU_DISABLE_WINOGRAD_CONVOLUTION=YES"
 
             streams += self._inference_stream_decode_detect_track.format(
@@ -367,7 +299,7 @@ class SmartNVRPipeline(GstPipeline):
                         )
                     )
             except Exception as e:
-                logging.warning(f"Could not write shared memory meta file: {e}")
+                logger.warning(f"Could not write shared memory meta file: {e}")
 
             streams = (
                 self._compositor_with_tee.format(
@@ -395,3 +327,160 @@ class SmartNVRPipeline(GstPipeline):
 
         # Evaluate the pipeline
         return "gst-launch-1.0 -q " + streams
+
+
+class PipelineElementsSelector:
+    def __init__(self, parameters: dict, elements: list):
+        self.parameters = parameters
+        self.elements = elements
+
+        # Calculate vaapi_suffix once
+        device = parameters.get("object_detection_device", "")
+        # If there is more than one GPU, device names are like GPU.0, GPU.1, ...
+        # If there is only one GPU, device name is just GPU
+        if device.startswith("GPU.") and int(device.split(".")[1]) > 0:
+            gpu_index = int(device.split(".")[1])
+            self.vaapi_suffix = str(
+                128 + gpu_index
+            )  # means that there is more than one GPU and GPU.N was selected (N>0), 128 + 1 = 129, 128 + 2 = 130, etc.
+        else:
+            self.vaapi_suffix = (
+                None  # means that either CPU, NPU, GPU, or GPU.0 was selected
+            )
+
+        # Compositor
+        # If vaapi_suffix is set, try to find varenderD{suffix}compositor first, e.g. varenderD129compositor for GPU.1
+        # If not found, fallback to vacompositor or compositor
+        self._compositor_element = None
+        if self.vaapi_suffix is not None:
+            varender_compositor = f"varenderD{self.vaapi_suffix}compositor"
+            self._compositor_element = next(
+                (
+                    varender_compositor
+                    for element in elements
+                    if element[1] == varender_compositor
+                ),
+                None,
+            )
+        if self._compositor_element is None:
+            self._compositor_element = next(
+                (
+                    "vacompositor"
+                    for element in elements
+                    if element[1] == "vacompositor"
+                ),
+                next(
+                    (
+                        "compositor"
+                        for element in elements
+                        if element[1] == "compositor"
+                    ),
+                    None,
+                ),
+            )
+
+        # Encoder
+        # If vaapi_suffix is set, try to find varenderD{suffix}h264lpenc first, e.g. varenderD129h264lpenc for GPU.1
+        # If not found, try varenderD{suffix}h264enc
+        # If still not found, fallback to vah264lpenc, vah264enc, or x264enc
+        self._encoder_element = None
+        if self.vaapi_suffix is not None:
+            varender_encoder_lp = f"varenderD{self.vaapi_suffix}h264lpenc"
+            varender_encoder = f"varenderD{self.vaapi_suffix}h264enc"
+
+            self._encoder_element = next(
+                (
+                    varender_encoder_lp
+                    for element in elements
+                    if element[1] == varender_encoder_lp
+                ),
+                next(
+                    (
+                        varender_encoder
+                        for element in elements
+                        if element[1] == varender_encoder
+                    ),
+                    None,
+                ),
+            )
+        if self._encoder_element is None:
+            self._encoder_element = next(
+                ("vah264lpenc" for element in elements if element[1] == "vah264lpenc"),
+                next(
+                    ("vah264enc" for element in elements if element[1] == "vah264enc"),
+                    next(
+                        (
+                            "x264enc bitrate=16000 speed-preset=superfast"
+                            for element in elements
+                            if element[1] == "x264enc"
+                        ),
+                        None,
+                    ),
+                ),
+            )
+
+        # Decoder
+        # If vaapi_suffix is set, try to find varenderD{suffix}h264dec first, e.g. varenderD129h264dec for GPU.1
+        # If not found, fallback to vah264dec or decodebin
+        self._decoder_element = None
+        if self.vaapi_suffix is not None:
+            varender_decoder = f"varenderD{self.vaapi_suffix}h264dec"
+            self._decoder_element = next(
+                (
+                    f"{varender_decoder} ! video/x-raw(memory:VAMemory)"
+                    for element in elements
+                    if element[1] == varender_decoder
+                ),
+                None,
+            )
+        if self._decoder_element is None:
+            self._decoder_element = next(
+                (
+                    "vah264dec ! video/x-raw(memory:VAMemory)"
+                    for element in elements
+                    if element[1] == "vah264dec"
+                ),
+                next(
+                    ("decodebin" for element in elements if element[1] == "decodebin"),
+                    None,
+                ),
+            )
+
+        # Postprocessing
+        # If vaapi_suffix is set, try to find varenderD{suffix}postproc first, e.g. varenderD129postproc for GPU.1
+        # If not found, fallback to vapostproc or videoscale
+        self._postprocessing_element = None
+        if self.vaapi_suffix is not None:
+            varender_postprocessing = f"varenderD{self.vaapi_suffix}postproc"
+            self._postprocessing_element = next(
+                (
+                    varender_postprocessing
+                    for element in elements
+                    if element[1] == varender_postprocessing
+                ),
+                None,
+            )
+        if self._postprocessing_element is None:
+            self._postprocessing_element = next(
+                ("vapostproc" for element in elements if element[1] == "vapostproc"),
+                next(
+                    (
+                        "videoscale"
+                        for element in elements
+                        if element[1] == "videoscale"
+                    ),
+                    None,
+                ),
+            )
+
+    def compositor_element(self):
+        return self._compositor_element
+
+    def encoder_element(self):
+        return self._encoder_element
+
+    def decoder_element(self):
+        return self._decoder_element
+
+    def postprocessing_element(self):
+        return self._postprocessing_element
