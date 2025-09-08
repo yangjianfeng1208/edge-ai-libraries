@@ -50,9 +50,6 @@ if [ "$INFERENCE_DEVICE" == "CPU" ]; then
 elif [ "$INFERENCE_DEVICE" == "GPU" ]; then
     DECODE_ELEMENT+="! vapostproc"
     DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
-elif [ "$INFERENCE_DEVICE" != "AUTO" ] || [ "$INFERENCE_DEVICE" != "MULTI:GPU,CPU" ]; then
-  echo "Incorrect parameter INFERENCE_DEVICE. Supported values: CPU, GPU, AUTO, MULTI:GPU,CPU"
-  exit
 fi
 
 if [ "$DECODE_DEVICE" != "AUTO" ] || [ "$INFERENCE_DEVICE" == "CPU" ] || [ "$INFERENCE_DEVICE" == "GPU" ]; then
