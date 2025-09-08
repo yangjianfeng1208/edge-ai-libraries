@@ -274,7 +274,7 @@ gboolean process_onet_nms(GstGvaNms *nms, GstBuffer *buffer) {
 
         GstVideoRegionOfInterestMeta *meta =
             gst_buffer_add_video_region_of_interest_meta(buffer, 0, c->x, c->y, c->width, c->height);
-        meta->id = gst_util_seqnum_next();
+        meta->id = od_mtd.id;
         gst_video_region_of_interest_meta_add_param(meta, params);
     }
 
