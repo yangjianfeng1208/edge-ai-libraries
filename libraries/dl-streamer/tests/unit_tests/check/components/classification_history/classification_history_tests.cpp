@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
+#include "gst/analytics/analytics.h"
 #include "gva_utils.h"
 #include <classification_history.h>
 #include <gmock/gmock.h>
@@ -68,17 +69,48 @@ struct ClassificationHistoryTest : public ::testing::Test {
         size_t image_size = image.cols * image.rows * image.channels();
         custom_buf = gst_buffer_new_and_alloc(image_size);
         gst_buffer_fill(custom_buf, 0, image.data, image_size);
+
+        GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(custom_buf);
+
+        if (!relation_meta) {
+            throw std::runtime_error("ClassificationHistoryTest: Failed to add GstAnalyticsRelationMeta to buffer");
+        }
+
         for (auto input_bbox : test_data.boxes) {
-            gst_buffer_add_video_region_of_interest_meta(custom_buf, NULL, input_bbox.x_min * test_data.width,
-                                                         input_bbox.y_min * test_data.height,
-                                                         (input_bbox.x_max - input_bbox.x_min) * test_data.width,
-                                                         (input_bbox.y_max - input_bbox.y_min) * test_data.height);
+            auto roi = gst_buffer_add_video_region_of_interest_meta(
+                custom_buf, NULL, input_bbox.x_min * test_data.width, input_bbox.y_min * test_data.height,
+                (input_bbox.x_max - input_bbox.x_min) * test_data.width,
+                (input_bbox.y_max - input_bbox.y_min) * test_data.height);
+
+            GstAnalyticsODMtd od_mtd;
+            if (!gst_analytics_relation_meta_add_oriented_od_mtd(
+                    relation_meta, 0, input_bbox.x_min * test_data.width, input_bbox.y_min * test_data.height,
+                    (input_bbox.x_max - input_bbox.x_min) * test_data.width,
+                    (input_bbox.y_max - input_bbox.y_min) * test_data.height, 0.0, 0.0, &od_mtd)) {
+                throw std::runtime_error("ClassificationHistoryTest: Failed to add object detection metadata");
+            }
+
+            roi->id = od_mtd.id;
         }
         GstVideoRegionOfInterestMeta *roi = nullptr;
         void *state = nullptr;
-        if (roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(custom_buf, &state)) {
+        GstAnalyticsODMtd od_mtd;
+        while (
+            gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_mtd)) {
+            roi = gst_buffer_get_video_region_of_interest_meta_id(custom_buf, od_mtd.id);
+
+            if (!roi) {
+                throw std::runtime_error("ClassificationHistoryTest: Failed to get video region of interest meta for "
+                                         "object detection metadata");
+            }
+
             set_object_id(roi, id);
+            set_od_id(od_mtd, id);
         }
+
+        // if (roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(custom_buf, &state)) {
+        //     set_object_id(roi, id);
+        // }
         return custom_buf;
     }
     void SetUpModel(std::string _name, std::string _precision = "FP32") {
@@ -112,7 +144,25 @@ struct ClassificationHistoryTest : public ::testing::Test {
 
         classification_history = gva_classify->classification_history;
         buffer = gst_buffer_new_and_alloc(100);
-        meta = gst_buffer_add_video_region_of_interest_meta(buffer, "label", 0, 0, 0, 0);
+
+        const gchar *label = "label";
+        GQuark label_quark = g_quark_from_string(label);
+
+        meta = gst_buffer_add_video_region_of_interest_meta(buffer, label, 0, 0, 0, 0);
+
+        GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(buffer);
+
+        if (!relation_meta) {
+            throw std::runtime_error("ClassificationHistoryTest: Failed to add GstAnalyticsRelationMeta to buffer");
+        }
+
+        GstAnalyticsODMtd od_mtd;
+        if (!gst_analytics_relation_meta_add_oriented_od_mtd(relation_meta, label_quark, 0, 0, 0, 0, 0.0, 0.0,
+                                                             &od_mtd)) {
+            throw std::runtime_error("ClassificationHistoryTest: Failed to add object detection metadata");
+        }
+
+        meta->id = od_mtd.id;
 
         SetUpModel("age-gender-recognition-retail-0013");
     }

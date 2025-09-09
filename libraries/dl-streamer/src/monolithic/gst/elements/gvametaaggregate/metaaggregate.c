@@ -103,10 +103,10 @@ gboolean copy_one_gst_analytics_mtd(GstAnalyticsRelationMeta *dst, const GstAnal
 
         GQuark label_quark = gst_analytics_od_mtd_get_obj_type(mtd);
 
-        gint new_x = (gint)(x * scale_x + 0.5);
-        gint new_y = (gint)(y * scale_y + 0.5);
-        gint new_w = (gint)(w * scale_x + 0.5);
-        gint new_h = (gint)(h * scale_y + 0.5);
+        gint new_x = scale_x != 1 ? (gint)(x * scale_x + 0.5) : x;
+        gint new_y = scale_y != 1 ? (gint)(y * scale_y + 0.5) : y;
+        gint new_w = scale_x != 1 ? (gint)(w * scale_x + 0.5) : w;
+        gint new_h = scale_y != 1 ? (gint)(h * scale_y + 0.5) : h;
 
         if (!gst_analytics_relation_meta_add_oriented_od_mtd(dst, label_quark, new_x, new_y, new_w, new_h, r,
                                                              loc_conf_lvl, new_mtd)) {

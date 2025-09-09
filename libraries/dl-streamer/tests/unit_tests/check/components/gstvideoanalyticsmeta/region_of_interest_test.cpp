@@ -51,7 +51,7 @@ struct RegionOfInterestTest : public ::testing::Test {
 
         GstAnalyticsODMtd od_mtd;
         gboolean ret = gst_analytics_relation_meta_add_oriented_od_mtd(relation_meta, label_quark, 0.0, 0.0, 0.3, 0.6,
-                                                                       0.0, 0.77, &od_mtd);
+                                                                       0.0, 0.77f, &od_mtd);
         ASSERT_TRUE(ret);
 
         meta->id = od_mtd.id;
@@ -68,7 +68,6 @@ struct RegionOfInterestTest : public ::testing::Test {
 };
 
 TEST_F(RegionOfInterestTest, RegionOfInterestTestTensors) {
-    ASSERT_DOUBLE_EQ(region_of_interest->confidence(), 0.77);
     ASSERT_EQ(region_of_interest->tensors().size(), 0);
 
     std::vector<GVA::Tensor> test_tensors;
@@ -86,7 +85,7 @@ TEST_F(RegionOfInterestTest, RegionOfInterestTestTensors) {
     region_of_interest->add_tensor(detection);
 
     ASSERT_EQ(region_of_interest->tensors().size(), tensors_num + 1);
-    ASSERT_DOUBLE_EQ(region_of_interest->confidence(), 0.77);
+    ASSERT_DOUBLE_EQ(region_of_interest->confidence(), 0.77f);
     ASSERT_DOUBLE_EQ((*region_of_interest).tensors()[5].confidence(), 0.5);
 
     double confidence = 0.0;
