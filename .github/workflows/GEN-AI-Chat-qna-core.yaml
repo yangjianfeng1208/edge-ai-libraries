@@ -35,7 +35,7 @@ jobs:
 
   # Job 2: Build AND Scan each component in parallel
   build_and_scan:
-    runs-on: ubuntu-22-04-32core-128GB
+    runs-on: ubuntu-22.04-32core-128GB
     needs: setup
     strategy:
       fail-fast: false
