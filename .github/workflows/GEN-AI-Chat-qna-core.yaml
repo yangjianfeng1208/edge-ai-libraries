@@ -20,6 +20,7 @@ on:
 
 env:
   APP_PATH: sample-applications/chat-question-and-answer-core
+  APP_NAME: chatqna-core
 
 jobs:
   
@@ -102,3 +103,108 @@ jobs:
         with:
           name: trivy-report-${{ matrix.name }}
           path: security-results/trivy*
+
+  bandit-scan:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+      
+      - name: Run Bandit Scan
+        uses: open-edge-platform/orch-ci/.github/actions/security/bandit@27276444a9bcf247a27369406686b689933bd1ff
+        id: bandit
+        with:
+          scan-scope: "all"  
+          output-format: "txt" 
+          fail-on-findings: "false"
+          paths: ${{ env.APP_PATH }}
+          report_suffix: "-bandit-chat-qna-core-CT161"
+          
+      - name: Upload Report
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: bandit-report-core
+          path: bandit-report-*.txt
+
+  clamav-scan:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+      
+      - name: Run ClamAV Scan
+        uses: open-edge-platform/orch-ci/.github/actions/security/clamav@27276444a9bcf247a27369406686b689933bd1ff
+        id: clamav
+        with:
+          scan-scope: "all"  
+          output-format: "txt" 
+          fail-on-findings: "false"
+          paths: ${{ env.APP_PATH }}
+          exclude_dirs: ".git,node_modules,venv,ui/test,tests"
+          
+      - name: Upload Report
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: clamav-report-${{ env.APP_NAME }}
+          path: security-results/clamav*
+
+  gitleaks-scan:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+        with:
+          persist-credentials: false
+          
+      - name: Install gitleaks
+        uses: open-edge-platform/orch-ci/.github/actions/bootstrap@5f1c7f544b235db6ded508b6b4c6a2d3a78a38be
+        with:
+          bootstrap_tools: "gitleaks"
+          
+      - name: Get current timestamp
+        id: timestamp
+        run: echo "time=$(date +%s)" >> "$GITHUB_OUTPUT"
+        
+      - name: Clone CI repo
+        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+        with:
+          repository: open-edge-platform/orch-ci
+          path: ci
+          persist-credentials: false
+          
+      - name: Scan for secrets
+        run: |
+          gitleaks dir ${{ env.APP_PATH }} -v -c ci/.gitleaks.toml --baseline-path ci/gitleaks_baselines/gitleaks-${{ env.APP_NAME }}.json -r gitleaks-${{ env.APP_NAME }}.json || true
+          
+      - name: Upload Gitleaks Report
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: gitleaks-report-${{ env.APP_NAME }}-${{ steps.timestamp.outputs.time }}
+          path: gitleaks-${{ env.APP_NAME }}.json
+
+  shellcheck-scan:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+      
+      - name: Setup environment with ShellCheck
+        uses: open-edge-platform/orch-ci/.github/actions/bootstrap@5f1c7f544b235db6ded508b6b4c6a2d3a78a38be
+        with:
+          bootstrap_tools: "shellcheck"
+      
+      - name: Run ShellCheck
+        working-directory: ${{ env.APP_PATH }}
+        run: make shellcheck
+      
+      - name: Upload ShellCheck Report
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: shellcheck-report-${{ env.APP_NAME }}
+          path: ${{ env.APP_PATH }}/security-results/shellcheck-report-*.txt
