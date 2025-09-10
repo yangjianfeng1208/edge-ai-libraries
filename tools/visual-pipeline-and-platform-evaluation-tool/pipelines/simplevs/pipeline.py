@@ -44,6 +44,8 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
             # Input
             "filesrc "
             "  location={VIDEO_PATH} ! "
+            "qtdemux ! "
+            "h264parse ! "
             # Decoder
             "{decoder} ! "
             # Detection
@@ -117,10 +119,8 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
 
         # Use PipelineElementsSelector for element selection
         selector = PipelineElementsSelector(parameters, elements)
-        _compositor_element = selector.compositor_element()
         _encoder_element = selector.encoder_element()
         _decoder_element = selector.decoder_element()
-        _postprocessing_element = selector.postprocessing_element()
 
         # If any of the essential elements is not found, log an error and return an empty string
         if not all(

@@ -128,7 +128,7 @@ class PipelineElementsSelector:
 
         if self._decoder_element is None:
             self._decoder_element = next(
-                ("decodebin" for element in elements if element[1] == "decodebin"),
+                ("decodebin3" for element in elements if element[1] == "decodebin3"),
                 None,
             )
 

@@ -299,7 +299,6 @@ class SmartNVRPipeline(GstPipeline):
                 **constants,
                 id=i,
                 decoder=_decoder_element,
-                postprocessing=_postprocessing_element,
             )
             # sink to compositor or fake sink depending on the compose flag
             streams += self._sink_to_compositor.format(
