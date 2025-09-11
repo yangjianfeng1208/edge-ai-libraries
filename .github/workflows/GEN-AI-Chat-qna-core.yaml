@@ -275,7 +275,7 @@ jobs:
 
       - name: Load versions into environment
         id: versions
-        run: cat ${{ env.APP_PATH }}/versions.env >> $GITHUB_ENV
+        run: cat versions.env >> $GITHUB_ENV
       
       - name: Verify versions were loaded
         run: |
