@@ -45,6 +45,10 @@ backend_DOCKERFILE  := ./docker/Dockerfile
 #    If a component has tests, its name must also be in the main COMPONENTS list.
 TEST_COMPONENTS := frontend backend
 
+# Required versions for CI/CD and local development
+PYTHON_VERSION := 3.12
+NODE_VERSION   := 22
+
 # ------------------------------------------------------------------------------
 # DO NOT EDIT BELOW THIS LINE
 # ------------------------------------------------------------------------------
@@ -56,7 +60,7 @@ BUILD_TARGETS := $(addprefix build-,$(COMPONENTS))
 TEST_TARGETS  := $(addprefix test-,$(TEST_COMPONENTS))
 
 # All targets are actions, not files.
-.PHONY: all build test clean help list shellcheck pylint $(BUILD_TARGETS) $(TEST_TARGETS) get-scan-matrix-json
+.PHONY: all build test clean help list shellcheck pylint $(BUILD_TARGETS) $(TEST_TARGETS) get-scan-matrix-json get-python-version get-node-version
 
 # --- 3. CORE BUILD TARGETS ---
 
@@ -103,7 +107,7 @@ test-frontend:
 .PHONY: test-backend
 test-backend:
 	@echo "--- Running backend unit tests ---"
-	@python3.12 -m venv chat-qna-core-venv; \
+	@python$(PYTHON_VERSION) -m venv chat-qna-core-venv; \
 	source chat-qna-core-venv/bin/activate; \
 	pip install poetry; \
 	poetry install --with dev || true; \
@@ -137,7 +141,7 @@ shellcheck:
 .PHONY: pylint
 pylint:
 	@echo "--- Setting up environment and running Pylint to analyze Python code ---"
-	@python3.12 -m venv pylint-venv; \
+	@python$(PYTHON_VERSION) -m venv pylint-venv; \
 	source pylint-venv/bin/activate; \
 	pip install poetry; \
 	poetry install --with dev || true; \
@@ -244,3 +248,9 @@ get-context-dirs:
 	@$(foreach component,$(COMPONENTS), \
 		echo "$($(component)_CONTEXT_DIR)"; \
 	)
+
+get-python-version:
+	@echo $(PYTHON_VERSION)
+
+get-node-version:
+	@echo $(NODE_VERSION)

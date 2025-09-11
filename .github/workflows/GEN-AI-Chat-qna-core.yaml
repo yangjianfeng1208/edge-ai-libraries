@@ -38,6 +38,13 @@ jobs:
         working-directory: ${{ env.APP_PATH }}
         run: echo "matrix=$(make get-scan-matrix-json)" >> $GITHUB_OUTPUT
 
+      - name: Get tool versions from Makefile
+        id: set-versions
+        working-directory: ${{ env.APP_PATH }}
+        run: |
+          echo "python=$(make get-python-version)" >> $GITHUB_OUTPUT
+          echo "node=$(make get-node-version)" >> $GITHUB_OUTPUT
+
   # Job 2: Build AND Scan each component in parallel
   build_and_scan:
     runs-on: ubuntu-22.04-32core-128GB
@@ -208,3 +215,60 @@ jobs:
         with:
           name: shellcheck-report-${{ env.APP_NAME }}
           path: ${{ env.APP_PATH }}/security-results/shellcheck-report-*.txt
+  
+  pylint-scan:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8edcb1bdb4e267140fa742-2e395cd74f332709
+      
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ needs.setup.outputs.python_version }}
+      
+      - name: Run Pylint via Makefile
+        working-directory: ${{ env.APP_PATH }}
+        run: make pylint
+      
+      - name: Upload Pylint Report
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: pylint-report-${{ env.APP_NAME }}
+          path: ${{ env.APP_PATH }}/security-results/pylint-report-*.txt
+  
+  unit-tests:
+    runs-on: ubuntu-22.04-32core-128GB
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+      
+      - name: Setup Node.js for frontend tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.setup.outputs.node_version }}
+      
+      - name: Set up Python for backend tests
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.setup.outputs.python_version }}
+    
+      - name: Run all unit tests via Makefile
+        working-directory: ${{ env.APP_PATH }}
+        run: make test
+
+      - name: Upload frontend test results
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: frontend-test-results-${{ env.APP_NAME }}
+          path: ${{ env.APP_PATH }}/ui/coverage/
+
+      - name: Upload backend test results
+        uses: actions/upload-artifact@de65e23aa2b7e23d713bb51fbfcb6d502f8667d8
+        with:
+          name: backend-test-results-${{ env.APP_NAME }}
+          path: ${{ env.APP_PATH }}/coverage-backend/
