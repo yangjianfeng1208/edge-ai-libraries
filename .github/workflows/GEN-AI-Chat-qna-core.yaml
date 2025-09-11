@@ -44,6 +44,11 @@ jobs:
         run: |
           echo "python=$(make get-python-version)" >> $GITHUB_OUTPUT
           echo "node=$(make get-node-version)" >> $GITHUB_OUTPUT
+      
+      - name: Verify outputs
+        run: |
+          echo "Python version set to: ${{ steps.set-versions.outputs.python }}"
+          echo "Node version set to: ${{ steps.set-versions.outputs.node }}"```
 
   # Job 2: Build AND Scan each component in parallel
   build_and_scan:
@@ -224,6 +229,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8edcb1bdb4e267140fa742-2e395cd74f332709
       
+      - name: Verify received Python version
+        run: |
+          echo "Python version received from setup job: ${{ needs.setup.outputs.python_version }}"
+      
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
@@ -246,6 +255,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+      
+      - name: Verify received tool versions
+        run: |
+          echo "Python version received from setup job: ${{ needs.setup.outputs.python_version }}"
+          echo "Node version received from setup job: ${{ needs.setup.outputs.node_version }}"
       
       - name: Setup Node.js for frontend tests
         uses: actions/setup-node@v4
