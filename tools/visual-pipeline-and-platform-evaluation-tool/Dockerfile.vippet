@@ -18,12 +18,7 @@ FROM intel/dlstreamer:2025.1.2-ubuntu24
 
 USER root
 
-RUN apt-get update && apt-get install --yes --no-install-recommends gstreamer1.0-plugins-ugly \
-    python3-gi python3-gst-1.0 \
-    gstreamer1.0-tools \
-    gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0
-
-RUN ln -s /usr/lib/x86_64-linux-gnu/libpython3.12.so.1.0 /usr/lib/x86_64-linux-gnu/libpython3.12.so
+RUN apt-get update && apt-get install --yes --no-install-recommends python3.12-dev gstreamer1.0-plugins-ugly
 
 USER dlstreamer
 
