@@ -59,3 +59,4 @@ Learn More
    :hidden:
    
    get-started
+   api-reference
