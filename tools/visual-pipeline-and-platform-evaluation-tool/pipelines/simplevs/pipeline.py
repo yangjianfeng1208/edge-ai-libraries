@@ -4,16 +4,10 @@ from pathlib import Path
 import struct
 
 from gstpipeline import GstPipeline
-from pipelines._common.common import PipelineElementsSelector
-from utils import (
-    get_video_resolution,
-    UINT8_DTYPE_SIZE,
-    VIDEO_STREAM_META_PATH,
-    is_yolov10_model,
-)
+from pipelines._common.common import PipelineElementsSelector, PipelineElementSelectionInstructions, VAAPI_SUFFIX_PLACEHOLDER, GPU_0, GPU_N,OTHER
+from utils import get_video_resolution, UINT8_DTYPE_SIZE, VIDEO_STREAM_META_PATH, is_yolov10_model
 
 logger = logging.getLogger("simplevs")
-
 
 class SimpleVideoStructurizationPipeline(GstPipeline):
     def __init__(self):
@@ -44,8 +38,6 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
             # Input
             "filesrc "
             "  location={VIDEO_PATH} ! "
-            "qtdemux ! "
-            "h264parse ! "
             # Decoder
             "{decoder} ! "
             # Detection
@@ -92,6 +84,41 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
             "{encoder} ! h264parse ! mp4mux ! filesink   location={VIDEO_OUTPUT_PATH} "
         )
 
+        self._selector = PipelineElementsSelector(
+            PipelineElementSelectionInstructions(
+                encoder={
+                    GPU_0: [
+                        ("vah264lpenc", "vah264lpenc"),
+                        ("vah264enc", "vah264enc"),
+                    ],
+                    GPU_N: [
+                        (
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264lpenc",
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264lpenc",
+                        ),
+                        (
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264enc",
+                            f"varenderD{VAAPI_SUFFIX_PLACEHOLDER}h264enc",
+                        ),
+                    ],
+                    OTHER: [
+                        ("x264enc", "x264enc bitrate=16000 speed-preset=superfast"),
+                    ],
+                },
+                decoder={
+                    GPU_0: [
+                        ("decodebin3", "decodebin3 ! vapostproc ! video/x-raw\\(memory:VAMemory\\)"),
+                    ],
+                    GPU_N: [
+                        ("decodebin3", "decodebin3 ! vapostproc ! video/x-raw\\(memory:VAMemory\\)"),
+                    ],
+                    OTHER: [
+                        ("decodebin3", "decodebin3"),
+                    ],
+                },
+            )
+        )
+
     def evaluate(
         self,
         constants: dict,
@@ -118,9 +145,12 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
         )
 
         # Use PipelineElementsSelector for element selection
-        selector = PipelineElementsSelector(parameters, elements)
-        _encoder_element = selector.encoder_element()
-        _decoder_element = selector.decoder_element()
+        (
+            _,
+            _encoder_element,
+            _decoder_element,
+            _,
+        ) = self._selector.select_elements(parameters, elements)
 
         # If any of the essential elements is not found, log an error and return an empty string
         if not all(

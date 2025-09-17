@@ -249,9 +249,6 @@ class SmartNVRPipeline(GstPipeline):
                 f"Using pipeline elements - Compositor: {_compositor_element}, Encoder: {_encoder_element}, Decoder: {_decoder_element}, Postprocessing: {_postprocessing_element}"
             )
 
-        # Create the streams
-        streams = ""
-
         # Handle object detection parameters and constants
         detection_model_config = (
             f"model={constants['OBJECT_DETECTION_MODEL_PATH']} "
@@ -303,6 +300,9 @@ class SmartNVRPipeline(GstPipeline):
                     )
             except Exception as e:
                 logger.warning(f"Could not write shared memory meta file: {e}")
+
+        # Create the streams
+        streams = ""
 
         # Handle inference channels
         for i in range(inference_channels):
