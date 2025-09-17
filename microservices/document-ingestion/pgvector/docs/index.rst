@@ -1,4 +1,3 @@
-
 Data Ingestion microservice
 ===========================
 
@@ -28,7 +27,7 @@ sample application where this microservice is used.
 High-Level System View Diagram
 ++++++++++++++++++++++++++++++
 
-.. figure:: ./docs/images/DataPrep_HL_Arch.png
+.. figure:: ./images/DataPrep_HL_Arch.png
    :alt: System View Diagram
 
    Figure 1: High-level system view demonstrating the microservice in a real-world use case.

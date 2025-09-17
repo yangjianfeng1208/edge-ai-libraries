@@ -1,24 +1,21 @@
 Installation & Setup
-######################
+====================
 
 |top_name| provides necessary steps to setup the environment.
 
 | Before getting installation, please check the prerequisites and make sure you have all the requirements.
 
 Prerequisites
-================
+#############
 
 .. toctree::
    :maxdepth: 1
 
    installation_setup/prerequisites/system_requirement
    installation_setup/prerequisites/os_setup
-   installation_setup/prerequisites/apt-repositories
-   installation_setup/prerequisites/bios-generic
-   installation_setup/prerequisites/Ubuntu-Set-Locale
 
 Installation
-================
+############
 
 .. toctree::
    :maxdepth: 1
