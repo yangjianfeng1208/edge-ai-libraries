@@ -5,7 +5,7 @@ from pathlib import Path
 import struct
 
 from gstpipeline import GstPipeline
-from pipelines._common.common import (
+from pipelines.common import (
     PipelineElementsSelector,
     PipelineElementSelectionInstructions,
     VAAPI_SUFFIX_PLACEHOLDER,
