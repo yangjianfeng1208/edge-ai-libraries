@@ -15,6 +15,7 @@ OPENVINO_DIR 				?= /opt/intel/openvino_2025
 
 DLSTREAMER_VERSION 	:= 0.0.0
 BUILD_TYPE 			?= Release
+ENABLE_GENAI        := OFF
 
 DOCKER_PRIVATE_REGISTRY := # Empty on purpose
 
@@ -23,11 +24,7 @@ GENAI_DIR_SET := $(shell if [ -n "$$OpenVINOGenAI_DIR" ]; then echo true; else e
 ifeq ($(LINUX_DISTRIBUTION), Ubuntu)
 ifeq ($(GENAI_DIR_SET), true)
 	ENABLE_GENAI := ON
-else
-	ENABLE_GENAI := OFF
 endif
-else
-	ENABLE_GENAI := OFF
 endif
 
 export PATH 					:= ${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install/bin:${PROJECT_DIRECTORY}/build/intel64/${BUILD_TYPE}/bin:${HOME}/.local/bin:${HOME}/python3venv/bin:${PATH}
