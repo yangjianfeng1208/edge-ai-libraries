@@ -16,6 +16,7 @@
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #include <d3d11_1.h>
+#include <gst/d3d11/gstd3d11.h>
 #endif
 
 namespace dlstreamer {
@@ -48,21 +49,28 @@ class OpenVINOContext : public BaseContext {
                                   {ov::intel_gpu::tile_id.name(), tile_id}};
             } else {
                 ID3D11Device* pd3dDevice = nullptr;
-                D3D_FEATURE_LEVEL featureLevels[] =
-                {
-                    D3D_FEATURE_LEVEL_11_1,
-                    D3D_FEATURE_LEVEL_11_0,
-                    D3D_FEATURE_LEVEL_10_1,
-                    D3D_FEATURE_LEVEL_10_0,
-                };
-                UINT numFeatureLevels = ARRAYSIZE( featureLevels );
-                D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
-                ID3D11DeviceContext* pImmediateContext = nullptr;
-                HRESULT hr = S_OK;
-                hr = D3D11CreateDevice( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, &featureLevels[1], numFeatureLevels - 1,
+                auto approach = 2;
+                if (approach == 1) {
+                    D3D_FEATURE_LEVEL featureLevels[] =
+                    {
+                        D3D_FEATURE_LEVEL_11_1,
+                        D3D_FEATURE_LEVEL_11_0,
+                        D3D_FEATURE_LEVEL_10_1,
+                        D3D_FEATURE_LEVEL_10_0,
+                    };
+                    UINT numFeatureLevels = ARRAYSIZE( featureLevels );
+                    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
+                    ID3D11DeviceContext* pImmediateContext = nullptr;
+                    HRESULT hr = S_OK;
+                    hr = D3D11CreateDevice( nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, &featureLevels[1], numFeatureLevels - 1,
                                     D3D11_SDK_VERSION, &pd3dDevice, &featureLevel, &pImmediateContext );
+                    assert(hr == S_OK);
+                } else if (approach == 2) {
+                    gint64 adapter_luid = 52943;
+                    GstD3D11Device * dev = gst_d3d11_device_new_for_adapter_luid(adapter_luid, 0);
+                    pd3dDevice = gst_d3d11_device_get_device_handle(dev);
+                }
                 _remote_context = ov::intel_gpu::ocl::D3DContext(core, pd3dDevice);
-                context_params = _remote_context.get_params();
                 return;
                 //context_params = core.get_default_context(device).get_params();
             }

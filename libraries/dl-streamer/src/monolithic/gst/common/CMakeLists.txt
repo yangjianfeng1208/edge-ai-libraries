@@ -9,6 +9,7 @@ set (TARGET_NAME "common")
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTD3D11 gstreamer-d3d11-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
@@ -29,6 +30,7 @@ target_include_directories(${TARGET_NAME}
 PUBLIC
         ${GSTREAMER_INCLUDE_DIRS}
         ${GSTVIDEO_INCLUDE_DIRS}
+	${GSTD3D11_INCLUDE_DIRS}
         ${GLIB2_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
 PRIVATE
@@ -39,6 +41,7 @@ target_link_libraries(${TARGET_NAME}
 PUBLIC
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
+        ${GSTD3D11_LIBRARIES}
         ${GLIB2_LIBRARIES}
         dlstreamer_api
         logger
