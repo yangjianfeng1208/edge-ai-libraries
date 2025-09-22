@@ -89,12 +89,16 @@ retriever = EGAIVectorStoreRetriever(
     search_kwargs={"k": FETCH_K, "fetch_k": FETCH_K * 3},
 )
 
-
 # Define our prompt
 template = """
 Use the following pieces of context from retrieved
-dataset to answer the question. Do not make up an answer if there is no
-context provided to help answer it.
+dataset and prior conversation history to answer the question. 
+Do not make up an answer if there is no context provided to help answer it.
+
+Conversation history:
+---------
+{history}
+---------
 
 Context:
 ---------
@@ -128,7 +132,14 @@ LLM_MODEL = os.getenv("LLM_MODEL", "Intel/neural-chat-7b-v3-3")
 RERANKER_ENDPOINT = os.getenv("RERANKER_ENDPOINT", "http://localhost:9090/rerank")
 callbacks = [streaming_stdout.StreamingStdOutCallbackHandler()]
 
-# Format the context in a readable way
+async def context_retriever_fn(chain_inputs: dict):
+    question = chain_inputs.get("question", "")
+    if not question:
+        return {}   # to keep shape consistent
+
+    retrieved_docs = await retriever.aget_relevant_documents(question)
+    return retrieved_docs     # context: list[Document]
+
 def format_docs(docs):
     if not docs:
         return "No relevant context found."
@@ -143,9 +154,20 @@ def format_docs(docs):
     
     return "\n\n".join(formatted_docs)
 
-async def process_chunks(question_text, max_tokens):
+async def process_chunks(conversation_messages, max_tokens):
+    print(f"Inside process_chunks, conversation_messages: {conversation_messages}, max_tokens: {max_tokens}")
+    # Combine all messages for context
+    if len(conversation_messages) > 1:
+        history = "\n".join([f"{msg.role}: {msg.content}" for msg in conversation_messages[:-1]])
+    else:
+        history = ""
+    print(f"history inside process_chunks: {history}")
+
+    question_text = conversation_messages[-1].content
     if not question_text or not question_text.strip():
         raise ValueError("Question text cannot be empty")
+
+    context_retriever = RunnableLambda(context_retriever_fn) # it passes all chain_input dict to context_retriever fn
 
     if LLM_BACKEND in ["vllm", "unknown"]:
         seed_value = None
@@ -176,16 +198,28 @@ async def process_chunks(question_text, max_tokens):
     re_ranker = CustomReranker(reranking_endpoint=RERANKER_ENDPOINT)
     re_ranker_lambda = RunnableLambda(re_ranker.rerank)
 
+    print(f"Final Prompt: {prompt}")
+
     # RAG Chain
     chain = (
-        RunnableParallel({"context": retriever, "question": RunnablePassthrough()})
-        | re_ranker_lambda
-        | {"context": (lambda x: format_docs(x["context"])), "question": lambda x: x["question"]}
-        | prompt
-        | model
-        | StrOutputParser()
+    RunnableParallel({
+        "context": context_retriever,  # context retrieved from vector store
+        "question": lambda x: x["question"],  # passes through the question
+        "history": lambda x: x["history"]  # passes through the history
+    })
+    | re_ranker_lambda
+    | {"context": (lambda x: format_docs(x["context"])), "question": lambda x: x["question"]}
+    | prompt
+    | model
+    | StrOutputParser()
     )
 
-    # Run the chain with the question text
-    async for log in chain.astream(question_text):
+    # Run the chain with all inputs
+    chain_input = {
+        "history": history, # chain will call context_retriever internally, no need to add it.
+        "question": question_text
+    }
+
+    async for log in chain.astream(chain_input):
         yield f"data: {log}\n\n"
+

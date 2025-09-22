@@ -31,6 +31,8 @@ class CustomReranker:
             raise ValueError("Context is required for reranker")
 
     def rerank(self, retrieved_docs: Dict[str, Any]) -> Dict[str, Any]:
+        print("inside rerank method, retrieved_docs:", retrieved_docs)
+        print("type of retrieved_docs:", type(retrieved_docs))
         self.validate_retrieved_docs(retrieved_docs=retrieved_docs)
         if len(retrieved_docs["context"]) > 0:
             return self.rerank_tei(retrieved_docs=retrieved_docs)
@@ -38,8 +40,7 @@ class CustomReranker:
             return retrieved_docs
 
     def rerank_tei(self, retrieved_docs: Dict[str, Any]) -> Dict[str, Any]:
-        texts = map(lambda x: x.page_content, retrieved_docs["context"])
-        texts = list(texts)
+        texts = [d.page_content for d in retrieved_docs["context"]]
 
         request_body = {
             "query": retrieved_docs["question"],
@@ -54,16 +55,11 @@ class CustomReranker:
         )
         if response.status_code == 200:
             res = response.json()
-            # Sort results by score in descending order
-            sorted_results = sorted(res, key=lambda x: x["score"], reverse=True)
-            # Take top 3 results or all if less than 3
-            top_k = min(3, len(sorted_results))
-            reranked_context = [
-                retrieved_docs["context"][item["index"]] for item in sorted_results[:top_k]
-            ]            
+            maxRank = max(res["results"], key=lambda x: x["score"])      
             return {
                 "question": retrieved_docs["question"],
-                "context": reranked_context,
+                "context": [retrieved_docs["context"][maxRank["index"]]],
+                "history": retrieved_docs.get("history", "")
             }
         else:
             raise Exception(f"Error: {response.status_code}, {response.text}")

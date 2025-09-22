@@ -1,99 +1,45 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-import { type FC, useEffect } from 'react';
-import { IconButton } from '@carbon/react';
-import styled from 'styled-components';
-import { useTranslation } from 'react-i18next';
+import { ScrollAreaAutosize, Title } from "@mantine/core"
 
-import { useAppDispatch, useAppSelector } from '../../redux/store.ts';
-import {
-  conversationSelector,
-  setSelectedConversationId,
-} from '../../redux/conversation/conversationSlice.ts';
-import ConversationSideBarItem from './ConversationSideBarItem.tsx';
+import contextStyles from "../../styles/components/context.module.scss"
+import { useAppDispatch, useAppSelector } from "../../redux/store"
+import { conversationSelector, setSelectedConversationId } from "../../redux/Conversation/ConversationSlice"
+// import { userSelector } from "../../redux/User/userSlice"
 
-const SidebarContainer = styled.aside<{ disabled: boolean }>`
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-sidebar);
-  overflow: hidden;
-  border-right: 1px solid var(--color-border);
-  pointer-events: ${({ disabled }) => (disabled ? 'none' : 'auto')};
-  opacity: ${({ disabled }) => (disabled ? 0.5 : 1)};
-`;
+export interface ConversationContextProps {
+    title: string
+}
 
-export const Navigation = styled.div`
-  padding: 1rem;
-  background-color: var(--color-sidebar);
-  position: sticky;
-  z-index: 1;
-  border-bottom: 1px solid var(--color-border);
-  max-height: 3rem;
-  font-size: 1.1rem;
+export function ConversationSideBar({ title }: ConversationContextProps) {
+    const { conversations, selectedConversationId } = useAppSelector(conversationSelector)
+    // const user = useAppSelector(userSelector)
+    const dispatch = useAppDispatch()
 
-  & h4 {
-    line-height: 1;
-  }
-`;
+    const conversationList = conversations?.map((curr) => (
+        <div
+            className={contextStyles.contextListItem}
+            data-active={selectedConversationId === curr.conversationId || undefined}
+            onClick={(event) => {
+                event.preventDefault()
+                dispatch(setSelectedConversationId(curr.conversationId))
+                // dispatch(getConversationById({ user, conversationId: curr.conversationId }))
+            }}
+            key={curr.conversationId}
+        >
+            <div className={contextStyles.contextItemName} title={curr.title}>{curr.title}</div>
+        </div>
+    ))
 
-const ScrollableContainer = styled.div`
-  flex-grow: 1;
-  overflow-y: hidden;
-  padding: 5px;
-  height: 80vh;
-`;
-
-export const StyledIconButton = styled(IconButton)`
-  font-size: var(--icon-size);
-`;
-
-const ConversationSideBar: FC = () => {
-  const { t } = useTranslation();
-  const { conversations, selectedConversationId, isGenerating } =
-    useAppSelector(conversationSelector);
-  const dispatch = useAppDispatch();
-
-  const sidebarList = conversations?.map((conversation) => (
-    <ConversationSideBarItem
-      isActive={selectedConversationId === conversation.conversationId}
-      onClick={(e) => {
-        e.preventDefault();
-        dispatch(setSelectedConversationId(conversation.conversationId));
-      }}
-      key={conversation.conversationId}
-      title={conversation.title}
-      index={conversation.conversationId}
-    />
-  ));
-
-  useEffect(() => {
-    const removeTooltip = () => {
-      const tooltip = document.querySelector('.cds--popover');
-      if (tooltip) {
-        tooltip.remove();
-      }
-    };
-
-    document.addEventListener('mouseover', removeTooltip);
-
-    return () => {
-      document.removeEventListener('mouseover', removeTooltip);
-    };
-  }, []);
-
-  return (
-    <SidebarContainer
-      disabled={isGenerating}
-      data-testid='conversation-sidebar-wrapper'
-    >
-      {sidebarList.length ? <Navigation>{t('chatHistory')}</Navigation> : null}
-
-      {sidebarList.length ? (
-        <ScrollableContainer>{sidebarList}</ScrollableContainer>
-      ) : null}
-    </SidebarContainer>
-  );
-};
-
-export default ConversationSideBar;
+    return (
+        <div className={contextStyles.contextWrapper}>
+            <Title order={3} className={contextStyles.contextTitle}>
+                {title}
+            </Title>
+            <ScrollAreaAutosize type="hover" scrollHideDelay={0}>
+                <div className={contextStyles.contextList}>{conversationList}</div>
+            </ScrollAreaAutosize>
+        </div>
+    )
+}
