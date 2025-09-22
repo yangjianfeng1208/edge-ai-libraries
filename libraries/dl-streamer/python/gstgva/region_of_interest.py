@@ -144,7 +144,7 @@ class RegionOfInterest(object):
 
     ## @brief Get object id using analytics tracking metadata
     # @return object id as an int, None if failed to get
-    def object_id(self) -> int:
+    def object_id(self) -> int | None:
         # To uncomment after update GStreamer to 1.27
         # for trk_mtd in self.__od_meta.iter_direct_related(
         #     GstAnalytics.RelTypes.ANY, GstAnalytics.TrackingMtd
@@ -179,7 +179,7 @@ class RegionOfInterest(object):
 
             return tracking_id
 
-        return 0
+        return None
 
     ## @brief Set object id using analytics tracking metadata
     # @return None
