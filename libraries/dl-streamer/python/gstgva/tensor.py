@@ -115,10 +115,12 @@ class Tensor:
     ## @brief Get inference results blob precision
     #  @return PRECISION, PRECISION.UNSPECIFIED if can't be read
     def precision(self) -> PRECISION:
-        try:
-            return self.PRECISION(self["precision"])
-        except:
+        precision = self["precision"]
+
+        if precision is None:
             return self.PRECISION.UNSPECIFIED
+
+        return self.PRECISION(precision)
 
     ## @brief Get inference result blob layout
     #  @return LAYOUT, LAYOUT.ANY if can't be read
@@ -130,7 +132,10 @@ class Tensor:
 
     ## @brief Get raw inference result blob data
     #  @return numpy.ndarray of values representing raw inference data, None if data can't be read
-    def data(self) -> numpy.ndarray:
+    def data(self) -> numpy.ndarray | None:
+        if self.precision() == self.PRECISION.UNSPECIFIED:
+            return None
+
         precision = self.__precision_numpy_dtype[self.precision()]
 
         gvalue = libgst.gst_structure_get_value(
@@ -458,7 +463,7 @@ class Tensor:
             #     ),
             #     None,
             # )
-                
+
             cls_descriptor_mtd = None
             for cls_descriptor_mtd in mtd.meta:
                 if (
@@ -467,9 +472,7 @@ class Tensor:
                 ):
                     continue
 
-                rel = mtd.meta.get_relation(
-                    mtd.id, cls_descriptor_mtd.id
-                )
+                rel = mtd.meta.get_relation(mtd.id, cls_descriptor_mtd.id)
 
                 if rel == GstAnalytics.RelTypes.RELATE_TO:
                     break

@@ -249,8 +249,22 @@ class RegionOfInterest(object):
 
     ## @brief Get all Tensor instances added to this RegionOfInterest
     # @return list of Tensor instances added to this RegionOfInterest
-    def tensors(self):
+    def tensors(self) -> List[Tensor]:
         return self._tensors
+
+    ## @brief Get all Tensor instances added to this RegionOfInterest (in old metadata format)
+    # @return list of Tensor instances added to this RegionOfInterest
+    def get_gst_roi_params(self) -> List[Tensor]:
+        result = []
+
+        param = self.__roi_meta._params
+        while param:
+            tensor_structure = param.contents.data
+            tensor = Tensor(tensor_structure)
+            result.append(tensor)
+            param = param.contents.next
+
+        return result
 
     ## @brief Returns detection Tensor, last added to this RegionOfInterest. As any other Tensor, returned detection
     # Tensor can contain arbitrary information. If you use RegionOfInterest based on VideoRegionOfInterestMeta
