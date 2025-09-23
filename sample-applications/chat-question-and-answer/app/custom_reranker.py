@@ -55,7 +55,8 @@ class CustomReranker:
         )
         if response.status_code == 200:
             res = response.json()
-            maxRank = max(res["results"], key=lambda x: x["score"])      
+
+            maxRank = max(res, key=lambda x: x["score"])
             return {
                 "question": retrieved_docs["question"],
                 "context": [retrieved_docs["context"][maxRank["index"]]],

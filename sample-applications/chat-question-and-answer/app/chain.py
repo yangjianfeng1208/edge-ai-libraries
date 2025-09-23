@@ -140,6 +140,7 @@ async def context_retriever_fn(chain_inputs: dict):
     retrieved_docs = await retriever.aget_relevant_documents(question)
     return retrieved_docs     # context: list[Document]
 
+# Format the context in a readable way
 def format_docs(docs):
     if not docs:
         return "No relevant context found."
