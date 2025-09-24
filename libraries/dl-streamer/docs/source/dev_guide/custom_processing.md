@@ -127,12 +127,6 @@ to the
 **Current Support Limitations**
 
 
-[jndfiesji][kkk]
-
-[kkk]: https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc/detect/README.md
-
-
-
 At this time, only **detection** and **classification** tasks are supported:
 
 - **Object Detection** (`GstAnalyticsODMtd`) - works only with the
