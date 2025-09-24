@@ -1,6 +1,4 @@
-# Detection and classification samples (gst-launch command line)
-
-Those samples demonstrate how to construct a detect and classify pipelines using the command line utility `gst-launch-1.0`.
+# Custom post processing libraries samples
 
 
 * [Detection](./detect/README.md): sample demonstrates how to create a custom post-processing library for DLStreamer that converts YOLOv11 tensor outputs to detection metadata.
