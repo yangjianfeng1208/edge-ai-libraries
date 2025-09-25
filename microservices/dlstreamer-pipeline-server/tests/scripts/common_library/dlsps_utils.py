@@ -275,3 +275,54 @@ class dlsps_utils():
             print('dlsps directory found')
         self._copy_files(files_to_copy)
         self._copy_models_and_samples()
+
+    def add_proxy_to_docker_compose(self, value):
+        print('********** Adding proxy to docker-compose.yml **********')
+        os.chdir('{}'.format(self.dlsps_path))
+        self.change_rtsp(value)
+        with open("docker-compose.yml", 'r') as file:
+            data = yaml.safe_load(file)
+        if value.get("instance")=="camera_gvadetect" or value.get("type") == "axis_rtsp_camera" or value.get("type") == "axis_rtsp_camera_GPU":
+            service = data['services']['dlstreamer-pipeline-server']
+            if 'networks' in service:
+                del service['networks']
+            if 'ports' in service:
+                del service['ports']
+        services = data.get('services', {})
+        for service_name, service in services.items():
+            if service_name == 'dlstreamer-pipeline-server':
+                environment = service.get('environment', [])
+                for i, env_var in enumerate(environment):
+                    if env_var.startswith('no_proxy='):
+                        current_no_proxy = env_var.split('=')[1]
+                        if value.get("type") == "axis_rtsp_camera_standalone_gvadetect" or value.get("type") == "axis_rtsp_camera" or value.get("type") == "axis_rtsp_camera_GPU":
+                            environment[i] = f"no_proxy={current_no_proxy},10.223.23.164"
+                        else:
+                            environment[i] = f"no_proxy={current_no_proxy},{hostIP}"
+                        break
+                service['environment'] = environment
+                volumes = service.get('volumes', [])
+                volumes.append("../resources:/home/pipeline-server/resources/")
+                volumes.append("../user_scripts/udfs/python:/home/pipeline-server/udfs/python")
+                volumes.append("../configs/default/config.json:/home/pipeline-server/config.json")
+                service['volumes'] = volumes
+        with open("docker-compose.yml", 'w') as file:
+            yaml.safe_dump(data, file)
+        if value.get("instance")=="camera" or value.get("instance")=="camera_gvadetect" or value.get("type") == "axis_rtsp_camera" or value.get("type") == "axis_rtsp_camera_GPU":        
+            with open('docker-compose.yml', 'r') as file:
+                lines = file.readlines()
+            index = next((i for i, line in enumerate(lines) if 'dlstreamer-pipeline-server:' in line), None)
+            if index is not None:
+                lines.insert(index + 1, '    network_mode: host\n')
+                in_networks_section = False
+            in_ports_section = False
+            updated_lines = []
+            with open('docker-compose.yml', 'w') as file:
+                    file.writelines(lines)
+        os.chdir('{}'.format(self.dlsps_path))
+        if value.get("type") == "axis_rtsp_camera" or value.get("type") == "axis_rtsp_camera_GPU":
+            configdict = {'RTSP_CAMERA_IP': '10.223.23.164'}
+            self.set_env(configdict)
+        else:
+            configdict = {'RTSP_CAMERA_IP': hostIP}
+            self.set_env(configdict)
