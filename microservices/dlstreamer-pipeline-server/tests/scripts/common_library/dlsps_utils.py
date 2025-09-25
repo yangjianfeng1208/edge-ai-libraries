@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import os, sys, time, json, yaml, subprocess, os.path, requests
+import os, sys, time, json, yaml, subprocess, os.path, requests,common
 from collections import OrderedDict
 
 current_dir = os.path.abspath(os.path.dirname(__file__))

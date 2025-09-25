@@ -19,5 +19,79 @@
        "source_conifg": "gstreamer",
        "check_logs" : "dlstreamer-pipeline-server",
        "dlsps_log_param" : ["number-streams=1","fps"]
-    }
+    },
+   "dlsps023": {
+      "instance": "workload1",
+      "source_conifg": "image_ingestor",
+      "name": "evi_kpi_test_workload1_1",
+      "type": "workload1",
+      "type_r": "workload1_CPU",
+      "image":"jpeg",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["Pipeline","State to RUNNING"]
+   },
+   "dlsps024": {
+      "instance": "workload1",
+      "source_conifg": "image_ingestor",
+      "name": "evi_kpi_test_workload1_1",
+      "type": "workload1_GPU",
+      "type_r": "workload1_GPU",
+      "image":"jpeg",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["Pipeline","State to RUNNING"]
+   },
+   "dlsps027": {
+      "instance": "workload2",
+      "source_conifg": "gstreamer",
+      "name": "evi_kpi_test_workload2_1",
+      "type": "workload2",
+      "type_r": "workload2_CPU_h264",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["Publishing message to topic: dlstreamer-pipeline-server","height","width","channels","img_handle"]
+   },
+   "dlsps028": {
+      "instance": "workload2",
+      "source_conifg": "gstreamer",
+      "name": "evi_kpi_test_workload2_1",
+      "type": "workload2_GPU",
+      "type_r": "workload2_GPU_h264",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["Publishing message to topic: dlstreamer-pipeline-server","height","width","channels","img_handle"]
+   },
+   "dlsps064": {
+      "type": "video_instances_CPU",
+      "type_r": "workload2",
+      "name": "evi_kpi_test_workload2_1",
+      "instance": "auto_source_gvadetect",
+      "source_conifg": "gstreamer",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["Publishing message to topic: dlstreamer_pipeline_results","height","width","channels","img_handle"]
+   },
+   "dlsps065": {
+      "type": "video_instances_GPU",
+      "type_r": "workload2",
+      "name": "evi_kpi_test_workload2_1",
+      "instance": "auto_source_gvadetect",
+      "source_conifg": "gstreamer",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["Publishing message to topic: dlstreamer_pipeline_results","height","width","channels","img_handle"]
+   },
+   "dlsps069": {
+      "instance": "workload2",
+      "source_conifg": "gstreamer",
+      "name": "evi_kpi_test_workload2_1",
+      "type": "workload2",
+      "type_r": "workload2_CPU_rtsp",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["height","width","img_handle","Publishing message to topic: dlstreamer-pipeline-server"]
+   },
+   "dlsps070": {
+      "instance": "workload2",
+      "source_conifg": "gstreamer",
+      "name": "evi_kpi_test_workload2_1",
+      "type": "workload2_GPU",
+      "type_r": "workload2_GPU_rtsp",
+      "check_logs" : "dlstreamer-pipeline-server",
+      "dlsps_log_param" : ["height","width","img_handle","Publishing message to topic: dlstreamer-pipeline-server"]
+   }
  }
