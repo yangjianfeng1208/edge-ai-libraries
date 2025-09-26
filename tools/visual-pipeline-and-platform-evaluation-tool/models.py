@@ -1,16 +1,16 @@
 import os
 
 # Path to the file containing the list of supported models
-SUPPORTED_MODELS_FILE = os.path.join(
-    os.path.dirname(__file__), "supported_models.lst"
-)
+SUPPORTED_MODELS_FILE = os.path.join(os.path.dirname(__file__), "supported_models.lst")
 # Path to the directory where models are stored
 MODELS_PATH = os.environ.get("MODELS_PATH", "/home/dlstreamer/vippet/models")
+
 
 class SupportedModel:
     """
     Represents a single supported model with its metadata.
     """
+
     def __init__(self, name, display_name, source, model_type):
         self.name = name
         self.display_name = display_name
@@ -34,6 +34,7 @@ class SupportedModelsManager:
     """
     Responsible for reading supported_models.lst and filtering available models.
     """
+
     def __init__(self):
         self._models = []
         try:
@@ -48,11 +49,17 @@ class SupportedModelsManager:
                     if len(parts) != 4:
                         continue
                     name, display_name, source, model_type = parts
-                    self._models.append(SupportedModel(name, display_name, source, model_type))
+                    self._models.append(
+                        SupportedModel(name, display_name, source, model_type)
+                    )
         except Exception as e:
-            raise RuntimeError(f"Cannot read supported models file '{SUPPORTED_MODELS_FILE}': {e}")
+            raise RuntimeError(
+                f"Cannot read supported models file '{SUPPORTED_MODELS_FILE}': {e}"
+            )
         if not self._models:
-            raise RuntimeError(f"No supported models found in '{SUPPORTED_MODELS_FILE}'.")
+            raise RuntimeError(
+                f"No supported models found in '{SUPPORTED_MODELS_FILE}'."
+            )
 
     def _filter_models(self, model_names, default_model, model_type):
         """
@@ -72,12 +79,19 @@ class SupportedModelsManager:
             and m.exists_on_disk()
         ]
         # Try to select the default model
-        default = "Disabled" if default_model == "Disabled" else next(
-            (m.display_name for m in self._models
-             if m.model_type == model_type
-             and m.display_name == default_model
-             and m.exists_on_disk()),
-            None,
+        default = (
+            "Disabled"
+            if default_model == "Disabled"
+            else next(
+                (
+                    m.display_name
+                    for m in self._models
+                    if m.model_type == model_type
+                    and m.display_name == default_model
+                    and m.exists_on_disk()
+                ),
+                None,
+            )
         )
         # If default is not found, pick the first non-'Disabled' from filtered,
         # otherwise pick 'Disabled', or None if filtered is empty

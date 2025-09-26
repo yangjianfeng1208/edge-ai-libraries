@@ -1118,12 +1118,20 @@ def create_interface(title: str = "Visual Pipeline and Platform Evaluation Tool"
                                         ]
                                     )(
                                         supported_models_manager.filter_detection_models(
-                                            current_pipeline[1]["parameters"]["inference"]["detection_models"],
-                                            current_pipeline[1]["parameters"]["inference"]["detection_model_default"]
+                                            current_pipeline[1]["parameters"][
+                                                "inference"
+                                            ]["detection_models"],
+                                            current_pipeline[1]["parameters"][
+                                                "inference"
+                                            ]["detection_model_default"],
                                         ),
                                         supported_models_manager.filter_classification_models(
-                                            current_pipeline[1]["parameters"]["inference"]["classification_models"],
-                                            current_pipeline[1]["parameters"]["inference"]["classification_model_default"]
+                                            current_pipeline[1]["parameters"][
+                                                "inference"
+                                            ]["classification_models"],
+                                            current_pipeline[1]["parameters"][
+                                                "inference"
+                                            ]["classification_model_default"],
                                         ),
                                     )
                                 ],

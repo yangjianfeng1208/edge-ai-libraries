@@ -10,6 +10,15 @@ from app import (
 
 
 class TestApp(unittest.TestCase):
+    def setUp(self):
+        # Patch open for supported_models.lst to avoid FileNotFoundError
+        patcher = mock.patch(
+            "models.open",
+            mock.mock_open(read_data="model1|Model 1|source1|detection\nmodel2|Model 2|source2|classification\n"),
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
+
     def test_create_interface(self):
         result = create_interface()
         self.assertIsNotNone(result)
