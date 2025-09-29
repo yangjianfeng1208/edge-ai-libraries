@@ -1,18 +1,16 @@
 # Install Guide Ubuntu
 
-The easiest way to install Deep Learning Streamer Pipeline Framework is installing it
-[from Debian packages using APT repository](#option-1-install-deep-learning-streamer-pipeline-framework-from-debian-packages-using-apt-repository).
+The easiest way to install Deep Learning Streamer Pipeline Framework is
+[using Debian packages from APT repository](#option-1-install-deep-learning-streamer-pipeline-framework-from-debian-packages-using-apt-repository).
 
-If you prefer containerized environment based on Docker, use the
-[Docker image](#option-2-install-docker-image-from-docker-hub-and-run-it) as
-well as the Dockerfile, to build runtime Docker image. Regardless of the chosen
-installation path, make sure to set up the [prerequisites](#prerequisites) first.
+If you prefer a containerized environment based on Docker, download a pre-made
+[Docker image](#option-2-install-docker-image-from-docker-hub-and-run-it) or
+build it with a Dockerfile. Regardless of the installation path,
+make sure to [set up the prerequisites](#prerequisites) first.
 
 For a detailed description of the installation process, including the option
-of building Deep Learning Streamer Pipeline Framework from the source code
-provided in
-[Open Edge Platform repository](https://github.com/open-edge-platform/edge-ai-libraries.git),
-follow the [instructions](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
+of building Deep Learning Streamer Pipeline Framework from source code,
+follow the [advanced installation guide](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
 
 ## Prerequisites
 
@@ -110,7 +108,7 @@ drivers. For more details see [prerequisites](#prerequisites).
 ### Step 3: Install the Deep Learning Streamer Pipeline Framework
 
 > **NOTE:** This step will also install the required dependencies, including the
-> OpenVINO™ Toolkit and GStreamer.
+> OpenVINO™ toolkit and GStreamer.
 
 ```bash
 sudo apt update
@@ -258,8 +256,8 @@ For more details see [prerequisites](#prerequisites).
 ### Step 2: Installation of Docker
 
 [Get Docker](https://docs.docker.com/get-docker/) for your host OS.
-To prevent file permission issues please follow the "Manage Docker as a non-root user" section
-steps described [here](https://docs.docker.com/engine/install/linux-postinstall/)
+To prevent file permission issues, check how to 
+[manage Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/).
 
 ### Step 3: Allowing connection to X server
 
@@ -281,8 +279,8 @@ Visit the [Deep Learning Streamer image docker hub](https://hub.docker.com/r/int
 select the most appropriate version. By default, the latest docker image points to Ubuntu
 24 version.
 
-For **Ubuntu 22.04** please specify the tag e.g. **2025.1.2-ubuntu22**.
-For **Ubuntu 24.04** please use the **latest** tag or specified version e.g.
+For **Ubuntu 22.04**, specify the tag e.g. **2025.1.2-ubuntu22**.
+For **Ubuntu 24.04**, use the **latest** tag or specify the version, such as
 **2025.1.2-ubuntu24**.
 
 - **Ubuntu 22**

@@ -3,7 +3,7 @@
 ## Option #1: Uninstall Deep Learning Streamer Pipeline Framework from APT repository
 =======
 
-If you installed via apt package just the simple uninstall command with apt:
+If you installed via APT, just use its uninstall command:
 
 ```bash
 sudo apt remove intel-dlstreamer

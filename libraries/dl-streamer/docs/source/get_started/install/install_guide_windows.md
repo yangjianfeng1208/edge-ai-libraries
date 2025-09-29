@@ -26,7 +26,7 @@ cd C:\\dlstreamer_dlls
 .\setup_dls_env.ps1
 ```
 
-You are ready to use the Deep Learning Streamer. For further instructions to run
+You are ready to use Deep Learning Streamer. For further instructions to run
 sample pipeline(s), please go to the [tutorial](../tutorial.md)
 There is need to manually download models.
 

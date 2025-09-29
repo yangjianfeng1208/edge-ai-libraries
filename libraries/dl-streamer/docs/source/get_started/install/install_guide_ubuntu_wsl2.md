@@ -1,7 +1,7 @@
 # Install Guide Ubuntu 24.04 on WSL2
 
 This page describes steps required to install Deep Learning Streamer Pipeline
-Framework on Ubuntu hosted on a Windows machine using WSL2
+Framework on Ubuntu, when hosted on a Windows machine using WSL2.
 
 ## On Windows Host System
 
