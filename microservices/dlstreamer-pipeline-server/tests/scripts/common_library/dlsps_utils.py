@@ -350,3 +350,8 @@ class dlsps_utils():
         ]
         for configdict in configdicts:
             self.set_env(configdict)
+
+    def set_env(self, configdict):
+        os.chdir('{}'.format(self.dlsps_path))
+        for key, value in configdict.items():
+            self._execute_cmd("sed -i 's#{Key}=.*#{Key}={Value}#g' .env".format(Key=key, Value=value))
