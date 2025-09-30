@@ -1,10 +1,10 @@
 #
 # Apache v2 license
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2024-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import os, sys, time, json, yaml, subprocess, os.path, requests
+import os, sys, time, json, yaml, logging, subprocess, os.path, requests
 from collections import OrderedDict
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
@@ -15,6 +15,7 @@ sys.path.extend([
     os.path.abspath(os.path.join(current_dir, '../configs'))
 ])
 
+logging.basicConfig(level=logging.DEBUG)
 hostIP = subprocess.check_output("ip route get 1 | awk '{print $7}'|head -1", shell=True).decode('utf-8').strip()
 
 base_source_uri = {"uri": "file:///home/pipeline-server/resources/videos/warehouse.avi", "type": "uri"}
@@ -243,12 +244,8 @@ class dlsps_utils():
 
     def generate_repo_dlsps(self):
         os.chdir(repo_path)
-        if self.is_open_edge:
-            repo_url = "https://github.com/open-edge-platform/edge-ai-libraries/"
-            destination_dir = os.path.join(repo_path, "edge-ai-libraries")
-        else:
-            repo_url = "https://github.com/intel-innersource/applications.services.esh.dlstreamer-pipeline-server ./dlstreamer-pipeline-server"
-            destination_dir = os.path.join(repo_path, "dlstreamer-pipeline-server")
+        repo_url = "https://github.com/open-edge-platform/edge-ai-libraries/"
+        destination_dir = os.path.join(repo_path, "edge-ai-libraries")
         print(f"Cloning repository: {repo_url}")
         print(f"Destination directory: {destination_dir}")
 
