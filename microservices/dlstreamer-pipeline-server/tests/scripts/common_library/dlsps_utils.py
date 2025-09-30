@@ -355,3 +355,8 @@ class dlsps_utils():
         os.chdir('{}'.format(self.dlsps_path))
         for key, value in configdict.items():
             self._execute_cmd("sed -i 's#{Key}=.*#{Key}={Value}#g' .env".format(Key=key, Value=value))
+
+    def _execute_cmd(self, cmd):
+        logging.debug('Executing command: ' + cmd)
+        cmd_output = subprocess.check_output(cmd, shell=True, executable='/bin/bash')
+        return cmd_output
