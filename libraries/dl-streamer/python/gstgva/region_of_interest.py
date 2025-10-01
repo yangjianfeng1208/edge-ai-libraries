@@ -127,8 +127,9 @@ class RegionOfInterest(object):
 
         return ""
 
-    ## @brief Get confidence from detection using analytics metadata
-    # @return detection confidence if exists, otherwise None
+    ## @brief Get RegionOfInterest detection confidence (set by gvadetect)
+    # @return detection confidence from analytics metadata
+    # @throws std::runtime_error if confidence cannot be read from metadata
     def confidence(self) -> float:
         success, confidence = self.__od_meta.get_confidence_lvl()
 
@@ -137,10 +138,7 @@ class RegionOfInterest(object):
                 "RegionOfInterest:confidence: Failed to get confidence level from analytics metadata"
             )
 
-        if confidence >= 0.0:
-            return confidence
-
-        return 0.0
+        return confidence
 
     ## @brief Get object id using analytics tracking metadata
     # @return object id as an int, None if failed to get
@@ -182,7 +180,7 @@ class RegionOfInterest(object):
         return None
 
     ## @brief Set object id using analytics tracking metadata
-    # @return None
+    # @param object_id Object ID to set
     def set_object_id(self, object_id: int):
         # Set in ROI meta for backward compatibility
         if self.meta():
@@ -321,10 +319,8 @@ class RegionOfInterest(object):
         return 0
 
     ## @brief Add new Tensor (inference result) to the RegionOfInterest.
-    # @param name Name for the tensor.
-    # @param tensor (optional) Tensor object.
+    # @param tensor Tensor object to add to this RegionOfInterest.
     # This function does not take ownership of tensor passed, but only copies its contents
-    # @return just created Tensor object, which can be filled with tensor information further
     def add_tensor(self, tensor: Tensor):
         s = tensor.get_structure()
 
@@ -363,6 +359,32 @@ class RegionOfInterest(object):
     def region_id(self):
         return self.__od_meta.id
 
+    ## @brief Retrieves the parent object detection ID for this region of interest.
+    # @return The ID of the parent object detection metadata if found, None otherwise.
+    def parent_id(self) -> int | None:
+        # To uncomment after update GStreamer to 1.27
+        # parent_mtd = next(
+        #     self.__od_meta.iter_direct_related(
+        #         GstAnalytics.RelTypes.IS_PART_OF, GstAnalytics.ODMtd
+        #     ),
+        #     None,
+        # )
+
+        # return parent_mtd.id if parent_mtd else None
+
+        for rlt_mtd in self.__od_meta.meta:
+            if rlt_mtd.id == self.__od_meta.id or type(rlt_mtd) != GstAnalytics.ODMtd:
+                continue
+
+            rel = self.__od_meta.meta.get_relation(self.__od_meta.id, rlt_mtd.id)
+
+            if rel != GstAnalytics.RelTypes.IS_PART_OF:
+                continue
+
+            return rlt_mtd.id
+
+        return None
+
     ## @brief Iterate by VideoRegionOfInterestMeta instances attached to buffer
     # @param buffer buffer with GstVideoRegionOfInterestMeta instances attached
     # @return generator for VideoRegionOfInterestMeta instances attached to buffer
@@ -392,14 +414,5 @@ class RegionOfInterest(object):
             roi_meta = ctypes.cast(
                 value, ctypes.POINTER(VideoRegionOfInterestMeta)
             ).contents
-
-            # roi_meta = GstVideo.buffer_get_video_region_of_interest_meta_id(
-            #     buffer, od_mtd.id
-            # )
-
-            # if roi_meta is None:
-            #     raise RuntimeError(
-            #         "RegionOfInterest:_iterate: Failed to get VideoRegionOfInterestMeta by id from buffer"
-            #     )
 
             yield RegionOfInterest(od_mtd, roi_meta)

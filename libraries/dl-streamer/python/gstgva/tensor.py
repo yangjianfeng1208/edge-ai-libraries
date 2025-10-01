@@ -44,25 +44,25 @@ class Tensor:
 
     ## @brief This enum describes model layer precision
     class PRECISION(Enum):
-        UNSPECIFIED = 255  # Unspecified value. Used by default
-        FP32 = 10  # 32bit floating point value
-        FP16 = 11  # 16bit floating point value, 5 bit for exponent, 10 bit for mantisa
-        BF16 = 12  # 16bit floating point value, 8 bit for exponent, 7 bit for mantis
-        FP64 = 13  # 64bit floating point value
-        Q78 = 20  # 16bit specific signed fixed point precision
-        I16 = 30  # 16bit signed integer value
-        U4 = 39  # 4bit unsigned integer value
-        U8 = 40  # 8bit unsigned integer value
-        I4 = 49  # 4bit signed integer value
-        I8 = 50  # 8bit signed integer value
-        U16 = 60  # 16bit unsigned integer value
-        I32 = 70  # 32bit signed integer value
-        U32 = 74  # 32bit unsigned integer value
-        I64 = 72  # 64bit signed integer value
-        U64 = 73  # 64bit unsigned integer value
-        BIN = 71  # 1bit integer value
-        BOOL = 41  # 8bit bool type
-        CUSTOM = 80  # custom precision has it's own name and size of elements
+        UNSPECIFIED = 255 # Unspecified value. Used by default
+        FP32 = 10         # 32bit floating point value
+        FP16 = 11         # 16bit floating point value, 5 bit for exponent, 10 bit for mantisa
+        BF16 = 12         # 16bit floating point value, 8 bit for exponent, 7 bit for mantis
+        FP64 = 13         # 64bit floating point value
+        Q78 = 20          # 16bit specific signed fixed point precision
+        I16 = 30          # 16bit signed integer value
+        U4 = 39           # 4bit unsigned integer value
+        U8 = 40           # 8bit unsigned integer value
+        I4 = 49           # 4bit signed integer value
+        I8 = 50           # 8bit signed integer value
+        U16 = 60          # 16bit unsigned integer value
+        I32 = 70          # 32bit signed integer value
+        U32 = 74          # 32bit unsigned integer value
+        I64 = 72          # 64bit signed integer value
+        U64 = 73          # 64bit unsigned integer value
+        BIN = 71          # 1bit integer value
+        BOOL = 41         # 8bit bool type
+        CUSTOM = 80        # custom precision has it's own name and size of elements
 
     __precision_str = {
         PRECISION.UNSPECIFIED: "UNSPECIFIED",

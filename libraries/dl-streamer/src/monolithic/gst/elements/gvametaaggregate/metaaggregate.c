@@ -194,7 +194,7 @@ gboolean copy_one_gst_analytics_mtd(GstAnalyticsRelationMeta *dst, const GstAnal
 
 gboolean copy_all_gst_analytics_mtd(GstAnalyticsRelationMeta *src, GstAnalyticsRelationMeta *dst, GHashTable *id_map,
                                     gdouble scale_x, gdouble scale_y) {
-    if (!src || !dst) {
+    if (!src || !dst || !id_map) {
         GST_ERROR("copy_all_gst_analytics_mtd: bad arguments");
         return FALSE;
     }

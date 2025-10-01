@@ -1149,37 +1149,20 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             gpointer state = NULL;
             // GMutexLockGuard guard(&gva_base_inference->meta_mutex);
             // GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
-            // if (relation_meta) {
-            //     GstAnalyticsODMtd od_meta;
-            //     while (gst_analytics_relation_meta_iterate(relation_meta, &state,
-            //     gst_analytics_od_mtd_get_mtd_type(),
-            //                                                &od_meta)) {
-            //         auto roi = GstVideoRegionOfInterestMeta();
 
-            //         gint x;
-            //         gint y;
-            //         gint w;
-            //         gint h;
+            // GstAnalyticsODMtd od_meta;
+            // while (gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(),
+            //                                            &od_meta)) {
+            //     GstVideoRegionOfInterestMeta *roi = gst_buffer_get_video_region_of_interest_meta_id(buffer, od_meta.id);
+            //     if (!roi) {
+            //         throw std::runtime_error("InferenceImpl::TransformFrameIp: Failed to get video region of interest "
+            //                                  "meta for object detection metadata");
+            //     }
 
-            //         if (!gst_analytics_od_mtd_get_location(&od_meta, &x, &y, &w, &h, nullptr)) {
-            //             throw std::runtime_error(
-            //                 "Error when trying to read the location of the object detection metadata");
-            //         }
-
-            //         roi.x = x;
-            //         roi.y = y;
-            //         roi.w = w;
-            //         roi.h = h;
-
-            //         roi.roi_type = gst_analytics_od_mtd_get_obj_type(&od_meta);
-            //         roi.id = od_meta.id;
-
-            //         if (!gva_base_inference->is_roi_inference_needed ||
-            //             gva_base_inference->is_roi_inference_needed(gva_base_inference,
-            //             gva_base_inference->frame_num,
-            //                                                         buffer, &roi)) {
-            //             metas.push_back(roi);
-            //         }
+            //     if (!gva_base_inference->is_roi_inference_needed ||
+            //         gva_base_inference->is_roi_inference_needed(gva_base_inference, gva_base_inference->frame_num,
+            //                                                     buffer, roi)) {
+            //         metas.push_back(*roi);
             //     }
             // }
 

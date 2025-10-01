@@ -57,10 +57,6 @@ class VideoFrameTestCase(unittest.TestCase):
         regions = [region for region in self.video_frame_nv12.regions()]
         self.assertEqual(len(regions), rois_num)
 
-        # self.video_frame_nv12.remove_region(regions[-1])
-        # self.video_frame_nv12.remove_region(regions[0])
-        # self.assertEqual(len(list(self.video_frame_nv12.regions())), rois_num - 2)
-
         counter = 0
         for i in range(rois_num):
             region = next(

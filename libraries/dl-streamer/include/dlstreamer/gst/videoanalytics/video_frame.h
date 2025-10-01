@@ -344,19 +344,6 @@ class VideoFrame {
             return {};
         }
 
-        // GstMeta *meta = NULL;
-        // while ((meta = gst_buffer_iterate_meta_filtered(buffer, &state, GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE)))
-        // {
-
-        //     GstAnalyticsODMtd od_mtd;
-        //     if (!gst_analytics_relation_meta_get_od_mtd(relation_meta, (GstVideoRegionOfInterestMeta *)meta->id,
-        //                                                 &od_mtd)) {
-        //         throw std::runtime_error("Object detection metadata not found");
-        //     }
-
-        //     regions.emplace_back(od_mtd, (GstVideoRegionOfInterestMeta *)meta);
-        // }
-
         while (
             gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_mtd)) {
             roi_meta = gst_buffer_get_video_region_of_interest_meta_id(buffer, od_mtd.id);
