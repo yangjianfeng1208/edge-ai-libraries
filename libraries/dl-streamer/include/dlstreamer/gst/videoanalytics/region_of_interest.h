@@ -54,8 +54,10 @@ class RegionOfInterest {
         gint y;
         gint w;
         gint h;
+        gfloat r;
 
-        if (!gst_analytics_od_mtd_get_location(const_cast<GstAnalyticsODMtd *>(&_od_meta), &x, &y, &w, &h, nullptr)) {
+        if (!gst_analytics_od_mtd_get_oriented_location(const_cast<GstAnalyticsODMtd *>(&_od_meta), &x, &y, &w, &h, &r,
+                                                        nullptr)) {
             throw std::runtime_error("Error when trying to read the location of the RegionOfInterest");
         }
         return {static_cast<uint32_t>(x), static_cast<uint32_t>(y), static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
@@ -99,7 +101,8 @@ class RegionOfInterest {
 
     /**
      * @brief Get RegionOfInterest detection confidence (set by gvadetect)
-     * @return last added detection Tensor confidence if exists, otherwise 0.0
+     * @return detection confidence from analytics metadata
+     * @throws std::runtime_error if confidence cannot be read from metadata
      */
     double confidence() const {
         gfloat conf;
@@ -140,11 +143,8 @@ class RegionOfInterest {
     }
 
     /**
-     * @brief Add new tensor (inference result) to this RegionOfInterest with name set. To add detection tensor, set
-     * name to "detection"
-     * @param name name for the tensor. If name is set to "detection", detection Tensor will be created and set for this
-     * RegionOfInterest
-     * @return just created Tensor object, which can be filled with tensor information further
+     * @brief Add new tensor (inference result) to this RegionOfInterest
+     * @param tensor Tensor object to add to this RegionOfInterest
      */
     void add_tensor(const Tensor &tensor) {
         GstStructure *s = tensor.gst_structure();
@@ -214,6 +214,11 @@ class RegionOfInterest {
         }
     }
 
+    /**
+     * @brief Construct RegionOfInterest from analytics metadata and video metadata
+     * @param od_meta Object detection analytics metadata
+     * @param meta Video region of interest metadata containing additional parameters
+     */
     RegionOfInterest(GstAnalyticsODMtd od_meta, GstVideoRegionOfInterestMeta *meta)
         : _gst_meta(meta), _detection(nullptr), _od_meta(od_meta) {
 
@@ -255,6 +260,21 @@ class RegionOfInterest {
     }
 
     /**
+     * @brief Retrieves the parent object detection ID for this region of interest.
+     * @return The ID of the parent object detection metadata if found, -1 otherwise.
+     */
+    int parent_id() {
+        GstAnalyticsODMtd rlt_mtd;
+        if (gst_analytics_relation_meta_get_direct_related(_od_meta.meta, _od_meta.id,
+                                                           GST_ANALYTICS_REL_TYPE_IS_PART_OF,
+                                                           gst_analytics_od_mtd_get_mtd_type(), nullptr, &rlt_mtd)) {
+            return rlt_mtd.id;
+        } else {
+            return -1;
+        }
+    }
+
+    /**
      * @brief Set object ID
      * @param id ID to set
      */
@@ -290,14 +310,27 @@ class RegionOfInterest {
         }
     }
 
+    /**
+     * @brief Get list of parameters attached to this RegionOfInterest
+     * @return GList pointer to parameters
+     */
     GList *get_params() const {
         return _gst_meta->params;
     }
 
+    /**
+     * @brief Get parameter by name from this RegionOfInterest
+     * @param name Name of the parameter to retrieve
+     * @return GstStructure pointer to the parameter, or nullptr if not found
+     */
     GstStructure *get_param(const char *name) const {
         return gst_video_region_of_interest_meta_get_param(_gst_meta, name);
     }
 
+    /**
+     * @brief Add parameter structure to this RegionOfInterest
+     * @param s GstStructure to add as parameter
+     */
     void add_param(GstStructure *s) {
         gst_video_region_of_interest_meta_add_param(_gst_meta, s);
 

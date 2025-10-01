@@ -109,9 +109,6 @@ struct ClassificationHistoryTest : public ::testing::Test {
             set_od_id(od_mtd, id);
         }
 
-        // if (roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(custom_buf, &state)) {
-        //     set_object_id(roi, id);
-        // }
         return custom_buf;
     }
     void SetUpModel(std::string _name, std::string _precision = "FP32") {
@@ -260,7 +257,6 @@ TEST_F(ClassificationHistoryTest, FillROIParams_test) {
     gva_classify->reclassify_interval = 4;
 
     void *state = nullptr;
-    // GstVideoRegionOfInterestMeta *roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(image_buf, &state);
 
     GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(image_buf);
     ASSERT_NE(relation_meta, nullptr);
@@ -294,9 +290,6 @@ TEST_F(ClassificationHistoryTest, FillROIParams_test) {
     roi = nullptr;
     od_meta = {0, nullptr};
     GstStructure *output_params = nullptr;
-    // if (roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(image_buf, &state)) {
-    //     output_params = gst_video_region_of_interest_meta_get_param(roi, structure_name.c_str());
-    // }
 
     ret = gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_meta);
     ASSERT_TRUE(ret);
