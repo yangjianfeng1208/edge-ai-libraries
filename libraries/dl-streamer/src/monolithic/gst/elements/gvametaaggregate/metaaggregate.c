@@ -103,6 +103,10 @@ gboolean copy_one_gst_analytics_mtd(GstAnalyticsRelationMeta *dst, const GstAnal
 
         GQuark label_quark = gst_analytics_od_mtd_get_obj_type(mtd);
 
+        // Applies scaling factors to x, y coordinates and width, height dimensions.
+        // The addition of 0.5 before casting to integer ensures proper rounding
+        // to the nearest integer value instead of truncation, which provides
+        // more accurate coordinate transformation when scaling.
         gint new_x = scale_x != 1 ? (gint)(x * scale_x + 0.5) : x;
         gint new_y = scale_y != 1 ? (gint)(y * scale_y + 0.5) : y;
         gint new_w = scale_x != 1 ? (gint)(w * scale_x + 0.5) : w;
