@@ -112,6 +112,8 @@ PyObject *import_module_full_path(const char *module_name, const char *file_path
 
     if (PyRun_String(python_code, Py_file_input, main_dict, main_dict) == NULL) {
         PyErr_Print();
+        if (pStr)
+            delete[] pStr;
         return NULL;
     }
 
