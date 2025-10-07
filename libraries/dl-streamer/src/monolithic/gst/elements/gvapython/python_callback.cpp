@@ -14,6 +14,10 @@
 #include <gmodule.h>
 #include <pygobject-3.0/pygobject.h>
 
+#ifndef F_OK
+#define F_OK 0
+#endif
+
 namespace {
 PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, const char *args_string,
                        const char *kwargs_string) {
