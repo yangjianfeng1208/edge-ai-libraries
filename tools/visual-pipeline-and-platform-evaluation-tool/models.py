@@ -119,3 +119,9 @@ class SupportedModelsManager:
         Filters classification models based on availability and input arguments.
         """
         return self._filter_models(model_names, default_model, "classification")
+
+    def get_all_available_models(self):
+        """
+        Returns a list of SupportedModel instances that are available on disk.
+        """
+        return [m for m in self._models if m.exists_on_disk()]
