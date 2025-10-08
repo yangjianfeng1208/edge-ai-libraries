@@ -155,14 +155,6 @@ def format_docs(docs):
     
     return "\n\n".join(formatted_docs)
 
-async def context_retriever_fn(chain_inputs: dict):
-    question = chain_inputs.get("question", "")
-    if not question:
-        return {}   # to keep shape consistent
-
-    retrieved_docs = await retriever.aget_relevant_documents(question)
-    return retrieved_docs     # context: list[Document]
-
 async def process_chunks(conversation_messages, max_tokens):
     print(f"Inside process_chunks, conversation_messages: {conversation_messages}, max_tokens: {max_tokens}")
     # Combine all messages for context
