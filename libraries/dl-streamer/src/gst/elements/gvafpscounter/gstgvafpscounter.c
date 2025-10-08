@@ -288,7 +288,7 @@ static GstFlowReturn gst_gva_fpscounter_transform_ip(GstBaseTransform *trans, Gs
 
     GST_DEBUG_OBJECT(gvafpscounter, "transform_ip");
 
-    fps_counter_new_frame(buf, GST_ELEMENT_NAME(GST_ELEMENT(trans)));
+    fps_counter_new_frame(buf, GST_ELEMENT_NAME(GST_ELEMENT(trans)), gvafpscounter);
 
     if (!gst_pad_is_linked(GST_BASE_TRANSFORM_SRC_PAD(trans))) {
         return GST_BASE_TRANSFORM_FLOW_DROPPED;

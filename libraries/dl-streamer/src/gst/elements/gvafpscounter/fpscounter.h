@@ -36,6 +36,10 @@ class IterativeFpsCounter : public FpsCounter {
     void EOS(const std::string &element_name, FILE *) override;
     double calculate_std_dev(std::vector<double> &v);
     double calculate_latency(std::vector<double> &v);
+    float get_avg_fps() {
+        std::lock_guard<std::mutex> lock(mutex);
+        return avg_fps;
+    }
 
   protected:
     unsigned starting_frame;
