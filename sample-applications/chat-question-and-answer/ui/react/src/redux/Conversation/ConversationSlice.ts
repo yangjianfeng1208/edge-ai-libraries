@@ -11,12 +11,11 @@ import client from "../../common/client";
 import { notifications } from "@mantine/notifications";
 import { CHAT_QNA_URL, DATA_PREP_URL } from "../../config";
 
-// const CHAT_QNA_URL = "http://10.223.23.95:31257/v1/chatqna/chat";
 
 const initialState: ConversationReducer = {
   conversations: [],
   selectedConversationId: "",
-  onGoingResult: "",
+  onGoingResults: {},
 };
 
 export const ConversationSlice = createSlice({
@@ -26,17 +25,23 @@ export const ConversationSlice = createSlice({
     logout: (state) => {
       state.conversations = [];
       state.selectedConversationId = "";
-      state.onGoingResult = "";
+      state.onGoingResults = {};
     },
-    setOnGoingResult: (state, action: PayloadAction<string>) => {
-      state.onGoingResult = action.payload;
+    setOnGoingResultForConversation: (state, action: PayloadAction<{ conversationId: string; result: string }>) => {
+      const { conversationId, result } = action.payload;
+      state.onGoingResults[conversationId] = result;
     },
-    addMessageToMessages: (state, action: PayloadAction<Message>) => {
-      const selectedConversation = state.conversations.find((x) => x.conversationId === state.selectedConversationId);
-      selectedConversation?.Messages?.push(action.payload);
+    clearOnGoingResultForConversation: (state, action: PayloadAction<string>) => {
+      delete state.onGoingResults[action.payload];
+    },
+    addMessageToConversation: (state, action: PayloadAction<{ conversationId: string; message: Message }>) => {
+      const { conversationId, message } = action.payload;
+      const conversation = state.conversations.find((x) => x.conversationId === conversationId);
+      conversation?.Messages?.push(message);
     },
     newConversation: (state) => {
-      (state.selectedConversationId = ""), (state.onGoingResult = "");
+      state.selectedConversationId = "";
+      state.onGoingResults = {};
     },
     createNewConversation: (state, action: PayloadAction<{ title: string; id: string; message: Message }>) => {
       state.conversations.push({
@@ -103,9 +108,10 @@ export const uploadFile = createAsyncThunkWrapper("conversation/uploadFile", asy
 });
 export const {
   logout,
-  setOnGoingResult,
+  setOnGoingResultForConversation,
+  clearOnGoingResultForConversation,
   newConversation,
-  addMessageToMessages,
+  addMessageToConversation,
   setSelectedConversationId,
   createNewConversation,
 } = ConversationSlice.actions;
@@ -116,9 +122,12 @@ export const doConversation = (conversationRequest: ConversationRequest) => {
   console.log("doConversation");
   const { conversationId, userPrompt } = conversationRequest;
   let selectedConversation;
+  let activeConversationId: string;
+
   if (!conversationId) {
     // New conversation
     const id = uuidv4();
+    activeConversationId = id;
     store.dispatch(
       createNewConversation({
         title: userPrompt.content,
@@ -132,7 +141,11 @@ export const doConversation = (conversationRequest: ConversationRequest) => {
       Messages: [userPrompt],
     };
   } else {
-    store.dispatch(addMessageToMessages(userPrompt));
+    activeConversationId = conversationId;
+    store.dispatch(addMessageToConversation({
+      conversationId: activeConversationId,
+      message: userPrompt
+    }));
     selectedConversation = store.getState().conversationReducer.conversations.find(
       (x) => x.conversationId === conversationId
     );
@@ -148,11 +161,6 @@ export const doConversation = (conversationRequest: ConversationRequest) => {
     conversation_messages,
     max_tokens: 0,
   };
-
-  // const body = {
-  //   input: userPrompt.content,
-  //   max_tokens: 0,
-  // };
 
   let result = "";
   try {
@@ -195,7 +203,10 @@ export const doConversation = (conversationRequest: ConversationRequest) => {
             }
             // Store back result if it is not null
             if (result) {
-              store.dispatch(setOnGoingResult(result));
+              store.dispatch(setOnGoingResultForConversation({
+                conversationId: activeConversationId,
+                result
+              }));
             }
           } catch (e) {
             console.log("something wrong in msg", e);
@@ -205,20 +216,23 @@ export const doConversation = (conversationRequest: ConversationRequest) => {
       },
       onerror(err) {
         console.log("error", err);
-        store.dispatch(setOnGoingResult(""));
+        store.dispatch(clearOnGoingResultForConversation(activeConversationId));
         //notify here
         throw err;
         //handle error
       },
       onclose() {
         //handle close
-        store.dispatch(setOnGoingResult(""));
+        store.dispatch(clearOnGoingResultForConversation(activeConversationId));
 
         store.dispatch(
-          addMessageToMessages({
-            role: MessageRole.Assistant,
-            content: result,
-            time: getCurrentTimeStamp(),
+          addMessageToConversation({
+            conversationId: activeConversationId,
+            message: {
+              role: MessageRole.Assistant,
+              content: result,
+              time: getCurrentTimeStamp(),
+            }
           })
         );
       },

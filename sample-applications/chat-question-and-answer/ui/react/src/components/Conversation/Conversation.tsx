@@ -24,7 +24,7 @@ const Conversation = ({ title }: ConversationProps) => {
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
   const [fileUploadOpened, { open: openFileUpload, close: closeFileUpload }] = useDisclosure(false);
 
-  const { conversations, onGoingResult, selectedConversationId } = useAppSelector(conversationSelector)
+  const { conversations, onGoingResults, selectedConversationId } = useAppSelector(conversationSelector)
   const dispatch = useAppDispatch();
   const selectedConversation = conversations.find(x=>x.conversationId===selectedConversationId)
 
@@ -69,7 +69,7 @@ const Conversation = ({ title }: ConversationProps) => {
 
   useEffect(() => {
     scrollToBottom()
-  }, [onGoingResult, selectedConversation?.Messages])
+  }, [onGoingResults?.[selectedConversationId], selectedConversation?.Messages])
 
   const handleKeyDown: KeyboardEventHandler = (event) => {
     if (!event.shiftKey && event.key === toSend) {
@@ -100,7 +100,7 @@ const Conversation = ({ title }: ConversationProps) => {
             <span className={styleClasses.spacer}></span>
             <Group>
               {selectedConversation && selectedConversation?.Messages.length > 0 && (
-                <ActionIcon onClick={handleNewConversation} disabled={onGoingResult != ""} size={32} variant="default">
+                <ActionIcon onClick={handleNewConversation} disabled={!!(onGoingResults?.[selectedConversationId])} size={32} variant="default">
                   <IconMessagePlus />
                 </ActionIcon>
               )}
@@ -124,8 +124,8 @@ const Conversation = ({ title }: ConversationProps) => {
             })
             }
 
-            {onGoingResult && (
-              <ConversationMessage key={`_ai`} date={Date.now()} human={false} message={onGoingResult} />
+            {onGoingResults?.[selectedConversationId] && (
+              <ConversationMessage key={`_ai`} date={Date.now()} human={false} message={onGoingResults[selectedConversationId]} />
             )}
           </div>
 

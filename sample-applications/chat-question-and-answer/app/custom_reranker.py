@@ -54,8 +54,9 @@ class CustomReranker:
             headers={"Content-Type": "application/json"},
         )
         if response.status_code == 200:
-            res = response.json()
+            logging.info(response.json())
 
+            res = response.json()
             maxRank = max(res, key=lambda x: x["score"])
             return {
                 "question": retrieved_docs["question"],
