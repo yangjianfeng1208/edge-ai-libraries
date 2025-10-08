@@ -47,7 +47,7 @@ class IterativeFpsCounter : public FpsCounter {
     bool average;
     bool print_each_stream;
     unsigned total_frames;
-    double avg_fps;
+    float avg_fps;
     std::chrono::time_point<std::chrono::high_resolution_clock> init_time;
     std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
     std::map<std::string, int> num_frames;
