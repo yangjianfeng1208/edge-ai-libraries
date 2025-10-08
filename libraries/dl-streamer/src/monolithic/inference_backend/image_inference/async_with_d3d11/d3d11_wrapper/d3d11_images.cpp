@@ -12,17 +12,20 @@ using namespace InferenceBackend;
 
 namespace {
 
-Microsoft::WRL::ComPtr<ID3D11Texture2D> CreateID3D11Texture2D(ID3D11Device* device, uint32_t width, uint32_t height, int pixel_format) {
+Microsoft::WRL::ComPtr<ID3D11Texture2D> CreateID3D11Texture2D(ID3D11Device* device, uint32_t width, uint32_t height, int pixel_format,  MemoryType memory_type) {
     D3D11_TEXTURE2D_DESC texture2d_desc;
     texture2d_desc.Width = width;
     texture2d_desc.Height = height;
     texture2d_desc.MipLevels = 1;
     texture2d_desc.ArraySize = 1;
-    texture2d_desc.Format = static_cast<DXGI_FORMAT>(pixel_format);
+    texture2d_desc.Format = ConvertToDXGIFormat(pixel_format);
     texture2d_desc.SampleDesc.Count = 1;
     texture2d_desc.Usage = D3D11_USAGE_DEFAULT;
     texture2d_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    texture2d_desc.CPUAccessFlags = 0; // TODO: consider staging texture for CPU readback
+    if (memory_type == MemoryType::SYSTEM)
+        texture2d_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ; // Do we need write too?
+    else
+        texture2d_desc.CPUAccessFlags = 0;
 
     Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
     HRESULT hr = device->CreateTexture2D(&texture2d_desc, nullptr, &texture);
@@ -81,7 +84,7 @@ D3D11Image::D3D11Image(D3D11Context *context_, uint32_t width, uint32_t height, 
     image.height = height;
     image.format = pixel_format;
     image.d3d11_device = context->Device();
-    image.d3d11_texture = CreateID3D11Texture2D(context->Device(), width, height, pixel_format).GetAddressOf();
+    image.d3d11_texture = CreateID3D11Texture2D(context->Device(), width, height, pixel_format, memory_type).GetAddressOf();
     image_map = std::unique_ptr<ImageMap>(ImageMap::Create(memory_type));
     completed = true;
 }

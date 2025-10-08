@@ -305,7 +305,21 @@ void D3D11Converter::Convert(const Image &src, D3D11Image &d3d11_dst, const Inpu
     streams[0].pInputSurface = input_view.Get();
 
 
-    // TODO: consider synchronization and ensure processing is complete before using the output texture
+    // Prepare query for checking conversion completion
+    Microsoft::WRL::ComPtr<ID3D11Query> query;
+    D3D11_QUERY_DESC query_desc = {};
+    query_desc.Query = D3D11_QUERY_EVENT;
+    query_desc.MiscFlags = 0;
+
+    // Ensure thread safety for the conversion operation
+    std::lock_guard<std::mutex> lock(_convert_mutex);
+    hr = _context->Device()->CreateQuery(&query_desc, &query);
+    if (FAILED(hr)) {
+        throw std::runtime_error("D3D11Converter::Convert: Failed to create D3D11 event query");
+    }
+
+    _context->DeviceContext()->Begin(query.Get());
+
     hr = video_context->VideoProcessorBlt(
         video_processor.Get(),
         output_view.Get(),  // Output directly to destination texture
@@ -313,11 +327,24 @@ void D3D11Converter::Convert(const Image &src, D3D11Image &d3d11_dst, const Inpu
         1, // Number of input streams
         streams
     );
-
     if (FAILED(hr)) {
         throw std::runtime_error("D3D11Converter::Convert: VideoProcessorBlt failed");
     }
 
+    // TODO: check if flush is needed here
+    //_context->DeviceContext()->Flush();
+    _context->DeviceContext()->End(query.Get());
+
+    BOOL isFinished = FALSE;
+
+    while (hr = _context->DeviceContext()->GetData(query.Get(), &isFinished, sizeof(BOOL), 0) == S_FALSE)
+    {
+        if (FAILED(hr)) {
+        throw std::runtime_error("D3D11Converter::Convert: GetData failed");
+    }
+        // TODO: add sleep to avoid busy waiting?
+        // std::this_thread::sleep_for(std::chrono::microseconds(500));
+    }
 }
 
 } // namespace InferenceBackend

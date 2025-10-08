@@ -20,6 +20,7 @@ namespace InferenceBackend {
 
 class D3D11Converter {
     D3D11Context *_context;
+    static std::mutex _convert_mutex;
 
   protected:
     void SetupProcessorStreamsWithCustomParams(
