@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
-import userReducer from "./User/userSlice";
 import conversationReducer from "./Conversation/ConversationSlice";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 
 export const store = configureStore({
   reducer: combineReducers({
-    userReducer,
     conversationReducer,
   }),
   devTools: import.meta.env.PROD || true,

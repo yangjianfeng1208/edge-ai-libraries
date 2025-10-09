@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
-import { RootState, store } from "../store";
+import { RootState } from "../store";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { Message, MessageRole, ConversationReducer, ConversationRequest } from "./Conversation";
 import { getCurrentTimeStamp, uuidv4 } from "../../common/util";
@@ -23,11 +23,6 @@ export const ConversationSlice = createSlice({
   name: "Conversation",
   initialState,
   reducers: {
-    logout: (state) => {
-      state.conversations = [];
-      state.selectedConversationId = "";
-      state.onGoingResults = {};
-    },
     setOnGoingResultForConversation: (state, action: PayloadAction<{ conversationId: string; result: string }>) => {
       const { conversationId, result } = action.payload;
       state.onGoingResults[conversationId] = result;
@@ -37,7 +32,7 @@ export const ConversationSlice = createSlice({
     },
     addMessageToConversation: (state, action: PayloadAction<{ conversationId: string; message: Message }>) => {
       const { conversationId, message } = action.payload;
-      const conversation = state.conversations.find((x) => x.conversationId === conversationId);
+      const conversation = state.conversations.find((conv) => conv.conversationId === conversationId);
       conversation?.Messages?.push(message);
     },
     newConversation: (state) => {
@@ -53,6 +48,24 @@ export const ConversationSlice = createSlice({
     },
     setSelectedConversationId: (state, action: PayloadAction<string>) => {
       state.selectedConversationId = action.payload;
+    },
+    deleteConversation: (state, action: PayloadAction<string>) => {
+      const conversationId = action.payload;
+      // Clear ongoing results 
+      delete state.onGoingResults[conversationId];
+      // Clear selection 
+      if (state.selectedConversationId === conversationId) {
+        state.selectedConversationId = "";
+      }
+      // Remove conversation 
+      state.conversations = state.conversations.filter(conv => conv.conversationId !== conversationId);
+    },
+    updateConversationTitle: (state, action: PayloadAction<{ id: string; updatedTitle: string }>) => {
+      const { id, updatedTitle } = action.payload;
+      const conversation = state.conversations.find(conv => conv.conversationId === id);
+      if (conversation) {
+        conversation.title = updatedTitle;
+      }
     },
   },
   extraReducers(builder) {
@@ -89,6 +102,7 @@ export const ConversationSlice = createSlice({
     builder.addCase(fetchModelName.rejected, (state) => {
       state.modelName = "Unknown Model";
     });
+    // doConversation thunk doesn't need extra reducers since it uses existing actions
   },
 });
 
@@ -123,140 +137,145 @@ export const uploadFile = createAsyncThunkWrapper("conversation/uploadFile", asy
   return response.data;
 });
 export const {
-  logout,
   setOnGoingResultForConversation,
   clearOnGoingResultForConversation,
   newConversation,
   addMessageToConversation,
   setSelectedConversationId,
   createNewConversation,
+  deleteConversation,
+  updateConversationTitle,
 } = ConversationSlice.actions;
 export const conversationSelector = (state: RootState) => state.conversationReducer;
 export default ConversationSlice.reducer;
 
-export const doConversation = (conversationRequest: ConversationRequest) => {
-  console.log("doConversation");
-  const { conversationId, userPrompt } = conversationRequest;
-  let selectedConversation;
-  let activeConversationId: string;
+export const doConversation = createAsyncThunkWrapper(
+  "conversation/doConversation",
+  async (conversationRequest: ConversationRequest, { dispatch, getState }) => {
+    console.log("doConversation");
+    const { conversationId, userPrompt } = conversationRequest;
+    let selectedConversation;
+    let activeConversationId: string;
 
-  if (!conversationId) {
-    // New conversation
-    const id = uuidv4();
-    activeConversationId = id;
-    store.dispatch(
-      createNewConversation({
-        title: userPrompt.content,
-        id,
-        message: userPrompt,
-      })
-    );
-    store.dispatch(setSelectedConversationId(id));
-    selectedConversation = {
-      conversationId: id,
-      Messages: [userPrompt],
+    if (!conversationId) {
+      // New conversation
+      const id = uuidv4();
+      activeConversationId = id;
+      dispatch(
+        createNewConversation({
+          title: userPrompt.content,
+          id,
+          message: userPrompt,
+        })
+      );
+      dispatch(setSelectedConversationId(id));
+      selectedConversation = {
+        conversationId: id,
+        Messages: [userPrompt],
+      };
+    } else {
+      activeConversationId = conversationId;
+      dispatch(addMessageToConversation({
+        conversationId: activeConversationId,
+        message: userPrompt
+      }));
+      const state = getState() as RootState;
+      selectedConversation = state.conversationReducer.conversations.find(
+        (x) => x.conversationId === conversationId
+      );
+    }
+
+    // Prepare messages array for backend (role, content only)
+    const conversation_messages = selectedConversation?.Messages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    })) || [];
+
+    const body = {
+      conversation_messages,
+      max_tokens: 0,
     };
-  } else {
-    activeConversationId = conversationId;
-    store.dispatch(addMessageToConversation({
-      conversationId: activeConversationId,
-      message: userPrompt
-    }));
-    selectedConversation = store.getState().conversationReducer.conversations.find(
-      (x) => x.conversationId === conversationId
-    );
-  }
 
-  // Prepare messages array for backend (role, content only)
-  const conversation_messages = selectedConversation?.Messages.map(msg => ({
-    role: msg.role,
-    content: msg.content
-  })) || [];
-
-  const body = {
-    conversation_messages,
-    max_tokens: 0,
-  };
-
-  let result = "";
-  try {
-    fetchEventSource(CHAT_QNA_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      openWhenHidden: true,
-      async onopen(response) {
-        if (response.ok) {
-          return;
-        } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-          const e = await response.json();
-          console.log(e);
-          throw Error(e.error.message);
-        } else {
-          console.log("error", response);
-        }
-      },
-      onmessage(msg) {
-        if (msg?.data != "[DONE]") {
-          try {
-            const match = msg.data.match(/b'([^']*)'/);
-            if (match && match[1] != "</s>") {
-              const extractedText = match[1];
-
-              // Check for the presence of \x hexadecimal
-              if (extractedText.includes("\\x")) {
-                // Decode Chinese (or other non-ASCII characters)
-                const decodedText = decodeEscapedBytes(extractedText);
-                result += decodedText;
-              } else {
-                result += extractedText;
-              }
-            } else if (!match) {
-              // Return data without pattern
-              result += msg?.data;
-            }
-            // Store back result if it is not null
-            if (result) {
-              store.dispatch(setOnGoingResultForConversation({
-                conversationId: activeConversationId,
-                result
-              }));
-            }
-          } catch (e) {
-            console.log("something wrong in msg", e);
-            throw e;
+    let result = "";
+    try {
+      fetchEventSource(CHAT_QNA_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        openWhenHidden: true,
+        async onopen(response) {
+          if (response.ok) {
+            return;
+          } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            const e = await response.json();
+            console.log(e);
+            throw Error(e.error.message);
+          } else {
+            console.log("error", response);
           }
-        }
-      },
-      onerror(err) {
-        console.log("error", err);
-        store.dispatch(clearOnGoingResultForConversation(activeConversationId));
-        //notify here
-        throw err;
-        //handle error
-      },
-      onclose() {
-        //handle close
-        store.dispatch(clearOnGoingResultForConversation(activeConversationId));
+        },
+        onmessage(msg) {
+          if (msg?.data != "[DONE]") {
+            try {
+              const match = msg.data.match(/b'([^']*)'/);
+              if (match && match[1] != "</s>") {
+                const extractedText = match[1];
 
-        store.dispatch(
-          addMessageToConversation({
-            conversationId: activeConversationId,
-            message: {
-              role: MessageRole.Assistant,
-              content: result,
-              time: getCurrentTimeStamp(),
+                // Check for the presence of \x hexadecimal
+                if (extractedText.includes("\\x")) {
+                  // Decode Chinese (or other non-ASCII characters)
+                  const decodedText = decodeEscapedBytes(extractedText);
+                  result += decodedText;
+                } else {
+                  result += extractedText;
+                }
+              } else if (!match) {
+                // Return data without pattern
+                result += msg?.data;
+              }
+              // Store back result if it is not null
+              if (result) {
+                dispatch(setOnGoingResultForConversation({
+                  conversationId: activeConversationId,
+                  result
+                }));
+              }
+            } catch (e) {
+              console.log("something wrong in msg", e);
+              throw e;
             }
-          })
-        );
-      },
-    });
-  } catch (err) {
-    console.log(err);
+          }
+        },
+        onerror(err) {
+          console.log("error", err);
+          dispatch(clearOnGoingResultForConversation(activeConversationId));
+          //notify here
+          throw err;
+          //handle error
+        },
+        onclose() {
+          //handle close
+          dispatch(clearOnGoingResultForConversation(activeConversationId));
+
+          dispatch(
+            addMessageToConversation({
+              conversationId: activeConversationId,
+              message: {
+                role: MessageRole.Assistant,
+                content: result,
+                time: getCurrentTimeStamp(),
+              }
+            })
+          );
+        },
+      });
+    } catch (err) {
+      console.log(err);
+    }
   }
-};
+);
 
 // decode \x hexadecimal encoding
 function decodeEscapedBytes(str: string): string {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { KeyboardEventHandler, SyntheticEvent, useEffect, useRef, useState } from 'react'
-import styleClasses from "./conversation.module.scss"
+import styleClasses from "../../styles/components/conversation.module.scss"
 import { ActionIcon, Group, Textarea, Title, rem, Anchor } from '@mantine/core'
 import { IconArrowRight, IconFilePlus, IconMessagePlus } from '@tabler/icons-react'
 import { conversationSelector, doConversation, newConversation, fetchModelName } from '../../redux/Conversation/ConversationSlice'
@@ -50,6 +50,8 @@ const Conversation = ({ title }: ConversationProps) => {
     if (selectedConversation && selectedConversation.Messages.length > 0 &&
       selectedConversation.Messages.some(msg => msg.role === MessageRole.Assistant)) {
       setHasLLMResponse(true);
+    } else {
+      setHasLLMResponse(false); // for new conversation do not display model name
     }
   }, [selectedConversation?.Messages]);
 
@@ -70,12 +72,10 @@ const Conversation = ({ title }: ConversationProps) => {
     
     messages = [systemPrompt, ...messages]
 
-    doConversation({
+    dispatch(doConversation({
       conversationId: selectedConversationId,
       userPrompt,
-      messages,
-      model: modelName,
-    })
+    }))
     setPrompt("")
   }
 

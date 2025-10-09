@@ -7,16 +7,14 @@
   @include flex(row, nowrap, flex-start, flex-start);
 }
 
-.layout-wrapper {
+.chat-container {
   @include absolutes;
 
-  display: grid;
+  display: flex;
+  flex-direction: column;
 
   width: 100%;
   height: 100%;
-
-  grid-template-columns: 80px auto;
-  grid-template-rows: 1fr;
 }
 
 /* ===== Scrollbar CSS ===== */

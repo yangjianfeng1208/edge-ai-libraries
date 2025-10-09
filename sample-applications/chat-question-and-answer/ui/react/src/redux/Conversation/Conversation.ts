@@ -4,8 +4,6 @@
 export type ConversationRequest = {
   conversationId: string;
   userPrompt: Message;
-  messages: Partial<Message>[];
-  model: string;
 };
 export enum MessageRole {
   Assistant = "assistant",

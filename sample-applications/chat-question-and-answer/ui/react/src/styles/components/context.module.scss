@@ -4,10 +4,9 @@
 .contextWrapper {
   background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
   border-right: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
-  width: 180px;
+  width: 260px;
   overflow-y: hidden;
   overflow-x: hidden;
-  // overflow-y: auto;
 
   .contextTitle {
     position: sticky;
@@ -15,8 +14,9 @@
     font-family:
       Greycliff CF,
       var(--mantine-font-family);
-    margin-bottom: var(--mantine-spacing-xl);
-    background-color: var(--mantine-color-body);
+    margin-bottom: var(--mantine-spacing-xs);
+    background-color: var(--mantine-color-blue-6);
+    color: var(--mantine-color-white);
     padding: var(--mantine-spacing-md);
     padding-top: 18px;
     width: 100%;
@@ -24,9 +24,17 @@
     border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-7));
   }
 
+  .chatHistoryTitle {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    color: var(--mantine-color-gray-6);
+    letter-spacing: 0.5px;
+    margin-bottom: var(--mantine-spacing-xs);
+  }
+
   .contextList {
     height: 90vh;
-    // display: flex();
 
     .contextListItem {
       display: block;
@@ -45,8 +53,9 @@
 
       .contextItemName {
         flex: 1 1 auto;
-        width: 130px;
+        width: 160px;
         @include textWrapEllipsis;
+        text-transform: capitalize;
       }
 
       &:hover {
@@ -57,8 +66,8 @@
       &[data-active] {
         &,
         &:hover {
-          border-left-color: var(--mantine-color-blue-filled);
-          background-color: var(--mantine-color-blue-filled);
+          border-left-color: var(--mantine-color-gray-4);
+          background-color: var(--mantine-color-gray-4);
           color: var(--mantine-color-white);
         }
       }
