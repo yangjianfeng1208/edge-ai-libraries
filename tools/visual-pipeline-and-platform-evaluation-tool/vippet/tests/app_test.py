@@ -24,11 +24,8 @@ mock.patch(
 
 from app import create_interface  # noqa: E402
 
-from pipelines.pipeline_page import (  # noqa: E402
-    generate_stream_data,
-    read_latest_metrics,
-    charts,
-)
+from pipelines.pipeline_page import charts  # noqa: E402
+from telemetry import Telemetry  # noqa: E402
 
 
 class TestApp(unittest.TestCase):
@@ -67,7 +64,8 @@ class TestApp(unittest.TestCase):
         patched_charts = [cpu_chart, mem_chart, gpu_chart]
         with mock.patch("pipelines.pipeline_page.charts", patched_charts):
             with mock.patch("builtins.open", mock.mock_open(read_data=mock_data)):
-                result = read_latest_metrics()
+                telemetry = Telemetry(patched_charts)
+                result = telemetry.read_latest_metrics()
                 # Check that all expected keys exist and have value 1.0 or None
                 self.assertIsInstance(result, dict)
                 # CPU/mem/core_temp/cpu_freq always present
@@ -103,7 +101,8 @@ class TestApp(unittest.TestCase):
             f"gpu engine=compute usage=null {timestamp}\n"
         )
         with mock.patch("builtins.open", mock.mock_open(read_data=mock_data)):
-            result = read_latest_metrics()
+            telemetry = Telemetry(charts)
+            result = telemetry.read_latest_metrics()
             self.assertIsInstance(result, dict)
             for v in result.values():
                 self.assertTrue(v is None or v == "null")
@@ -130,12 +129,11 @@ class TestApp(unittest.TestCase):
             metrics[key] = 1.0
 
         with (
-            mock.patch(
-                "pipelines.pipeline_page.read_latest_metrics", return_value=metrics
-            ),
+            mock.patch.object(Telemetry, "read_latest_metrics", return_value=metrics),
             mock.patch("builtins.open", mock.mock_open(read_data="1.0\n")),
         ):
-            streams = generate_stream_data()
+            telemetry = Telemetry(charts)
+            streams = telemetry.generate_stream_data()
             self.assertEqual(len(streams), len(charts))
             for stream in streams:
                 self.assertIsNotNone(stream)

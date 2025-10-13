@@ -125,7 +125,7 @@ def prepare_video_and_constants(
 
     # Validate and set object detection model path/proc
     if not is_model_supported_on_device(
-        object_detection_model, object_detection_device
+        str(object_detection_model), str(object_detection_device)
     ):
         raise ValueError(
             f"Object Detection Model '{object_detection_model}' is not supported on device '{object_detection_device}'. Please select a different model or device."
@@ -133,11 +133,11 @@ def prepare_video_and_constants(
     (
         constants["OBJECT_DETECTION_MODEL_PATH"],
         constants["OBJECT_DETECTION_MODEL_PROC"],
-    ) = get_model_path_and_proc(object_detection_model)
+    ) = get_model_path_and_proc(str(object_detection_model))
 
     # Validate and set object classification model path/proc
     if not is_model_supported_on_device(
-        object_classification_model, object_classification_device
+        str(object_classification_model), str(object_classification_device)
     ):
         raise ValueError(
             f"Object Classification Model '{object_classification_model}' is not supported on device '{object_classification_device}'. Please select a different model or device."
@@ -145,7 +145,7 @@ def prepare_video_and_constants(
     (
         constants["OBJECT_CLASSIFICATION_MODEL_PATH"],
         constants["OBJECT_CLASSIFICATION_MODEL_PROC"],
-    ) = get_model_path_and_proc(object_classification_model)
+    ) = get_model_path_and_proc(str(object_classification_model))
 
     return video_output_path, constants, param_grid
 
