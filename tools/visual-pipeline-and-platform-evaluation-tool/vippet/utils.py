@@ -165,6 +165,7 @@ def is_model_supported_on_device(model_name: str, device: str) -> bool:
 
 def get_model_path_and_proc(model_name: str) -> tuple[str, str]:
     model_map = {
+        "Disabled": ("Disabled", "Disabled"),
         "SSDLite MobileNet V2 (INT8)": (
             f"{MODELS_PATH}/pipeline-zoo-models/ssdlite_mobilenet_v2_INT8/FP16-INT8/ssdlite_mobilenet_v2.xml",
             f"{MODELS_PATH}/pipeline-zoo-models/ssdlite_mobilenet_v2_INT8/ssdlite_mobilenet_v2.json",
