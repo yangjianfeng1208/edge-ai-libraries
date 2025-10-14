@@ -10,8 +10,7 @@ import api_schemas as schemas
 from gstpipeline import PipelineLoader
 from optimize import PipelineOptimizer
 from explore import GstInspector
-from pipelines.pipeline_page import download_file
-from utils import prepare_video_and_constants
+from utils import prepare_video_and_constants, download_file
 from benchmark import Benchmark
 
 TEMP_DIR = tempfile.gettempdir()
