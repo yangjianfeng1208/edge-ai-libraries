@@ -30,7 +30,7 @@ class D3D11Context : public BaseContext {
     }
 
     D3D11Context(void *d3d_device) : BaseContext(MemoryType::D3D11) {
-        _d3d_device = d3d_device;
+        _d3d_device = static_cast<GstD3D11Device*>(d3d_device);
     }
 
     D3D11Context(const ContextPtr &another_context) : BaseContext(MemoryType::D3D11) {

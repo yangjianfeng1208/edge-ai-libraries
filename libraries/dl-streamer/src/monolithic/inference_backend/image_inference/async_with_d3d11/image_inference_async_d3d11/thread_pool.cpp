@@ -12,6 +12,9 @@
 
 #include <string>
 
+namespace InferenceBackend {
+namespace D3D11 {
+
 #ifdef ENABLE_ITT
 #include "ittnotify.h"
 #define ITT_THREAD_NAME()                                                                                              \
@@ -81,3 +84,6 @@ void ThreadPool::_task_runner() {
         GVA_ERROR("Error was happened during in another thread: %s", Utils::createNestedErrorMsg(e).c_str());
     }
 }
+
+} // namespace D3D11
+} // namespace InferenceBackend

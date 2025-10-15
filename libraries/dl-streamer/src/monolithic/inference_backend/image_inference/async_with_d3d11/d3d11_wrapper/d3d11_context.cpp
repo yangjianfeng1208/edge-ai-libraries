@@ -24,7 +24,7 @@ D3D11Context::D3D11Context(ID3D11Device* d3d11_device) : _device(d3d11_device) {
 D3D11Context::D3D11Context(dlstreamer::ContextPtr display_context)
     : _device_context_storage(display_context) {
     
-    auto gst_device = static_cast<GSTD3D11Device*>(display_context->handle(dlstreamer::D3D11Context::key::d3d11_device));
+    auto gst_device = static_cast<GstD3D11Device*>(display_context->handle(dlstreamer::D3D11Context::key::d3d_device));
     _device = gst_d3d11_device_get_device_handle(gst_device);
     
     create_config_and_contexts();

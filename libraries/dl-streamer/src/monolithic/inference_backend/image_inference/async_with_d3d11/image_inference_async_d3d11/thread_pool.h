@@ -13,6 +13,9 @@
 #include <queue>
 #include <thread>
 
+namespace InferenceBackend {
+namespace D3D11 {
+
 class ThreadPool {
   private:
     std::vector<std::thread> _threads;
@@ -30,3 +33,6 @@ class ThreadPool {
 
     std::future<void> schedule(const std::function<void()> &callable);
 };
+
+} // namespace D3D11
+} // namespace InferenceBackend

@@ -76,7 +76,7 @@ ImageInferenceAsyncD3D11::ImageInferenceAsyncD3D11(const InferenceBackend::Infer
                                   ? DEFAULT_THREAD_POOL_SIZE
                                   : std::stoull(thread_pool_size_it->second);
 
-    _thread_pool.reset(new ThreadPool(thread_pool_size));
+    _thread_pool.reset(new D3D11::ThreadPool(thread_pool_size));
 
     _d3d11_context = std::unique_ptr<D3D11Context>(new D3D11Context(d3d11_context));
     _d3d11_converter = std::unique_ptr<D3D11Converter>(new D3D11Converter(_d3d11_context.get()));

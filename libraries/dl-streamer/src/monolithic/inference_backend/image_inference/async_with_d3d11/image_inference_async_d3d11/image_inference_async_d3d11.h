@@ -59,7 +59,7 @@ class ImageInferenceAsyncD3D11 : public ImageInference {
 
     ImageInference::Ptr _inference;
 
-    std::unique_ptr<ThreadPool> _thread_pool;
+    std::unique_ptr<D3D11::ThreadPool> _thread_pool;
 
     void SubmitInference(D3D11Image *d3d11_image, IFrameBase::Ptr frame,
                          const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors);

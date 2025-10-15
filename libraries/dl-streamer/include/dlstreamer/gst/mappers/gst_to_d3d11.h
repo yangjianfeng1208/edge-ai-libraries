@@ -17,7 +17,8 @@ class MemoryMapperGSTToD3D11 : public BaseMemoryMapper {
         auto src_gst = ptr_cast<GSTTensor>(src);
 
         // Extract D3D11 texture handle from GstMemory
-        auto d3d11_texture = get_d3d11_texture(src_gst->gst_memory());
+        void* d3d11_texture_ptr = get_d3d11_texture(src_gst->gst_memory());
+        ID3D11Texture2D* d3d11_texture = static_cast<ID3D11Texture2D*>(d3d11_texture_ptr);
 
         auto ret = std::make_shared<D3D11Tensor>(d3d11_texture, src_gst->plane_index(), src->info(), _output_context);
 

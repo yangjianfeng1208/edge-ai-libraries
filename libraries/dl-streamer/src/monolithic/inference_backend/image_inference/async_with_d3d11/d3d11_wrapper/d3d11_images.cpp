@@ -12,6 +12,9 @@ using namespace InferenceBackend;
 
 namespace {
 
+// Forward declaration
+DXGI_FORMAT ConvertToDXGIFormat(int pixel_format);
+
 Microsoft::WRL::ComPtr<ID3D11Texture2D> CreateID3D11Texture2D(ID3D11Device* device, uint32_t width, uint32_t height, int pixel_format,  MemoryType memory_type) {
     D3D11_TEXTURE2D_DESC texture2d_desc;
     texture2d_desc.Width = width;
