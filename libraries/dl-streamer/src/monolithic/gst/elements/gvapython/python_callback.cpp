@@ -12,6 +12,10 @@
 
 #include <dlfcn.h>
 #include <gmodule.h>
+#ifdef _MSC_VER
+#else
+#include <pygobject.h>
+#endif
 #include <pygobject-3.0/pygobject.h>
 
 namespace {
