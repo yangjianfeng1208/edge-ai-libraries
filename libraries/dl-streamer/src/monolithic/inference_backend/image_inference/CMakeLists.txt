@@ -12,6 +12,10 @@ if(${ENABLE_VAAPI})
         add_subdirectory(async_with_va_api)
 endif()
 
+if(WIN32)
+        add_subdirectory(async_with_d3d11)
+endif()
+
 find_package(PkgConfig REQUIRED)
 find_package(OpenVINO REQUIRED Runtime)
 
@@ -32,6 +36,7 @@ PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/openvino
         ${CMAKE_CURRENT_SOURCE_DIR}/async_with_va_api
+        ${CMAKE_CURRENT_SOURCE_DIR}/async_with_d3d11
 )
 
 target_link_libraries(${TARGET_NAME}

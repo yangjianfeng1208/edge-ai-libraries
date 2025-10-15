@@ -65,9 +65,10 @@ class GSTContextQuery : public BaseContext {
 #ifdef _MSC_VER
         else if (key == BaseContext::key::d3d_device) {
             GstD3D11Device *d3d11_device = NULL;
-            if (gst_structure_get (_structure, "device", GST_TYPE_D3D11_DEVICE, &d3d11_device, NULL)) {
-            value = reinterpret_cast<handle_t>(d3d11_device);
-            //gst_clear_object(&d3d11_device);
+            if (gst_structure_get(_structure, "device", GST_TYPE_D3D11_DEVICE, &d3d11_device, NULL)) {
+                value = reinterpret_cast<handle_t>(d3d11_device);
+                //gst_clear_object(&d3d11_device);
+            }
         }
 #endif
         else {

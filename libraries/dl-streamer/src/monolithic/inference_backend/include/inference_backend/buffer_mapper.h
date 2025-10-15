@@ -78,7 +78,7 @@ class BufferToImageMapper final {
         };
 #ifdef _MSC_VER
         if (_memory_type == MemoryType::D3D11) {
-            image->d3d11_texture = dlstreamer::ptr_cast<dlstreamer::D3D11Tensor>(tensor0)->d3d11_texture;
+            image->d3d11_texture = dlstreamer::ptr_cast<dlstreamer::D3D11Tensor>(tensor0)->d3d11_texture();
             auto gst_d3d_device = static_cast<GstD3D11Device*>(tensor0->context()->handle(dlstreamer::D3D11Context::key::d3d_device));
             image->d3d11_device = reinterpret_cast<void*>(gst_d3d11_device_get_device_handle(gst_d3d_device));
         }
