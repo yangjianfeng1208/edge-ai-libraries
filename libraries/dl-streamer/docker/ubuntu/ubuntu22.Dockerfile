@@ -268,7 +268,8 @@ RUN \
     build/ && \
     ninja -C build && \
     meson install -C build/ && \
-    rm -r subprojects/gst-devtools subprojects/gst-examples
+    rm -r subprojects/gst-devtools subprojects/gst-examples && \
+    rm /tmp/gstreamer-patch.patch
 
 ENV PKG_CONFIG_PATH="${GSTREAMER_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
