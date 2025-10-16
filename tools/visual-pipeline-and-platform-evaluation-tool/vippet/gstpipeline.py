@@ -33,7 +33,7 @@ class GstPipeline:
         elements: list = None,
     ) -> str:
         raise NotImplementedError(
-            "The evaluate method must be implemented by subclasses"
+            "The get_default_gst_launch method must be implemented by subclasses"
         )
 
     def diagram(self) -> Path:

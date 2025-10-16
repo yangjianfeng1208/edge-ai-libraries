@@ -1,4 +1,4 @@
-import api_schemas as schemas
+import api.api_schemas as schemas
 from typing import List
 from fastapi import APIRouter
 

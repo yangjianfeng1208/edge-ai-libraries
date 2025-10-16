@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import pipelines, devices, models, metrics
+from api.routes import pipelines, devices, models, metrics
 
 
 # Initialize FastAPI app
