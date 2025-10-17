@@ -32,8 +32,8 @@ class PipelineOptimizer:
     def __init__(
         self,
         pipeline: GstPipeline,
-        constants: Dict[str, str],
-        param_grid: Dict[str, List[str]],
+        constants: Dict[str, str] = {},
+        param_grid: Dict[str, List[str]] = {},
         poll_interval: int = 1,
         channels: int | tuple[int, int] = 1,
         elements: List[tuple[str, str, str]] = [],

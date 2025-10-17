@@ -826,7 +826,7 @@ components:
         device_family:
           type: string
         gpu_id:
-          type: number
+          type: integer
       required:
       - description
       - type

@@ -244,3 +244,48 @@ class SimpleVideoStructurizationPipeline(GstPipeline):
                 streams += "fakesink "
 
         return "gst-launch-1.0 -q " + streams
+
+    def get_default_gst_launch(
+        self,
+        elements: list | None = None,
+    ) -> str:
+        # Provide default parameters for a basic pipeline
+        default_params = {
+            "object_detection_device": "CPU",
+            "object_detection_batch_size": 0,
+            "object_detection_inference_interval": 3,
+            "object_detection_nireq": 0,
+            "object_classification_device": "CPU",
+            "object_classification_batch_size": 0,
+            "object_classification_inference_interval": 3,
+            "object_classification_nireq": 0,
+            "object_classification_reclassify_interval": 1,
+            "tracking_type": "short-term-imageless",
+            "pipeline_watermark_enabled": True,
+            "pipeline_video_enabled": True,
+            "live_preview_enabled": False,
+        }
+
+        # Provide default constants for a basic pipeline
+        default_constants = {
+            "VIDEO_PATH": "/tmp/dummy-video.mp4",
+            "VIDEO_CODEC": "h264",
+            "VIDEO_OUTPUT_PATH": "/tmp/dummy-video-output.mp4",
+            "OBJECT_DETECTION_MODEL_PATH": "/models/output/public/yolov8_license_plate_detector/FP32/yolov8_license_plate_detector.xml",
+            "OBJECT_DETECTION_MODEL_PROC": "",
+            "OBJECT_CLASSIFICATION_MODEL_PATH": "/models/output/public/ch_PP-OCRv4_rec_infer/FP32/ch_PP-OCRv4_rec_infer.xml",
+            "OBJECT_CLASSIFICATION_MODEL_PROC": "",
+        }
+
+        # Set default number of channels
+        regular_channels = 0
+        inference_channels = 1
+
+        # Use the full evaluate method with default parameters
+        return self.evaluate(
+            default_constants,
+            default_params,
+            regular_channels,
+            inference_channels,
+            elements,
+        )

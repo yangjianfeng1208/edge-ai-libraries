@@ -44,7 +44,7 @@ COPY --chown=dlstreamer:dlstreamer \
 COPY --chown=dlstreamer:dlstreamer vippet/pipelines/ /home/dlstreamer/vippet/pipelines
 COPY --chown=dlstreamer:dlstreamer vippet/api/ /home/dlstreamer/vippet/api
 
-CMD ["/bin/bash", "-c", "fastapi run --port 7860 api.py"]
+CMD ["/bin/bash", "-c", "fastapi run --port 7860 api/main.py"]
 
 FROM prod AS test
 

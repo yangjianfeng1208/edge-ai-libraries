@@ -691,3 +691,13 @@ def discover_video_codec(video_path: str) -> str:
     if "hevc" in video_codec:
         return "h265"
     return video_codec or "unknown"
+
+
+def replace_file_path(launch_string: str, file_path: str) -> str:
+    # Replace after 'filesrc location='
+    launch_string = re.sub(
+        r"(filesrc\s+location=)[^\s!]+", rf"\1{file_path}", launch_string
+    )
+    # Replace after 'source='
+    launch_string = re.sub(r"(source=)[^\s!]+", rf"\1{file_path}", launch_string)
+    return launch_string

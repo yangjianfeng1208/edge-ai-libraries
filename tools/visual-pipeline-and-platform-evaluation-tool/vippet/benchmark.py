@@ -24,7 +24,7 @@ class Benchmark:
         fps_floor: float,
         rate: int | None,
         parameters: Dict[str, List[str]],
-        constants: Dict[str, str],
+        constants: Dict[str, str] = {},
         elements: List[tuple[str, str, str]] | None = None,
     ):
         self.pipeline_cls = pipeline_cls
