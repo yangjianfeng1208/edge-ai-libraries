@@ -112,7 +112,7 @@ async def query_chain(payload: QuestionRequest):
     and returns a streaming response with the processed chunks of the question text.
 
     Args:
-        payload (QuestionRequest): The request payload containing the input question text
+        payload (QuestionRequest): The request payload containing conversation history with the input question text
         max_tokens (int): The maximum number of tokens to process. Defaults to 512 if not provided.
         or set to 1024 if provided.
 
