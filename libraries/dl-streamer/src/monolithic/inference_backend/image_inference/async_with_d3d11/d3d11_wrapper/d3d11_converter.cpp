@@ -21,8 +21,6 @@ using namespace InferenceBackend;
 
 namespace InferenceBackend {
 
-std::mutex D3D11Converter::_blt_mutex;
-
 D3D11Converter::D3D11Converter(D3D11Context *context) : _context(context) {
     if (!context)
         throw std::runtime_error("D3D11Context is null. D3D11Converter requires not nullptr context.");
@@ -318,42 +316,30 @@ void D3D11Converter::Convert(const Image &src, D3D11Image &d3d11_dst, const Inpu
         throw std::runtime_error("D3D11Converter::Convert: Failed to create D3D11 event query");
     }
 
-    // Lock only during the actual VideoProcessorBlt call and query setup
-    // This allows multiple frames to be in-flight, but serializes the Blt calls
-    {
-        std::lock_guard<std::mutex> lock(_blt_mutex);
+    // Use GStreamer D3D11 device lock for thread-safe DeviceContext access
+    // Required per GStreamer documentation: concurrent calls for ID3D11DeviceContext and DXGI API are not allowed
+    _context->Lock();
 
-        _context->DeviceContext()->Begin(query.Get());
+    _context->DeviceContext()->Begin(query.Get());
 
-        hr = video_context->VideoProcessorBlt(
-            video_processor.Get(),
-            output_view.Get(),  // Output directly to destination texture
-            0, // Output frame
-            1, // Number of input streams
-            streams
-        );
-        if (FAILED(hr)) {
-            throw std::runtime_error("D3D11Converter::Convert: VideoProcessorBlt failed");
-        }
-
-        _context->DeviceContext()->End(query.Get());
-    }
-    // Lock released here - other threads can now call VideoProcessorBlt
-
-    BOOL isFinished = FALSE;
-
-
-    // Wait for GPU processing to complete
-    while ((hr = _context->DeviceContext()->GetData(query.Get(), &isFinished, sizeof(BOOL), 0)) == S_FALSE)
-    {
-        //GetData returns S_FALSE while processing is in progress
-        //Small sleep to avoid busy waiting and reduce CPU usage
-        //std::this_thread::sleep_for(std::chrono::microseconds(500));
-    }
-
+    hr = video_context->VideoProcessorBlt(
+        video_processor.Get(),
+        output_view.Get(),  // Output directly to destination texture
+        0, // Output frame
+        1, // Number of input streams
+        streams
+    );
     if (FAILED(hr)) {
-        throw std::runtime_error("D3D11Converter::Convert: GetData failed");
+        _context->Unlock();
+        throw std::runtime_error("D3D11Converter::Convert: VideoProcessorBlt failed");
     }
+
+    _context->DeviceContext()->End(query.Get());
+
+    _context->Unlock();
+
+    // Store query in destination image for async GPU synchronization
+    d3d11_dst.gpu_event_query = query;
 }
 
 } // namespace InferenceBackend

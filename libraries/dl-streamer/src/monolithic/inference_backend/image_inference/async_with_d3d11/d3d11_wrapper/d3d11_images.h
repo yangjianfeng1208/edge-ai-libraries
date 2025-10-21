@@ -31,6 +31,7 @@ struct D3D11Image {
     bool completed = true;
     std::unique_ptr<ImageMap> image_map;
     DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+    Microsoft::WRL::ComPtr<ID3D11Query> gpu_event_query;
 
     D3D11Image();
     D3D11Image(D3D11Context *context_, uint32_t width, uint32_t height, int format_, MemoryType memory_type);
@@ -38,6 +39,7 @@ struct D3D11Image {
 
     Image Map();
     void Unmap();
+    void WaitForGPU();
 
     D3D11Image(const D3D11Image &) = delete;
     D3D11Image &operator=(const D3D11Image &) = delete;

@@ -86,7 +86,14 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
     }
 
     // Copy from render target to staging texture
+    // Use GStreamer D3D11 device lock for thread-safe DeviceContext access
+    if (d3d11_context) {
+        d3d11_context->Lock();
+    }
     d3d11_device_context->CopyResource(staging_texture.Get(), d3d11_texture.Get());
+    if (d3d11_context) {
+        d3d11_context->Unlock();
+    }
 
     num_planes = 1;
     if (desc.Format == DXGI_FORMAT_NV12) {
@@ -96,6 +103,10 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
     // Map the staging texture
     for (int plane = 0; plane < num_planes; ++plane) {
         D3D11_MAPPED_SUBRESOURCE mapped_resource = {};
+
+        if (d3d11_context) {
+            d3d11_context->Lock();
+        }
         HRESULT hr = d3d11_device_context->Map(
             staging_texture.Get(),
             plane,
@@ -103,6 +114,10 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
             0,
             &mapped_resource
         );
+        if (d3d11_context) {
+            d3d11_context->Unlock();
+        }
+
         if (FAILED(hr)) {
             // Clean up on failure
             Unmap();
@@ -117,8 +132,14 @@ Image D3D11ImageMap_SystemMemory::Map(const Image &image) {
 
 void D3D11ImageMap_SystemMemory::Unmap() {
     if (staging_texture && d3d11_device_context) {
+        if (d3d11_context) {
+            d3d11_context->Lock();
+        }
         for (int plane = 0; plane < num_planes; ++plane) {
             d3d11_device_context->Unmap(staging_texture.Get(), plane);
+        }
+        if (d3d11_context) {
+            d3d11_context->Unlock();
         }
         num_planes = 0;
     }

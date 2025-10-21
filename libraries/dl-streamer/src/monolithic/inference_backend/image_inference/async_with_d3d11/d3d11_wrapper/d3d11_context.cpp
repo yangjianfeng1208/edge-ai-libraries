@@ -9,12 +9,20 @@
 #include "inference_backend/logger.h"
 
 #include <cassert>
+#include <mutex>
 #include <vector>
 
 #include <fcntl.h>
 #include <gst/d3d11/gstd3d11device.h>
 
 using namespace InferenceBackend;
+
+// Static mutex for thread-safe D3D11 context operations
+static std::mutex g_d3d11_context_mutex;
+
+std::mutex& D3D11Context::GetContextMutex() {
+    return g_d3d11_context_mutex;
+}
 
 D3D11Context::D3D11Context(ID3D11Device* d3d11_device) : _device(d3d11_device) {
     create_config_and_contexts();
@@ -23,8 +31,9 @@ D3D11Context::D3D11Context(ID3D11Device* d3d11_device) : _device(d3d11_device) {
 
 D3D11Context::D3D11Context(dlstreamer::ContextPtr display_context)
     : _device_context_storage(display_context) {
-    
+
     auto gst_device = static_cast<GstD3D11Device*>(display_context->handle(dlstreamer::D3D11Context::key::d3d_device));
+    _gst_device = gst_device; // Store for Lock/Unlock
     _device = gst_d3d11_device_get_device_handle(gst_device);
     
     create_config_and_contexts();
@@ -36,6 +45,22 @@ D3D11Context::~D3D11Context() {
 
 bool D3D11Context::IsPixelFormatSupported(DXGI_FORMAT format) const {
     return _supported_pixel_formats.count(format);
+}
+
+void D3D11Context::Lock() {
+    if (_gst_device) {
+        gst_d3d11_device_lock(_gst_device);
+    } else {
+        g_d3d11_context_mutex.lock();
+    }
+}
+
+void D3D11Context::Unlock() {
+    if (_gst_device) {
+        gst_d3d11_device_unlock(_gst_device);
+    } else {
+        g_d3d11_context_mutex.unlock();
+    }
 }
 
 /**
@@ -62,9 +87,11 @@ void D3D11Context::create_config_and_contexts() {
         throw std::invalid_argument("Could not get D3D11 video device interface.");
 
     // Get video context interface
+    Lock();
     hr = _device_context.As(&_video_context);
     if (FAILED(hr) || !_video_context)
         throw std::invalid_argument("Could not get D3D11 video context interface");
+    Unlock();
 }
 
 void D3D11Context::CreateVideoProcessorAndEnumerator(

@@ -20,7 +20,6 @@ namespace InferenceBackend {
 
 class D3D11Converter {
     D3D11Context *_context;
-    static std::mutex _blt_mutex;  // Static: shared across all converters to serialize VideoProcessorBlt
 
   protected:
     void SetupProcessorStreamsWithCustomParams(

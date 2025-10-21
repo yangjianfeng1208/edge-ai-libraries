@@ -7,6 +7,8 @@
 #include "d3d11_images.h"
 #include "d3d11_image_map.h"
 #include <dxgi.h>
+#include <chrono>
+#include <thread>
 
 using namespace InferenceBackend;
 
@@ -118,7 +120,44 @@ void D3D11Image::Unmap() {
     image_map->Unmap();
 }
 
+void D3D11Image::WaitForGPU() {
+    if (!gpu_event_query) {
+        return;
+    }
+
+    constexpr int max_polls = 1000;
+    constexpr int busy_wait_iterations = 50;
+    constexpr UINT sleep_microseconds = 100;
+
+    for (int i = 0; i < max_polls; ++i) {
+        BOOL event_data = FALSE;
+        HRESULT hr;
+        {
+            context->Lock();
+            hr = context->DeviceContext()->GetData(gpu_event_query.Get(), &event_data, sizeof(BOOL), 0);
+            context->Unlock();
+        }
+
+        if (hr == S_OK && event_data) {
+            return; // GPU finished
+        }
+
+        if (FAILED(hr)) {
+            GVA_ERROR("WaitForGPU: GetData failed with HRESULT 0x%08X", hr);
+            return;
+        }
+
+        // Busy-wait for first iterations (GPU work usually completes quickly)
+        // Then sleep to reduce CPU usage
+        if (i >= busy_wait_iterations) {
+            std::this_thread::sleep_for(std::chrono::microseconds(sleep_microseconds));
+        }
+    }
+    GVA_ERROR("WaitForGPU: TIMEOUT after %d polls - GPU never completed!", max_polls);
+}
+
 Image D3D11Image::Map() {
+    WaitForGPU();
     return image_map->Map(image);
 }
 
@@ -169,6 +208,8 @@ D3D11Image *D3D11ImagePool::AcquireBuffer() {
         for (auto &image : _images) {
             if (image->completed) {
                 image->completed = false;
+                // Clear the GPU query from previous use - new query will be set by Convert()
+                image->gpu_event_query.Reset();
                 return image.get();
             }
         }
@@ -185,7 +226,6 @@ void D3D11ImagePool::ReleaseBuffer(D3D11Image *image) {
 }
 
 void D3D11ImagePool::Flush() {
-    std::unique_lock<std::mutex> lock(_free_images_mutex);
     for (auto &image : _images) {
         if (!image->completed)
             image->sync.wait();

@@ -70,17 +70,29 @@ ImageInferenceAsyncD3D11::ImageInferenceAsyncD3D11(const InferenceBackend::Infer
                                          dlstreamer::ContextPtr d3d11_context, ImageInference::Ptr inference)
     : _inference(inference) {
 
+    const auto &pre_process_config = config.at(KEY_PRE_PROCESSOR);
+    auto thread_pool_size_it = pre_process_config.find(KEY_VAAPI_THREAD_POOL_SIZE);
+    size_t thread_pool_size = thread_pool_size_it == pre_process_config.end()
+                                  ? DEFAULT_THREAD_POOL_SIZE
+                                  : std::stoull(thread_pool_size_it->second);
+
+    _thread_pool.reset(new D3D11::ThreadPool(thread_pool_size));
+
     _d3d11_context = std::unique_ptr<D3D11Context>(new D3D11Context(d3d11_context));
     _d3d11_converter = std::unique_ptr<D3D11Converter>(new D3D11Converter(_d3d11_context.get()));
 
     auto inference_image_info = get_pool_image_info(_inference);
     size_t image_pool_size = safe_mul(safe_convert<size_t>(inference_image_info.batch), _inference->GetNireq());
+    if (image_pool_size < thread_pool_size)
+        image_pool_size = thread_pool_size;
+
     _d3d11_image_pool =
         create_d3d11_image_pool(inference_image_info, image_pool_size, _d3d11_context.get(), 0.0f);
 
-    GVA_INFO("D3D11 image pool size: %lu", image_pool_size);
+    GVA_INFO("D3D11 async preprocessing configuration:");
+    GVA_INFO("-- Thread pool size: %lu", thread_pool_size);
+    GVA_INFO("-- D3D11 image pool size: %lu", image_pool_size);
 }
-
 
 void ImageInferenceAsyncD3D11::SubmitInference(D3D11Image *d3d11_image, IFrameBase::Ptr frame,
                                           const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) {
@@ -99,13 +111,9 @@ void ImageInferenceAsyncD3D11::SubmitInference(D3D11Image *d3d11_image, IFrameBa
         }
     };
 
-    try {
-        frame->SetImage(std::shared_ptr<Image>(new Image(d3d11_image->Map()), deleter));
-        _inference->SubmitImage(std::move(frame), input_preprocessors);
-    } catch (const std::exception &e) {
-        GVA_ERROR("SubmitInference failed: %s", e.what());
-        throw;
-    }
+    Image mapped_image = d3d11_image->Map();
+    frame->SetImage(std::shared_ptr<Image>(new Image(mapped_image), deleter));
+    _inference->SubmitImage(std::move(frame), input_preprocessors);
 }
 
 void ImageInferenceAsyncD3D11::SubmitImage(IFrameBase::Ptr frame,
@@ -118,26 +126,20 @@ void ImageInferenceAsyncD3D11::SubmitImage(IFrameBase::Ptr frame,
             *frame->GetImage(), *d3d11_image,
             getImagePreProcInfo(input_preprocessors),
             frame->GetImageTransformationParams());
-
-        auto deleter = [this, d3d11_image](Image *img) {
-            try {
-                d3d11_image->Unmap();
-                this->_d3d11_image_pool->ReleaseBuffer(d3d11_image);
-            } catch (const std::exception &e) {
-                GVA_ERROR("Couldn't release D3D11Image: %s", e.what());
-            }
-            delete img;
-        };
-
-        Image *img = new Image(d3d11_image->Map());
-        frame->SetImage(std::shared_ptr<Image>(img, deleter));
-        _inference->SubmitImage(std::move(frame), input_preprocessors);
-
     } catch (std::exception &e) {
-        GVA_ERROR("D3D11 preprocessing failed: %s", e.what());
+        GVA_ERROR("D3D11 SubmitImage: Convert failed: %s", e.what());
         _d3d11_image_pool->ReleaseBuffer(d3d11_image);
-        std::throw_with_nested(std::runtime_error("Unable to preprocess image using D3D11"));
+        std::throw_with_nested(std::runtime_error("Unable to convert image using D3D11"));
     }
+
+    d3d11_image->sync = _thread_pool->schedule([this, d3d11_image, f = std::move(frame), input_preprocessors]() {
+        try {
+            SubmitInference(d3d11_image, std::move(f), input_preprocessors);
+        } catch (const std::exception &e) {
+            GVA_ERROR("D3D11 async task exception: %s", e.what());
+            throw;
+        }
+    });
 }
 
 const std::string &ImageInferenceAsyncD3D11::GetModelName() const {
