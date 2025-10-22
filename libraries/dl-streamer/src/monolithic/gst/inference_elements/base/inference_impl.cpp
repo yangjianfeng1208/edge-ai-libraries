@@ -633,7 +633,7 @@ int getGPURenderDevId(GvaBaseInference *gva_base_inference) {
 }
 
 bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_streams) {
-
+    return false;
     const std::string device(gva_base_inference->device);
 
     // Check reference count if display is set
@@ -641,8 +641,7 @@ bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_st
         // This counts all shared_ptr references, not just streams, but is the best available heuristic
         auto use_count = gva_base_inference->priv->va_display.use_count();
         if (use_count > static_cast<long>(max_streams)) {
-            g_print("VADisplay is used by more than %zu streams (use_count=%ld), not reusing.", max_streams,
-                     use_count);
+            g_print("VADisplay is used by more than %zu streams (use_count=%ld), not reusing.", max_streams, use_count);
             return false;
         }
     }
@@ -679,7 +678,7 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
         // Reuse existing VADisplay context (i.e. priv->va_display) if it fits
         display = gva_base_inference->priv->va_display;
         g_print("Using shared VADisplay (%p) from element %s", static_cast<void *>(display.get()),
-                 GST_ELEMENT_NAME(gva_base_inference));
+                GST_ELEMENT_NAME(gva_base_inference));
     } else {
         // Create a new VADisplay context
         uint32_t rel_dev_index = 0;

@@ -154,10 +154,9 @@ RUN \
 RUN ldconfig
 
 WORKDIR /home/dlstreamer/gstreamer
-
+# git apply /tmp/gstreamer-patch.patch && \
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
-    git apply /tmp/gstreamer-patch.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \
