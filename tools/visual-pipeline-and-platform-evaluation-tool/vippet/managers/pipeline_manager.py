@@ -20,7 +20,7 @@ class PipelineManager:
         pipeline = Pipeline(
             name=new_pipeline.name,
             version=new_pipeline.version,
-            description=new_pipeline.description or "",
+            description=new_pipeline.description,
             type=new_pipeline.type,
             launch_config=launch_cfg,
             parameters=new_pipeline.parameters,
@@ -57,9 +57,9 @@ class PipelineManager:
 
             predefined_pipelines.append(
                 Pipeline(
-                    name=config.get("name", "Unnamed Pipeline"),
-                    version=config.get("version", "0.0.1"),
-                    description=config.get("definition", ""),
+                    name="predefined_pipelines",
+                    version=config.get("metadata", {}).get("classname", "Unnamed Pipeline"),
+                    description=config.get("name", "Unnamed Pipeline"),
                     type=PipelineType.GSTREAMER,
                     launch_config=launch_cfg,
                     parameters=None,

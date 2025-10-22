@@ -93,12 +93,15 @@ def run_pipeline(name: str, version: str, body: schemas.PipelineRequestRun):
         body.source.uri,
         file_name,
     )
+
+    launch_string = body.parameters.launch_config # TODO: Convert launch_config in JSON format to launch_string
+
     # Replace file path in launch string if needed
-    launch_string = replace_file_path(body.parameters.launch_string, file_path)
+    launch_string = replace_file_path(launch_string, file_path)
 
     # Initialize pipeline object from launch string
     gst_pipeline, config = PipelineLoader.load_from_launch_string(
-        launch_string, name=name
+        launch_string, name=version
     )
 
     inferencing_channels = body.parameters.inferencing_channels
@@ -139,12 +142,15 @@ def benchmark_pipeline(name: str, version: str, body: schemas.PipelineRequestBen
         body.source.uri,
         file_name,
     )
+
+    launch_string = body.parameters.launch_config # TODO: Convert launch_config in JSON format to launch_string
+
     # Replace file path in launch string if needed
-    launch_string = replace_file_path(body.parameters.launch_string, file_path)
+    launch_string = replace_file_path(launch_string, file_path)
 
     # Initialize pipeline object from launch string
     gst_pipeline, config = PipelineLoader.load_from_launch_string(
-        launch_string, name=name
+        launch_string, name=version
     )
 
     # Disable live preview for benchmarking
