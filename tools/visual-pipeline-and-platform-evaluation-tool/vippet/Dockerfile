@@ -43,6 +43,7 @@ COPY --chown=dlstreamer:dlstreamer \
 
 COPY --chown=dlstreamer:dlstreamer vippet/pipelines/ /home/dlstreamer/vippet/pipelines
 COPY --chown=dlstreamer:dlstreamer vippet/api/ /home/dlstreamer/vippet/api
+COPY --chown=dlstreamer:dlstreamer vippet/managers/ /home/dlstreamer/vippet/managers
 
 CMD ["/bin/bash", "-c", "fastapi run --port 7860 api/main.py"]
 
