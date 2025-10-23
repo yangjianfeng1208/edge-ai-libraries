@@ -11,7 +11,7 @@ The Video Search and Summarization (VSS) sample application helps developers cre
 This guide shows how to:
 
 - **Set up the sample application**: Use Setup script to quickly deploy the application in your environment.
-- **Run different application stacks**: Execute different application stacks available in the application to perform video search and summarization.
+- **Run different application modes**: Execute different application modes available in the application to perform video search and summarization.
 - **Modify application parameters**: Customize settings like inference models and deployment configurations to adapt the application to your specific requirements.
 
 
@@ -150,17 +150,17 @@ Before running the application, you need to set several environment variables:
 
 Once exported, run the setup script as mentioned [here](#running-the-application). Switch off the `GATED_MODEL` flag by running `export GATED_MODEL=false`, once you no longer use gated models. This avoids unnecessary authentication step during setup.
 
-## 📊 Application Stacks Overview
+## 📊 Application Mode Overview
 
-The Video Summarization application offers multiple stacks and deployment options:
+The Video Summarization application offers multiple modes and deployment options:
 
-| Stack | Description | Flag (used with setup script) |
+| Mode | Description | Flag (used with setup script) |
 |-------|-------------|------|
 | Video Summarization | Video frame captioning and summarization | `--summary` |
 | Video Search | Video indexing and semantic search | `--search` |
 | Video Search + Summarization | Both search and summarization capabilities | `--all` |
 
-> **📁 Automated Video Ingestion**: The Video Search stack includes an optional Directory Watcher service for automated video processing. See the [Directory Watcher Service Guide](./directory-watcher-guide.md) for details on setting up automatic video monitoring and ingestion.
+> **📁 Automated Video Ingestion**: The Video Search mode includes an optional Directory Watcher service for automated video processing. See the [Directory Watcher Service Guide](./directory-watcher-guide.md) for details on setting up automatic video monitoring and ingestion.
 
 ### 🧩 Deployment Options for Video Summarization
 
@@ -203,7 +203,7 @@ Follow these steps to run the application:
 
 3. Run the setup script with the appropriate flag, depending on your use case.
 
-   > Note: Before switching to a different mode, always stop the current application stack by running:
+   > Note: Before switching to a different mode, always stop the current application mode by running:
 
    ```bash
    source setup.sh --down
@@ -260,7 +260,7 @@ Follow these steps to run the application:
 
 To use GPU acceleration for VLM inference:
 
-   > Note: Before switching to a different mode, always stop the current application stack by running:
+   > Note: Before switching to a different mode, always stop the current application mode by running:
 
    ```bash
    source setup.sh --down
