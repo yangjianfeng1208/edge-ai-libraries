@@ -58,7 +58,7 @@ Before running the application, you need to set several environment variables:
 
     ```bash
     export REGISTRY_URL=intel   
-    export TAG=1.2.1
+    export TAG=1.2.2
     ```
 
 2. **Required credentials for some services**:
@@ -302,6 +302,10 @@ ENABLE_EMBEDDING_GPU=true source setup.sh --search config
 ## 🌐 Accessing the Application
 
 After successfully starting the application, open a browser and go to `http://<host-ip>:12345` to access the application dashboard.
+
+## 💻 CLI Usage
+
+Refer to [CLI Usage](../../cli/README.md) for details on using the application from a text user interface (terminal-based UI).
 
 ## ☸️ Running in Kubernetes
 
