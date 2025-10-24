@@ -16,7 +16,7 @@ Combining video search and summary unlocks a wide range of practical use cases a
 
 Additionally, enterprises managing video libraries for marketing, customer support, or product documentation can leverage search and summary to organize, index, and retrieve valuable content, driving productivity and informed decision-making.
 
-The combined mode serves as a proof point of the capabilities of Intel Edge AI systems portfolio to run complex use cases. The sample application runs in its fullest configuration in the combined mode thereby showcasing a resource intensive usage. The users can customize the application on multiple levels including model configuration and use it to size the application. The sizing runs allows to select the right hardware configuration to run the combined mode.
+The combined mode serves as a proof point of the capabilities of Intel's Edge AI systems portfolio to run complex use cases. The sample application runs in its fullest configuration in the combined mode thereby showcasing a resource intensive usage. The users can customize the application on multiple levels including model configuration and use it to size the application. The sizing runs allows to select the right hardware configuration to run the combined mode.
 
 ## Key Features
 
@@ -44,9 +44,9 @@ The combined search and summary mode uses all the components of the video search
 ![System Architecture Diagram](./images/TEAI_VideoSearchSumm.png)
 
 The combined sample application:
-- Demonstrates how Intel Edge AI catalog of inference microservices can be used to quickly build video search and summary pipelines. The inference microservices are optimized for Intel Edge AI systems. 
-- Serves as a blueprint for building similar scalable and modular solutions that can be deployed on Intel Edge AI systems.
-- Showcases the competitiveness of Intel Edge AI systems to address varied deployment scenario requirements (edge to cloud).
+- Demonstrates how Intel's Edge AI catalog of inference microservices can be used to quickly build video search and summary pipelines. The inference microservices are optimized for Intel's Edge AI systems. 
+- Serves as a blueprint for building similar scalable and modular solutions that can be deployed on Intel's Edge AI systems.
+- Showcases the competitiveness of Intel's Edge AI systems to address varied deployment scenario requirements (edge to cloud).
 - Provides reference sample microservices for capabilities like video ingestion, embedding generation, vector search, and UI front end that reduces the effort to customize the application.
 
 ## How to Use the Application Effectively
