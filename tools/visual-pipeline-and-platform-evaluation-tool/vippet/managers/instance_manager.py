@@ -205,6 +205,7 @@ class InstanceManager:
                 instance.error_message = error_message
         self.logger.error(f"Pipeline instance {instance_id} error: {error_message}")
 
+    # TODO: Refactor the temporary pipeline execution method
     def _execute_pipeline(
         self,
         instance_id: str,
@@ -272,6 +273,7 @@ class InstanceManager:
         except Exception as e:
             self._update_instance_error(instance_id, str(e))
 
+    # TODO: Refactor the temporary pipeline benchmark execution method
     def _execute_benchmark(
         self,
         instance_id: str,

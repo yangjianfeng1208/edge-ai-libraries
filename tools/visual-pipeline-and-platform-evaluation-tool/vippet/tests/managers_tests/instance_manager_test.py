@@ -71,7 +71,7 @@ class TestInstanceManager(unittest.TestCase):
             self.assertIsInstance(instance.start_time, int)
             self.assertIsNone(instance.end_time)
 
-    def test_benchmark_pipeline_creates_instance_in_running_state_and_returns_instance_id(
+    def test_benchmark_pipeline_creates_instance_with_running_state_and_returns_instance_id(
         self,
     ):
         manager = InstanceManager()
