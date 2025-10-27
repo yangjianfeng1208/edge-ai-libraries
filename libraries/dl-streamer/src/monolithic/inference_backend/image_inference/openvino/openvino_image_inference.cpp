@@ -1468,10 +1468,10 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
 
     try {
         ConfigHelper cfg_helper(config);
+        const auto pp_type = cfg_helper.pp_type();
 #ifndef ENABLE_D3D_NPU_COLOR_CONV
         _impl = std::make_unique<OpenVinoNewApiImpl>(cfg_helper, context, callback, error_handler, memory_type);
 #else
-        const auto pp_type = cfg_helper.pp_type();
         _impl =
             std::make_unique<OpenVinoNewApiImpl>(cfg_helper, context, callback, error_handler, memory_type, pp_type);
 #endif
