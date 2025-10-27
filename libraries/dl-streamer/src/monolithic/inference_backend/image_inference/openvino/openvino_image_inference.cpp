@@ -441,12 +441,19 @@ class OpenVinoNewApiImpl {
     };
 
   public:
+#ifndef ENABLE_D3D_NPU_COLOR_CONV
     OpenVinoNewApiImpl(const ConfigHelper &config, dlstreamer::ContextPtr context,
                        ImageInference::CallbackFunc callback, ImageInference::ErrorHandlingFunc error_handler,
                        MemoryType memory_type)
         : _app_context(std::move(context)), _memory_type(memory_type), _callback(callback),
           _error_handler(error_handler) {
-
+#else
+    OpenVinoNewApiImpl(const ConfigHelper &config, dlstreamer::ContextPtr context,
+                       ImageInference::CallbackFunc callback, ImageInference::ErrorHandlingFunc error_handler,
+                       MemoryType memory_type, InferenceBackend::ImagePreprocessorType pp_type)
+        : _app_context(std::move(context)), _memory_type(memory_type), _callback(callback), _pp_type(pp_type),
+          _error_handler(error_handler) {
+#endif
         log_api_message();
 
         _device = config.device();
@@ -847,11 +854,28 @@ class OpenVinoNewApiImpl {
 
         switch (_memory_type) {
         case MemoryType::SYSTEM:
+#ifndef ENABLE_D3D_NPU_COLOR_CONV
             if (_model_format == "BGR")
                 format = FourCC::FOURCC_BGRP;
             else
                 format = FourCC::FOURCC_RGBP;
             break;
+#else
+            if (_pp_type == InferenceBackend::ImagePreprocessorType::D3D11) {
+                if (_model_format == "BGR")
+                    format = FourCC::FOURCC_BGRX;
+                else
+                    format = FourCC::FOURCC_RGBX;
+                break;
+            }
+            else {
+                if (_model_format == "BGR")
+                    format = FourCC::FOURCC_BGRP;
+                else
+                    format = FourCC::FOURCC_RGBP;
+                break;
+            }
+#endif
         case MemoryType::VAAPI:
         case MemoryType::D3D11:
             format = FourCC::FOURCC_NV12;
@@ -1054,6 +1078,9 @@ class OpenVinoNewApiImpl {
     dlstreamer::OpenVINOContextPtr _openvino_context;
     ov::CompiledModel _compiled_model;
     MemoryType _memory_type;
+#ifdef ENABLE_D3D_NPU_COLOR_CONV
+    InferenceBackend::ImagePreprocessorType _pp_type;
+#endif
     int _nireq = 0;
     int _batch_size = 0;
 
@@ -1213,6 +1240,19 @@ class OpenVinoNewApiImpl {
             input.tensor().set_layout("NCHW");
         }
 
+#ifdef ENABLE_D3D_NPU_COLOR_CONV
+        if (pp_type == ImagePreprocessorType::D3D11) {
+            input.tensor().set_layout("NHWC");
+            if (_model_format == "BGR") {
+                input.tensor().set_color_format(ov::preprocess::ColorFormat::BGRX);
+                input.preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+            }
+            else {
+                input.tensor().set_color_format(ov::preprocess::ColorFormat::RGBX);
+                input.preprocess().convert_color(ov::preprocess::ColorFormat::RGB);
+            }
+        }
+#endif
         // OV preprocessing is configured only for IE or VAAPI_SURFACE_SHARING
         if (pp_type == ImagePreprocessorType::VAAPI_SURFACE_SHARING || pp_type == ImagePreprocessorType::IE) {
 
@@ -1430,7 +1470,12 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
 
     try {
         ConfigHelper cfg_helper(config);
+#ifndef ENABLE_D3D_NPU_COLOR_CONV
         _impl = std::make_unique<OpenVinoNewApiImpl>(cfg_helper, context, callback, error_handler, memory_type);
+#else
+        const auto pp_type = cfg_helper.pp_type();
+        _impl = std::make_unique<OpenVinoNewApiImpl>(cfg_helper, context, callback, error_handler, memory_type, pp_type);
+#endif
 
         model_name = _impl->_model->get_friendly_name();
         nireq = _impl->_nireq;
@@ -1445,11 +1490,12 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
             freeRequests.push(batch_request);
         }
 
-        const auto pp_type = cfg_helper.pp_type();
-
+#ifndef ENABLE_D3D_NPU_COLOR_CONV
         if (pp_type == InferenceBackend::ImagePreprocessorType::OPENCV ||
             pp_type == InferenceBackend::ImagePreprocessorType::D3D11) {
-
+#else
+        if (pp_type == InferenceBackend::ImagePreprocessorType::OPENCV) {
+#endif
             std::string pp_type_string = fmt::format("creating pre-processor, type: {}", pp_type);
             GVA_INFO("%s", pp_type_string.c_str());
             const std::string custom_preproc_lib = cfg_helper.custom_preproc_lib();
