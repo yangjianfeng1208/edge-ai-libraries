@@ -97,7 +97,7 @@ ImageInferenceAsync::ImageInferenceAsync(const InferenceBackend::InferenceConfig
     size_t thread_pool_size = thread_pool_size_it == pre_process_config.end()
                                   ? DEFAULT_THREAD_POOL_SIZE
                                   : std::stoull(thread_pool_size_it->second);
-
+    g_print("VAAPI_THREAD_POOL_SIZE: %lu\n", thread_pool_size);
     _thread_pool.reset(new ThreadPool(thread_pool_size));
 
     auto vdbox_sfc_pipe_part_it = pre_process_config.find(KEY_VAAPI_FAST_SCALE_LOAD_FACTOR);

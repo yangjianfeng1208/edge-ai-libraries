@@ -112,6 +112,7 @@ dlstreamer::VAAPIContextPtr vaApiCreateVaDisplay(uint32_t relative_device_index)
 
     VADisplay display = VaApiLibBinder::get().GetDisplayDRM(dri_file_descriptor);
     initializeVaDisplay(VaDpyWrapper::fromHandle(display));
+    //g_print("[%s] Using VA Display: %s\n", __FUNCTION__, std::string(globbuf.gl_pathv[relative_device_index]).c_str());
 
     auto deleter = [dri_file_descriptor](dlstreamer::VAAPIContext *context) {
         VADisplay display = context->va_display();

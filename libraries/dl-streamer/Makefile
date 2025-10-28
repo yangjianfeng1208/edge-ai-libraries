@@ -139,7 +139,7 @@ rpm: ## Build the Deep Learning Streamer RPM package
 image: ## Build the Deep Learning Streamer docker image based on Ubuntu 24.04
 	docker build . \
 		-f docker/ubuntu/ubuntu24.Dockerfile \
-		-t dlstreamer:dev \
+		-t dlstreamer:dev-oct27-a \
 		--target dlstreamer \
 		--build-arg http_proxy=${http_proxy} \
 		--build-arg https_proxy=${https_proxy} \

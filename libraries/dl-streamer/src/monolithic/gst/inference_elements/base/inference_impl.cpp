@@ -633,9 +633,17 @@ int getGPURenderDevId(GvaBaseInference *gva_base_inference) {
 }
 
 bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_streams) {
-    return false;
+    //return false;
     const std::string device(gva_base_inference->device);
+    const std::string element_name(GST_ELEMENT_NAME(gva_base_inference));
 
+    if (!gva_base_inference->share_va_display_ctx) {
+        g_print("\n###[%s] Do not share VADisplay ctx (%p) for [ gva_base_inference {%s} model_instance_id {%s} ]###\n",
+                __FUNCTION__, static_cast<void *>(gva_base_inference->priv->va_display.get()), GST_ELEMENT_NAME(gva_base_inference),
+                std::string(gva_base_inference->model_instance_id).c_str());
+        return false;
+    }
+   
     // Check reference count if display is set
     if (gva_base_inference->priv->va_display) {
         // This counts all shared_ptr references, not just streams, but is the best available heuristic
@@ -677,8 +685,11 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
         (canReuseSharedVADispCtx(gva_base_inference, MAX_STREAMS_SHARING_VADISPLAY))) {
         // Reuse existing VADisplay context (i.e. priv->va_display) if it fits
         display = gva_base_inference->priv->va_display;
-        g_print("Using shared VADisplay (%p) from element %s", static_cast<void *>(display.get()),
-                GST_ELEMENT_NAME(gva_base_inference));
+        //g_print("\n###[%s] Using shared VADisplay (%p) from element %s model_instance_id %s", static_cast<void *>(display.get()),
+        //        GST_ELEMENT_NAME(gva_base_inference), std::string(gva_base_inference->model_instance_id).c_str());
+        g_print("\n###[%s] Using shared VADisplay (%p) [ gva_base_inference {%s} model_instance_id {%s} ]###\n",
+                __FUNCTION__, static_cast<void *>(display.get()), GST_ELEMENT_NAME(gva_base_inference),
+                std::string(gva_base_inference->model_instance_id).c_str());
     } else {
         // Create a new VADisplay context
         uint32_t rel_dev_index = 0;
@@ -686,7 +697,10 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
             rel_dev_index = Utils::getRelativeGpuDeviceIndex(device);
         }
         display = vaApiCreateVaDisplay(rel_dev_index);
-        g_print("Using new VADisplay (%p) ", static_cast<void *>(display.get()));
+        // g_print("\nUsing new VADisplay (%p) ", static_cast<void *>(display.get()));
+        g_print("\n###[%s] Using new VADisplay (%p) [ gva_base_inference {%s} model_instance_id {%s} ]###\n",
+                __FUNCTION__, static_cast<void *>(display.get()), GST_ELEMENT_NAME(gva_base_inference),
+                std::string(gva_base_inference->model_instance_id).c_str());
     }
 
     if (!display) {

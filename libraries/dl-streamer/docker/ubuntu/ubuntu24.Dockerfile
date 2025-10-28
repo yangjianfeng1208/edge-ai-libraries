@@ -141,7 +141,7 @@ FROM builder AS gstreamer-builder
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 # Copy GStreamer patch for vacompositor and vafilter fixes
-COPY dependencies/patches/0019-VA-Dec-add-TLV_VADPY-property-in-vabasedec.patch /tmp/gstreamer-patch.patch
+COPY dependencies/patches/0015-0019-va-donot-reuse-vadisplay-if-used-too-many-times.patch /tmp/gstreamer-patch.patch
 
 # Build GStreamer
 WORKDIR /home/dlstreamer
@@ -154,9 +154,10 @@ RUN \
 RUN ldconfig
 
 WORKDIR /home/dlstreamer/gstreamer
-# git apply /tmp/gstreamer-patch.patch && \
+
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
+    git apply /tmp/gstreamer-patch.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \

@@ -19,12 +19,13 @@ set(DESIRED_VERSION 1.26.6)
 #     return()
 # endif()
 # PATCH_COMMAND   patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/0019-VA-Dec-add-TLV_VADPY-property-in-vabasedec.patch
+# PATCH_COMMAND   patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/0015-0019-va-donot-reuse-vadisplay-if-used-too-many-times.patch
 
 ExternalProject_Add(
     gstreamer
     PREFIX ${CMAKE_BINARY_DIR}/gstreamer
     GIT_REPOSITORY  https://gitlab.freedesktop.org/gstreamer/gstreamer.git
-    GIT_TAG         ${DESIRED_VERSION}	
+    GIT_TAG         ${DESIRED_VERSION}		
     BUILD_COMMAND       ninja
     INSTALL_COMMAND     meson install
     TEST_COMMAND        ""
