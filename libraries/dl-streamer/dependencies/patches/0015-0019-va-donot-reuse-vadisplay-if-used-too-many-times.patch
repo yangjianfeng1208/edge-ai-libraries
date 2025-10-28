@@ -1,0 +1,341 @@
+diff --git a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.c b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.c
+index b5440429e1..14b6fe62ff 100644
+--- a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.c
++++ b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.c
+@@ -57,6 +57,8 @@ struct _GstVaDisplayDrm
+   /* <private> */
+   gchar *path;
+   gint fd;
++  gboolean is_i915;
++  guint tlv_vadpy;
+ };
+ 
+ /**
+@@ -155,6 +157,11 @@ gst_va_display_drm_create_va_display (GstVaDisplay * display)
+     }
+     GST_INFO_OBJECT (self, "DRM render node with kernel driver %s",
+         version->name);
++    if (strncmp (version->name, "i915", 4) == 0) {
++      self->is_i915 = TRUE;
++    } else {
++      self->is_i915 = FALSE;
++    }
+     drmFreeVersion (version);
+   }
+ #endif
+@@ -187,6 +194,37 @@ static void
+ gst_va_display_drm_init (GstVaDisplayDrm * self)
+ {
+   self->fd = -1;
++  self->tlv_vadpy = 0;
++}
++
++gboolean
++gst_va_display_drm_check_i915 (GstVaDisplay * display)
++{
++  GstVaDisplayDrm *self = GST_VA_DISPLAY_DRM (display);
++
++  return self->is_i915;
++}
++
++void
++gst_va_display_drm_set_tlv_vadpy (GstVaDisplay * display, guint tlv_vadpy)
++{
++  GstVaDisplayDrm *self = GST_VA_DISPLAY_DRM (display);
++  self->tlv_vadpy = tlv_vadpy;
++}
++
++gboolean gst_va_display_drm_enable_tlv_vadpy (GstVaDisplay * display)
++{
++  GstVaDisplayDrm *self = GST_VA_DISPLAY_DRM (display);
++  if (self->tlv_vadpy == 0)
++    return FALSE;
++  else
++    return TRUE;
++}
++
++guint gst_va_display_drm_get_tlv_vadpy (GstVaDisplay * display)
++{
++  GstVaDisplayDrm *self = GST_VA_DISPLAY_DRM (display);
++  return self->tlv_vadpy;
+ }
+ 
+ /**
+diff --git a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.h b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.h
+index d14a1f6448..81d9861c73 100644
+--- a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.h
++++ b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvadisplay_drm.h
+@@ -38,5 +38,13 @@ GST_VA_API
+ GType                 gst_va_display_drm_get_type         (void);
+ GST_VA_API
+ GstVaDisplay *        gst_va_display_drm_new_from_path    (const gchar * path);
++GST_VA_API
++gboolean              gst_va_display_drm_check_i915       (GstVaDisplay * display);
++GST_VA_API
++void                  gst_va_display_drm_set_tlv_vadpy    (GstVaDisplay * display, guint tlv_vadpy);
++GST_VA_API
++gboolean              gst_va_display_drm_enable_tlv_vadpy (GstVaDisplay * display);
++GST_VA_API
++guint                 gst_va_display_drm_get_tlv_vadpy    (GstVaDisplay * display);
+ 
+ G_END_DECLS
+diff --git a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.c b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.c
+index 02f520ae21..f8f2018ced 100644
+--- a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.c
++++ b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.c
+@@ -122,6 +122,7 @@ gst_va_context_query (GstElement * element, const gchar * context_type)
+ {
+   GstQuery *query;
+   GstContext *ctxt = NULL;
++  GstStructure *str = NULL;
+ 
+   _init_context_debug ();
+ 
+@@ -132,11 +133,19 @@ gst_va_context_query (GstElement * element, const gchar * context_type)
+   query = gst_query_new_context (context_type);
+   if (_gst_va_run_query (element, query, GST_PAD_SRC)) {
+     gst_query_parse_context (query, &ctxt);
++    if (ctxt) {
++      str = gst_context_writable_structure (ctxt);
++      gst_structure_set (str, "from-neighbor", G_TYPE_BOOLEAN, TRUE, NULL);
++    }
+     GST_CAT_INFO_OBJECT (GST_CAT_CONTEXT, element,
+         "found context (%p) in downstream query", ctxt);
+     gst_element_set_context (element, ctxt);
+   } else if (_gst_va_run_query (element, query, GST_PAD_SINK)) {
+     gst_query_parse_context (query, &ctxt);
++    if (ctxt) {
++      str = gst_context_writable_structure (ctxt);
++      gst_structure_set (str, "from-neighbor", G_TYPE_BOOLEAN, TRUE, NULL);
++    }
+     GST_CAT_INFO_OBJECT (GST_CAT_CONTEXT, element,
+         "found context (%p) in upstream query", ctxt);
+     gst_element_set_context (element, ctxt);
+@@ -274,6 +283,8 @@ gst_va_handle_set_context (GstElement * element, GstContext * context,
+ {
+   GstVaDisplay *display_replacement = NULL;
+   const gchar *context_type, *type_name;
++  gboolean from_neighbor = FALSE;
++  const GstStructure *str;
+ 
+   _init_context_debug ();
+ 
+@@ -284,6 +295,11 @@ gst_va_handle_set_context (GstElement * element, GstContext * context,
+ 
+   context_type = gst_context_get_context_type (context);
+ 
++  str = gst_context_get_structure (context);
++  if (!gst_structure_get (str, "from-neighbor", G_TYPE_BOOLEAN,
++            &from_neighbor, NULL))
++    from_neighbor = FALSE;
++
+   if (g_strcmp0 (context_type, GST_VA_DISPLAY_HANDLE_CONTEXT_TYPE_STR) == 0) {
+     type_name = G_OBJECT_TYPE_NAME (element);
+     if (!gst_context_get_va_display (context, type_name, render_device_path,
+@@ -295,6 +311,22 @@ gst_va_handle_set_context (GstElement * element, GstContext * context,
+   }
+ 
+   if (display_replacement) {
++#ifdef HAVE_LIBDRM
++    if (gst_va_display_drm_enable_tlv_vadpy(display_replacement)) {
++      if (gst_va_display_is_implementation (display_replacement,
++          GST_VA_IMPLEMENTATION_INTEL_IHD) && !from_neighbor) {
++          guint ref;
++          guint tlv_vadpy;
++
++      	  tlv_vadpy = gst_va_display_drm_get_tlv_vadpy(display_replacement);
++          ref = g_atomic_int_get (&((GObject *) display_replacement)->ref_count);
++          if (ref > tlv_vadpy) {
++            gst_object_unref (display_replacement);
++            return FALSE;
++          }
++        }
++      }
++#endif
+     gst_object_replace ((GstObject **) display_ptr,
+         (GstObject *) display_replacement);
+     gst_object_unref (display_replacement);
+@@ -468,5 +500,15 @@ gst_context_set_va_display (GstContext * context, GstVaDisplay * display)
+       gst_structure_set (s, "path", G_TYPE_STRING, path, NULL);
+       g_free (path);
+     }
+-  }
++  }  
+ }
++
++#ifndef G_OS_WIN32
++void
++gst_va_set_tlv_vadpy (GstVaDisplay * display, guint tlv_vadpy)
++{
++  g_return_if_fail (display != NULL);
++
++  gst_va_display_drm_set_tlv_vadpy(display, tlv_vadpy);
++}
++#endif
+diff --git a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.h b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.h
+index a36c2bf2e8..e9881d906f 100644
+--- a/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.h
++++ b/subprojects/gst-plugins-bad/gst-libs/gst/va/gstvautils.h
+@@ -53,5 +53,9 @@ gboolean              gst_context_get_va_display          (GstContext * context,
+ GST_VA_API
+ void                  gst_context_set_va_display          (GstContext * context,
+                                                            GstVaDisplay * display);
++#ifndef G_OS_WIN32
++GST_VA_API
++void                  gst_va_set_tlv_vadpy                (GstVaDisplay * display, guint tlv_vadpy);
++#endif
+ 
+ G_END_DECLS
+diff --git a/subprojects/gst-plugins-bad/sys/va/gstvabasedec.c b/subprojects/gst-plugins-bad/sys/va/gstvabasedec.c
+index 96dca481a0..c74a78e1ea 100644
+--- a/subprojects/gst-plugins-bad/sys/va/gstvabasedec.c
++++ b/subprojects/gst-plugins-bad/sys/va/gstvabasedec.c
+@@ -48,10 +48,31 @@ gst_va_base_dec_get_property (GObject * object, guint prop_id,
+ 
+       break;
+     }
++    case GST_VA_DEC_PROP_TLV_VADPY:{
++      g_value_set_uint (value, self->tlv_vadpy);
++      break;
++    }
+     default:
+       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+   }
+ }
++#ifndef G_OS_WIN32
++static void
++gst_va_base_dec_set_property (GObject * object, guint prop_id,
++    const GValue * value, GParamSpec * pspec)
++{
++  GstVaBaseDec *self = GST_VA_BASE_DEC (object);
++
++  switch (prop_id) {
++    case GST_VA_DEC_PROP_TLV_VADPY:{
++      self->tlv_vadpy = g_value_get_uint(value);
++      break;
++    }
++     default:
++       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
++   }
++ }
++#endif
+ 
+ static gboolean
+ gst_va_base_dec_open (GstVideoDecoder * decoder)
+@@ -82,6 +103,13 @@ gst_va_base_dec_open (GstVideoDecoder * decoder)
+ 
+   base->apply_video_crop = FALSE;
+ 
++#ifndef G_OS_WIN32
++  if (!klass->is_i915)
++   if (base->display) {
++     gst_va_set_tlv_vadpy(base->display, base->tlv_vadpy);
++   }
++#endif
++
+   return ret;
+ }
+ 
+@@ -732,6 +760,15 @@ gst_va_base_dec_class_init (GstVaBaseDecClass * klass, GstVaCodecs codec,
+   klass->codec = codec;
+   klass->render_device_path = g_strdup (render_device_path);
+ 
++#ifndef G_OS_WIN32
++  GstVaDisplay *display = NULL;
++  display = gst_va_display_platform_new(klass->render_device_path);
++  if (display) {
++    klass->is_i915 = gst_va_display_check_i915(display);
++    g_object_unref(display);
++  }
++#endif
++
+   sink_pad_templ = gst_pad_template_new ("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
+       sink_caps);
+   gst_element_class_add_pad_template (element_class, sink_pad_templ);
+@@ -751,7 +788,10 @@ gst_va_base_dec_class_init (GstVaBaseDecClass * klass, GstVaCodecs codec,
+   }
+ 
+   object_class->get_property = gst_va_base_dec_get_property;
+-
++#ifndef G_OS_WIN32
++  if (!klass->is_i915)
++    object_class->set_property = gst_va_base_dec_set_property;
++#endif
+   element_class->set_context = GST_DEBUG_FUNCPTR (gst_va_base_dec_set_context);
+ 
+   decoder_class->open = GST_DEBUG_FUNCPTR (gst_va_base_dec_open);
+@@ -768,6 +808,14 @@ gst_va_base_dec_class_init (GstVaBaseDecClass * klass, GstVaCodecs codec,
+       g_param_spec_string ("device-path", "Device Path",
+           GST_VA_DEVICE_PATH_PROP_DESC, NULL, GST_PARAM_DOC_SHOW_DEFAULT |
+           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
++#ifndef G_OS_WIN32
++  if (!klass->is_i915) {
++    g_object_class_install_property (object_class, GST_VA_DEC_PROP_TLV_VADPY,
++        g_param_spec_uint ("tlv-vadpy", "TLV VADPY",
++            "Threshold limit value for VADPY refcount (0: disabled)", 0, 8, 0,
++            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT));
++  }
++#endif          
+ }
+ 
+ static inline GstVideoFormat
+diff --git a/subprojects/gst-plugins-bad/sys/va/gstvabasedec.h b/subprojects/gst-plugins-bad/sys/va/gstvabasedec.h
+index 3c83686c19..2ed89e0145 100644
+--- a/subprojects/gst-plugins-bad/sys/va/gstvabasedec.h
++++ b/subprojects/gst-plugins-bad/sys/va/gstvabasedec.h
+@@ -43,6 +43,9 @@ G_BEGIN_DECLS
+ 
+ enum {
+   GST_VA_DEC_PROP_DEVICE_PATH = 1,
++#ifndef G_OS_WIN32
++  GST_VA_DEC_PROP_TLV_VADPY,
++#endif  
+   GST_VA_DEC_PROP_LAST,
+ };
+ 
+@@ -93,6 +96,9 @@ struct _GstVaBaseDec
+   gboolean need_negotiation;
+ 
+   guint32 hacks;
++#ifndef G_OS_WIN32
++  guint tlv_vadpy;
++#endif
+ };
+ 
+ struct _GstVaBaseDecClass
+@@ -111,6 +117,7 @@ struct _GstVaBaseDecClass
+ 
+   GstVaCodecs codec;
+   gchar *render_device_path;
++  gboolean is_i915;
+   /* The parent class in GType hierarchy */
+   GstObjectClass *parent_decoder_class;
+ };
+diff --git a/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.c b/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.c
+index 41555f8024..c7a2da95f0 100644
+--- a/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.c
++++ b/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.c
+@@ -99,3 +99,10 @@ gst_va_create_other_pool (GstAllocator * allocator,
+ 
+   return pool;
+ }
++#ifndef G_OS_WIN32
++gboolean
++gst_va_display_check_i915 (GstVaDisplay * display)
++{
++  return gst_va_display_drm_check_i915(display);
++}
++#endif
+diff --git a/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.h b/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.h
+index 04e54cfcfc..bd94a966e3 100644
+--- a/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.h
++++ b/subprojects/gst-plugins-bad/sys/va/gstvapluginutils.h
+@@ -50,4 +50,8 @@ GstBufferPool * gst_va_create_other_pool (GstAllocator * allocator,
+                                           GstCaps * caps,
+                                           guint size);
+ 
++#ifndef G_OS_WIN32
++gboolean gst_va_display_check_i915 (GstVaDisplay * display);
++#endif
++
+ G_END_DECLS
