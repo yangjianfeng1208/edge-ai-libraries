@@ -56,6 +56,11 @@ pyright: $(VENV_DIR) ## Run pyright type checker
 	pyright --version ;\
 	pyright .
 
+generate_openapi: $(VENV_DIR) ## Generate OpenAPI schema file
+	set +u; . ./$</bin/activate; set -u ;\
+	cd $(PROJECT_NAME) ;\
+	PYTHONPATH=. python ../generate_openapi.py
+
 # Environment setup target: always run before build/run targets that need .env
 env-setup:
 	./setup_env.sh
