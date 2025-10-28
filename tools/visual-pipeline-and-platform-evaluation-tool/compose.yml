@@ -18,6 +18,7 @@ x-vippet: &vippet
   restart: on-failure:5
   environment:
     GST_DEBUG: "1"
+    LOG_LEVEL: INFO
     TZ: America/Los_Angeles
     MODELS_PATH: /models/output
     http_proxy: ${http_proxy}
