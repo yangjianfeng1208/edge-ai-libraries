@@ -4,21 +4,11 @@ Use the Video Search and Summarization (VSS) sample application to search throug
 
 This foundational sample application provides three modes:
 
-.. list-table:: Modes, Usage Models, and Capabilities
-   :header-rows: 1
-
-   * - Mode
-     - Use To
-     - Capability
-   * - 🔍 Video Search ([overview](./overview-search.md) | [architecture](./overview-architecture-search.md))
-     - 📝 Video Summarization ([overview](./overview-summary.md) | [architecture](./overview-architecture-summary.md))
-     - 🔗 Combined Video Search and Summarization ([overview](./overview-search-and-summary.md) | [architecture](./overview-architecture-search-and-summary.md))
-   * - Find specific content within large video datasets through natural language.
-     - Create concise summaries of long-form videos or live streams, automatically.
-     - Find specific content and create concise summaries of videos - ideal for a comprehensive video analysis.
-   * - Extract and index visual, audio, and textual features from video frames using the LangChain framework, multimodal embedding models, and agentic reasoning. Query using natural language or multi-modal models.
-     - Improve searchability. Combine insights from different data types using Generative AI Vision Language Models (VLMs), computer vision, and audio analysis.
-     - Search quickly and directly over generated video summaries. Using the summary as a knowledge base makes the search results more relevant and accurate.
+| Mode | Use To | Capability |
+|---|---|---|
+| 🔍 Video Search ([overview](./overview-search.md) | [architecture](./overview-architecture-search.md)) | Find specific content within large video datasets through natural language. | Extract and index visual, audio, and textual features from video frames using the LangChain framework, multimodal embedding models, and agentic reasoning. Query using natural language or multi-modal models. |
+| 📝 Video Summarization ([overview](./overview-summary.md) | [architecture](./overview-architecture-summary.md)) | Create concise summaries of long-form videos or live streams, automatically. | Improve searchability. Combine insights from different data types using Generative AI Vision Language Models (VLMs), computer vision, and audio analysis. |
+| 🔗 Combined Video Search and Summarization ([overview](./overview-search-and-summary.md) | [architecture](./overview-architecture-search-and-summary.md)) | Find specific content and create concise summaries of videos - ideal for a comprehensive video analysis. | Search quickly and directly over generated video summaries. Using the summary as a knowledge base makes the search results more relevant and accurate. |
 
 The detailed documentation to help you get started, configure, and deploy the sample application along with the required microservices are as follows.
 
