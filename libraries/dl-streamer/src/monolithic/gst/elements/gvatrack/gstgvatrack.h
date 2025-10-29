@@ -29,6 +29,7 @@ typedef struct _GstGvaTrack {
     gchar *device;
     GstGvaTrackingType tracking_type;
     gchar *tracking_config;
+    gchar *feature_model;
 
     ITracker *tracker;
 } GstGvaTrack;

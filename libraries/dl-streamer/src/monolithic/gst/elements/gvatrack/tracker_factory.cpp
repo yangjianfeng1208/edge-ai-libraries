@@ -8,6 +8,7 @@
 
 #include "tracker_factory.h"
 
+#include "deep_sort_tracker.h"
 #include "tracker.h"
 
 vas::ColorFormat gstVideoFmtToVasColorFmt(GstVideoFormat format) {
@@ -51,6 +52,21 @@ bool TrackerFactory::RegisterAll() {
                                        std::bind(create_vas_tracker, _1, TrackingType::SHORT_TERM_IMAGELESS, _2, _3));
     result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM_IMAGELESS,
                                        std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_IMAGELESS, _2, _3));
+
+    // Register Deep SORT tracker
+    auto create_deep_sort_tracker = [](const GstGvaTrack *gva_track, dlstreamer::MemoryMapperPtr mapper,
+                                       dlstreamer::ContextPtr /*context*/) -> ITracker * {
+        std::string feature_model_path = gva_track->feature_model ? gva_track->feature_model : "";
+        if (feature_model_path.empty()) {
+            throw std::invalid_argument("Deep SORT requires feature-model property to be set");
+        }
+        std::string device = gva_track->device ? gva_track->device : "CPU";
+
+        return new DeepSortWrapper::DeepSortTracker(feature_model_path, device, 0.7f, 70, 3, 0.2f, 100,
+                                                    std::move(mapper));
+    };
+
+    result &= TrackerFactory::Register(GstGvaTrackingType::DEEP_SORT, create_deep_sort_tracker);
 
     return result;
 }
