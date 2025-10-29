@@ -19,15 +19,16 @@ RUN apt-get update && \
 
 WORKDIR /app
 
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY telegraf.conf /etc/telegraf
+
 COPY qmassa_reader.py qmassa_reader.py
+
 COPY read_cpu_freq.sh read_cpu_freq.sh
 RUN chmod +x read_cpu_freq.sh
 
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh
 
 # nosemgrep: missing-user-entrypoint
-CMD ["/entrypoint.sh"]
+CMD ["/app/entrypoint.sh"]
