@@ -9,7 +9,7 @@ import { getCurrentTimeStamp, uuidv4, checkHealth } from "../../utils/util";
 import { createAsyncThunkWrapper } from "../thunkUtil";
 import client from "../../utils/client";
 import { notifications } from "@mantine/notifications";
-import { CHAT_QNA_URL, DATA_PREP_URL, LINK_PREP_URL, MODEL_URL } from "../../config";
+import { CHAT_QNA_URL, DATA_PREP_URL, LINK_PREP_URL, MAX_TOKENS, MODEL_URL } from "../../config";
 
 
 const initialState: ConversationReducer = {
@@ -483,7 +483,7 @@ export const doConversation = createAsyncThunk(
 
     const body = {
       conversation_messages,
-      max_tokens: 0,
+      max_tokens: MAX_TOKENS,
     };
 
     // Set generating state - user has submitted, waiting for AI to start responding
