@@ -118,7 +118,7 @@ class MQTTPublisher():
 
         if self.filter:
             if not self.filter.check_filter_criteria(meta_data):
-                self.log.info("Filter criteria not met, skipping...")
+                self.log.debug("Filter criteria not met, skipping...")
                 return
 
         
