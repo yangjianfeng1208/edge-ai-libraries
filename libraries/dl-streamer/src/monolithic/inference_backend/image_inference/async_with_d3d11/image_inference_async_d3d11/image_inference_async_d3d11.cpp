@@ -21,8 +21,6 @@
 #include <tuple>
 #include <utility>
 
-#undef max
-
 using namespace InferenceBackend;
 
 namespace {

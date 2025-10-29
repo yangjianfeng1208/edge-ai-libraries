@@ -9,14 +9,6 @@
 #include "render_prim.h"
 #include <inference_backend/buffer_mapper.h>
 #include <opencv2/opencv.hpp>
-#ifdef _MSC_VER
-#ifdef min
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
-#endif
 
 namespace {
 

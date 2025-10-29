@@ -12,15 +12,6 @@
 #include <type_traits>
 #include <typeinfo>
 
-#ifdef _MSC_VER
-#ifdef min
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
-#endif
-
 // signed integer
 template <typename Type>
 using IsSignedIntegral = std::integral_constant<bool, std::is_integral<Type>::value and std::is_signed<Type>::value>;
