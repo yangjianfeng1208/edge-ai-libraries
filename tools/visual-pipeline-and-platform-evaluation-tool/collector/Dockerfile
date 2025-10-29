@@ -13,8 +13,7 @@ FROM docker.io/library/telegraf:1.36.3 AS collector
 COPY --from=qmassa /usr/local/cargo/bin/qmassa /usr/local/bin/qmassa
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        python3 && \
+    apt-get install -y --no-install-recommends python3 supervisor && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
