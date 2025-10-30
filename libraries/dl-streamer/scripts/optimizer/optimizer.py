@@ -117,7 +117,7 @@ def explore_pipelines(suggestions, base_fps, search_duration, sample_duration):
     start_time = time.time()
     combinations = itertools.product(*suggestions)
     # first element is the original pipeline, use it as baseline
-    best_pipeline = list(next(combinations)) 
+    best_pipeline = list(next(combinations))
     best_fps = base_fps
     for combination in combinations:
         combination = list(combination)
