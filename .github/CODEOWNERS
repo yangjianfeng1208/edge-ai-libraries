@@ -15,7 +15,7 @@ README.md           @xwu2intel
 
 # microservices
 /microservices/audio-analyzer/                         @bhardwaj-nakul @bharagha @krish918 @yogeshmpandey
-/microservices/dlstreamer-pipeline-server/             @sajeevrajput @ajagadi1
+/microservices/dlstreamer-pipeline-server/             @tbujewsk @OskarFiedot @marcin-wadolkowski @nszczygl9 @dmichalo @msmiatac @jmotow @pbartosik @mholowni
 /microservices/document-ingestion/                     @bharagha @madhuri-rai07 @yogeshmpandey
 # lack of owners - /microservices/model-registry/
 /microservices/multimodal-embedding-serving/           @bhardwaj-nakul @bharagha @yogeshmpandey @llin60
