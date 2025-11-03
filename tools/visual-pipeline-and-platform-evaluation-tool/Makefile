@@ -61,10 +61,11 @@ generate_openapi: $(VENV_DIR) ## Generate OpenAPI schema file
 	cd $(PROJECT_NAME) ;\
 	PYTHONPATH=. python ../generate_openapi.py
 
-# Environment setup target: always run before build/run targets that need .env and shared dirs
-env-setup:
-	mkdir -p shared/models/output && chmod o+w shared/models/output
+env-setup: ## Environment setup target: always run before build/run targets that need .env and shared dirs
 	mkdir -p shared/collector-signals && chmod o+w shared/collector-signals
+	mkdir -p shared/models/output && chmod o+w shared/models/output
+	mkdir -p shared/videos/input && chmod o+w shared/videos/input
+	mkdir -p shared/videos/video-generator && chmod o+w shared/videos/video-generator
 	./setup_env.sh
 
 build: env-setup ## Build core images (vippet-app, vippet-collector)
@@ -124,11 +125,11 @@ shell-videogenerator: ## Open shell in videogenerator container
 	$(MAKE) shell SERVICE=videogenerator
 
 stop: ## Stop the docker compose services
-	@VIPPET_SERVICE=$$(docker compose ps --services | grep "^vippet-" | head -n 1 || echo ""); \
-	docker compose down models collector videogenerator $$VIPPET_SERVICE
+	@VIPPET_SERVICES=$$(docker compose ps --services | grep "^vippet-" || echo ""); \
+	docker compose down models collector videogenerator $$VIPPET_SERVICES
 
 clean: ## Clean all build artifacts
-	rm -rf shared/collector-signals shared/models/output/ shared/videos/
+	rm -rf shared/collector-signals shared/models/output/ shared/videos/input shared/videos/video-generator
 
 help: ## Print help for each target
 	@echo ViPPET make targets

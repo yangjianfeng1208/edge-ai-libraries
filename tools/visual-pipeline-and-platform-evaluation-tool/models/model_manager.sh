@@ -14,8 +14,15 @@ fi
 # Script to manage installation/removal of models using dialog.
 # Requires: dialog, yq, supported_models.yaml
 
-SUPPORTED_MODELS_FILE="/models/supported_models.yaml"
+# Set SUPPORTED_MODELS_FILE from environment variable, fallback to default if not set
+SUPPORTED_MODELS_FILE="${SUPPORTED_MODELS_FILE:-/models/supported_models.yaml}"
 MODEL_MANAGER_TMP_DIR="/tmp/model_manager"
+
+# Ensure SUPPORTED_MODELS_FILE exists and is a regular file
+if [ ! -f "$SUPPORTED_MODELS_FILE" ]; then
+    echo "Error: SUPPORTED_MODELS_FILE ('$SUPPORTED_MODELS_FILE') does not exist or is not a regular file. Exiting."
+    exit 3
+fi
 
 MODEL_INSTALLATION="${MODEL_INSTALLATION:-once}"
 
@@ -31,21 +38,21 @@ elif [ "$MODEL_INSTALLATION" == "all" ]; then
 else
     echo "Error: Invalid value for MODEL_INSTALLATION ('$MODEL_INSTALLATION')."
     echo "Valid values are: 'once', 'force', 'all'."
-    exit 3
+    exit 4
 fi
 
 # Check if dialog is installed, exit if not (only for interactive modes)
 if [ "$MODEL_INSTALLATION" != "all" ]; then
     if ! command -v dialog &>/dev/null; then
         echo "Error: 'dialog' is not installed. Please install it before running this script."
-        exit 4
+        exit 5
     fi
 fi
 
 # Check if yq is installed
 if ! command -v yq &>/dev/null; then
     echo "Error: 'yq' is not installed. Please install it before running this script."
-    exit 5
+    exit 6
 fi
 
 function cleanup {

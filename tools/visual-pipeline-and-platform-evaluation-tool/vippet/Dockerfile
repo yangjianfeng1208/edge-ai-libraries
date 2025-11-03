@@ -18,7 +18,9 @@ FROM intel/dlstreamer:weekly-2025.2-20251028-ubuntu24 AS prod
 
 USER root
 
-RUN apt-get update && apt-get install --yes --no-install-recommends gstreamer1.0-plugins-ugly
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends gstreamer1.0-plugins-ugly yq && \
+    rm -rf /var/lib/apt/lists/*
 
 USER dlstreamer
 
@@ -39,13 +41,18 @@ RUN \
 COPY --chown=dlstreamer:dlstreamer \
     vippet/*.py \
     vippet/app.css \
+    vippet/entrypoint.sh \
+    vippet/video_manager.sh \
     /home/dlstreamer/vippet/
 
 COPY --chown=dlstreamer:dlstreamer vippet/pipelines/ /home/dlstreamer/vippet/pipelines
 COPY --chown=dlstreamer:dlstreamer vippet/api/ /home/dlstreamer/vippet/api
 COPY --chown=dlstreamer:dlstreamer vippet/managers/ /home/dlstreamer/vippet/managers
 
-CMD ["/bin/bash", "-c", "fastapi run --port 7860 api/main.py"]
+RUN chmod +x ./entrypoint.sh
+RUN chmod +x ./video_manager.sh
+
+CMD ["./entrypoint.sh"]
 
 FROM prod AS test
 

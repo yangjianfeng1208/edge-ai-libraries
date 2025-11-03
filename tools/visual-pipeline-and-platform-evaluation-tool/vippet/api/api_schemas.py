@@ -142,3 +142,13 @@ class MetricSample(BaseModel):
     description: str
     timestamp: int
     value: float
+
+
+class Video(BaseModel):
+    filename: str
+    width: int
+    height: int
+    fps: float
+    frame_count: int
+    codec: str
+    duration: float
