@@ -9,6 +9,7 @@ from typing import Any
 import cv2
 
 logger = logging.getLogger("utils")
+supported_models_manager = get_supported_models_manager()
 
 TEMP_DIR = "/tmp/"
 
@@ -108,7 +109,7 @@ def prepare_video_and_constants(
     }
 
     # Validate and set object detection model path/proc
-    if not is_model_supported_on_device(
+    if not supported_models_manager.is_model_supported_on_device(
         str(object_detection_model), str(object_detection_device)
     ):
         raise ValueError(
@@ -120,7 +121,7 @@ def prepare_video_and_constants(
     ) = get_model_path_and_proc(str(object_detection_model))
 
     # Validate and set object classification model path/proc
-    if not is_model_supported_on_device(
+    if not supported_models_manager.is_model_supported_on_device(
         str(object_classification_model), str(object_classification_device)
     ):
         raise ValueError(
@@ -134,74 +135,21 @@ def prepare_video_and_constants(
     return video_output_path, constants, param_grid
 
 
-def is_model_supported_on_device(model_name: str, device: str) -> bool:
-    # Models that are not supported on NPU
-    npu_unsupported = {
-        "YOLO v10s 640x640 (FP16)",
-        "YOLO v10m 640x640 (FP16)",
-        "YOLO v8 License Plate Detector (FP32)",
-        "EfficientNet B0 (INT8)",
-    }
-    if model_name in npu_unsupported and device == "NPU":
-        return False
-    return True
+def get_model_path_and_proc(display_name: str) -> tuple[str, str]:
+    """
+    Returns the model path and model proc path for a given model display name.
 
+    Raises:
+        ValueError: If the model is not supported (not found in installed models).
+    """
+    if display_name == "Disabled":
+        return "Disabled", "Disabled"
 
-def get_model_path_and_proc(model_name: str) -> tuple[str, str]:
-    model_map = {
-        "Disabled": ("Disabled", "Disabled"),
-        "SSDLite MobileNet V2 (INT8)": (
-            f"{MODELS_PATH}/pipeline-zoo-models/ssdlite_mobilenet_v2_INT8/FP16-INT8/ssdlite_mobilenet_v2.xml",
-            f"{MODELS_PATH}/pipeline-zoo-models/ssdlite_mobilenet_v2_INT8/ssdlite_mobilenet_v2.json",
-        ),
-        "YOLO v5m 416x416 (INT8)": (
-            f"{MODELS_PATH}/pipeline-zoo-models/yolov5m-416_INT8/FP16-INT8/yolov5m-416_INT8.xml",
-            f"{MODELS_PATH}/pipeline-zoo-models/yolov5m-416_INT8/yolo-v5.json",
-        ),
-        "YOLO v5m 640x640 (INT8)": (
-            f"{MODELS_PATH}/pipeline-zoo-models/yolov5m-640_INT8/FP16-INT8/yolov5m-640_INT8.xml",
-            f"{MODELS_PATH}/pipeline-zoo-models/yolov5m-640_INT8/yolo-v5.json",
-        ),
-        "YOLO v5s 416x416 (INT8)": (
-            f"{MODELS_PATH}/pipeline-zoo-models/yolov5s-416_INT8/FP16-INT8/yolov5s.xml",
-            f"{MODELS_PATH}/pipeline-zoo-models/yolov5s-416_INT8/yolo-v5.json",
-        ),
-        "YOLO v10s 640x640 (FP16)": (
-            f"{MODELS_PATH}/public/yolov10s/FP16/yolov10s.xml",
-            "",
-        ),
-        "YOLO v10m 640x640 (FP16)": (
-            f"{MODELS_PATH}/public/yolov10m/FP16/yolov10m.xml",
-            "",
-        ),
-        "YOLO v8 License Plate Detector (FP32)": (
-            f"{MODELS_PATH}/public/yolov8_license_plate_detector/FP32/yolov8_license_plate_detector.xml",
-            "",
-        ),
-        "ResNet-50 TF (INT8)": (
-            f"{MODELS_PATH}/pipeline-zoo-models/resnet-50-tf_INT8/resnet-50-tf_i8.xml",
-            f"{MODELS_PATH}/pipeline-zoo-models/resnet-50-tf_INT8/resnet-50-tf_i8.json",
-        ),
-        "EfficientNet B0 (INT8)": (
-            f"{MODELS_PATH}/pipeline-zoo-models/efficientnet-b0_INT8/FP16-INT8/efficientnet-b0.xml",
-            f"{MODELS_PATH}/pipeline-zoo-models/efficientnet-b0_INT8/efficientnet-b0.json",
-        ),
-        "MobileNet V2 PyTorch (FP16)": (
-            f"{MODELS_PATH}/omz/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml",
-            f"{MODELS_PATH}/omz/mobilenet-v2-pytorch/mobilenet-v2.json",
-        ),
-        "PaddleOCR (FP32)": (
-            f"{MODELS_PATH}/public/ch_PP-OCRv4_rec_infer/FP32/ch_PP-OCRv4_rec_infer.xml",
-            "",
-        ),
-        "Vehicle Attributes Recognition Barrier 0039 (FP16)": (
-            f"{MODELS_PATH}/omz/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.xml",
-            f"{MODELS_PATH}/omz/vehicle-attributes-recognition-barrier-0039/vehicle-attributes-recognition-barrier-0039.json",
-        ),
-    }
-    if model_name not in model_map:
-        raise ValueError("Unrecognized model name")
-    return model_map[model_name]
+    model = supported_models_manager.find_installed_model_by_display_name(display_name)
+    if model is not None:
+        return model.model_path_full, model.model_proc_full
+
+    raise ValueError(f"Model '{display_name}' is not supported.")
 
 
 def is_yolov10_model(model_path: str) -> bool:

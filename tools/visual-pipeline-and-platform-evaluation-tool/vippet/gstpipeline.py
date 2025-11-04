@@ -17,7 +17,7 @@ class GstPipeline:
         launch = self._launch_string.lstrip()
         if launch.startswith("gst-launch-1.0 -q "):
             launch = launch[len("gst-launch-1.0 -q ") :]
-        return "gst-launch-1.0 -q " + (launch * inference_channels)
+        return launch * inference_channels
 
 
 class PipelineLoader:

@@ -134,7 +134,7 @@ class Device(BaseModel):
 class Model(BaseModel):
     name: str
     display_name: str
-    category: ModelCategory
+    category: Optional[ModelCategory]
     precision: Optional[str]
 
 
