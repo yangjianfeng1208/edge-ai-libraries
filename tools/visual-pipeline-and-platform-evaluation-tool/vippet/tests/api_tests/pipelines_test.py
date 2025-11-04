@@ -213,3 +213,54 @@ class TestPipelinesAPI(unittest.TestCase):
             response.json(),
             {"detail": "Unexpected error: Unexpected error"},
         )
+
+    @patch("api.routes.pipelines.instance_manager")
+    def test_stop_pipeline_instance_success(self, mock_instance_manager):
+        instance_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_instance_manager.stop_instance.return_value = (
+            True,
+            f"Instance {instance_id} stopped",
+        )
+        response = self.client.delete(f"/pipelines/{instance_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"message": f"Instance {instance_id} stopped"}
+        )
+
+    @patch("api.routes.pipelines.instance_manager")
+    def test_stop_pipeline_instance_not_found(self, mock_instance_manager):
+        instance_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_instance_manager.stop_instance.return_value = (
+            False,
+            f"Instance {instance_id} not found",
+        )
+        response = self.client.delete(f"/pipelines/{instance_id}")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json(), {"message": f"Instance {instance_id} not found"}
+        )
+
+    @patch("api.routes.pipelines.instance_manager")
+    def test_stop_pipeline_instance_not_running(self, mock_instance_manager):
+        instance_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_instance_manager.stop_instance.return_value = (
+            False,
+            f"Instance {instance_id} is not running (state: COMPLETED)",
+        )
+        response = self.client.delete(f"/pipelines/{instance_id}")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json(),
+            {"message": f"Instance {instance_id} is not running (state: COMPLETED)"},
+        )
+
+    @patch("api.routes.pipelines.instance_manager")
+    def test_stop_pipeline_instance_server_error(self, mock_instance_manager):
+        instance_id = "46b55660b96011f0948d9b40bdd1b89c"
+        mock_instance_manager.stop_instance.return_value = (
+            False,
+            "Unexpected error occurred",
+        )
+        response = self.client.delete(f"/pipelines/{instance_id}")
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json(), {"message": "Unexpected error occurred"})

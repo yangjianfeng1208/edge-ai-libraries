@@ -8,6 +8,8 @@ from typing import Any
 
 import cv2
 
+from models import get_supported_models_manager
+
 logger = logging.getLogger("utils")
 supported_models_manager = get_supported_models_manager()
 

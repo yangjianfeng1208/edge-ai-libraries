@@ -10,13 +10,8 @@ class TestPipeline(GstPipeline):
     def __init__(self, launch_string):
         super().__init__(launch_string=launch_string)
 
-    def evaluate(
-        self, constants, parameters, regular_channels, inference_channels, elements
-    ):
-        return " ".join(
-            [self._pipeline.format(**parameters, **constants)]
-            * (inference_channels + regular_channels)
-        )
+    def evaluate(self, regular_channels, inference_channels):
+        return " ".join([self._launch_string] * (inference_channels + regular_channels))
 
 
 class TestBenchmark(unittest.TestCase):
