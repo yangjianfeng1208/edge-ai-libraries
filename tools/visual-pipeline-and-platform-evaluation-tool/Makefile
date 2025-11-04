@@ -68,45 +68,45 @@ env-setup:
 	./setup_env.sh
 
 build: env-setup ## Build core images (vippet-app, vippet-collector)
-	docker compose build
+	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml build
 
 build-dev: env-setup ## Build core dev images (vippet-app, vippet-collector)
-	docker compose -f $(COMPOSE_FILE) -f $(DEV_COMPOSE_FILE) build
+	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml -f $(DEV_COMPOSE_FILE) build
 
 build-videogenerator: env-setup ## Build videogenerator image
-	docker compose build videogenerator
+	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml build videogenerator
 
 build-models: env-setup ## Build model image
-	docker compose build models
+	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml build models
 
 docker-build: build build-videogenerator build-models ## Build all images
 
 run: env-setup install-models-once ## Run the docker compose services
-	docker compose up -d
+	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml up -d
 
 run-videogenerator: env-setup build-videogenerator ## Run only the videogenerator service
-	docker compose up -d videogenerator
+	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml up -d videogenerator
 
 run-dev: env-setup install-models-once ## Run the docker compose services for development
-	docker compose -f $(COMPOSE_FILE) -f $(DEV_COMPOSE_FILE) up -d
+	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml -f $(DEV_COMPOSE_FILE) up -d
 
 test: env-setup ## Run tests and generate coverage report
-    # Run tests using the vippet-cpu container (tests are device agnostic)
+    # Run tests using the cpu profile (tests are device agnostic)
     # Override DOCKER_TAG with '-test' suffix only for this docker compose run
-	TARGET=test DOCKER_TAG="test" docker compose -f $(COMPOSE_FILE) run \
-	--build --rm --no-deps --volume $(PROJECT_DIR):/home/dlstreamer/vippet vippet-cpu bash -c "\
+	. .env && TARGET=test DOCKER_TAG="test" docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml run \
+	--build --rm --no-deps --volume $(PROJECT_DIR):/home/dlstreamer/vippet vippet bash -c "\
 		cd $(PROJECT_NAME) && \
 		python -m coverage run --source=./ --data-file=/tmp/.vippet-coverage -m unittest discover -v -s ./tests -p '*_test.py' && \
 		python -m coverage report --data-file=/tmp/.vippet-coverage --omit=*/config-3.py,*/config.py,*_test.py"
 
 install-models-once: env-setup ## Handle models download and installation (once)
-	MODEL_INSTALLATION=once docker compose run --rm -it models
+	. .env && MODEL_INSTALLATION=once docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml run --rm -it models
 
 install-models-force: env-setup ## Handle models download and installation (force)
-	MODEL_INSTALLATION=force docker compose run --rm -it models
+	. .env && MODEL_INSTALLATION=force docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml run --rm -it models
 
 install-models-all: env-setup ## Install all models automatically (no dialog)
-	MODEL_INSTALLATION=all docker compose run --rm -it models
+	. .env && MODEL_INSTALLATION=all docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml run --rm -it models
 
 shell: env-setup ## Open shell in specified container (i.e. make shell SERVICE=vippet)
 	docker exec -it $(SERVICE) bash
@@ -124,8 +124,7 @@ shell-videogenerator: ## Open shell in videogenerator container
 	$(MAKE) shell SERVICE=videogenerator
 
 stop: ## Stop the docker compose services
-	@VIPPET_SERVICE=$$(docker compose ps --services | grep "^vippet-" | head -n 1 || echo ""); \
-	docker compose down models collector videogenerator $$VIPPET_SERVICE
+	docker compose down models collector videogenerator vippet-ui vippet
 
 clean: ## Clean all build artifacts
 	rm -rf shared/collector-signals shared/models/output/ shared/videos/
