@@ -19,6 +19,7 @@ class GstPipeline:
             launch = launch[len("gst-launch-1.0 -q ") :]
         return " ".join([launch] * inference_channels)
 
+
 class PipelineLoader:
     @staticmethod
     def _validate_pipeline_name(
