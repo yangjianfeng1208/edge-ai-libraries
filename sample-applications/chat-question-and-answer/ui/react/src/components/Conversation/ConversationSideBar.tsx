@@ -1,7 +1,7 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-import { ScrollAreaAutosize, Title, ActionIcon, TextInput } from "@mantine/core"
+import { ScrollAreaAutosize, Title, ActionIcon, TextInput, Loader } from "@mantine/core"
 import { IconEdit, IconTrash, IconCheck, IconX } from "@tabler/icons-react"
 import { useState } from "react"
 
@@ -14,7 +14,7 @@ export interface ConversationContextProps {
 }
 
 export function ConversationSideBar({ title }: ConversationContextProps) {
-    const { conversations, selectedConversationId } = useAppSelector(conversationSelector)
+    const { conversations, selectedConversationId, isGenerating } = useAppSelector(conversationSelector)
     const dispatch = useAppDispatch()
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editingTitle, setEditingTitle] = useState("")
@@ -101,8 +101,13 @@ export function ConversationSideBar({ title }: ConversationContextProps) {
                 </div>
             ) : (
                 <>
-                    <div className={contextStyles.contextItemName} title={curr.title || "Untitled"}>
-                        {curr.title || "Untitled"}
+                    <div style={{ display: 'flex', alignItems: 'center', flex: 1, gap: '6px' }}>
+                        <div className={contextStyles.contextItemName} title={curr.title || "Untitled"}>
+                            {curr.title || "Untitled"}
+                        </div>
+                        {isGenerating[curr.conversationId] && (
+                            <Loader size="xs" color="blue" />
+                        )}
                     </div>
                     {hoveredId === curr.conversationId && (
                         <div style={{ display: 'flex', gap: '1px', marginLeft: '4px' }}>

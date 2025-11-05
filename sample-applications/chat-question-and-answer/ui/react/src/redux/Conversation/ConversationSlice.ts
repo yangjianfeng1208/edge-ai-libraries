@@ -20,6 +20,7 @@ const initialState: ConversationReducer = {
   files: [],
   links: [],
   isGenerating: {},
+  isWaitingForFirstToken: {},
   isUploading: false,
 };
 
@@ -77,6 +78,14 @@ export const ConversationSlice = createSlice({
         state.isGenerating[conversationId] = true;
       } else {
         delete state.isGenerating[conversationId];
+      }
+    },
+    setIsWaitingForFirstToken: (state, action: PayloadAction<{ conversationId: string; isWaiting: boolean }>) => {
+      const { conversationId, isWaiting } = action.payload;
+      if (isWaiting) {
+        state.isWaitingForFirstToken[conversationId] = true;
+      } else {
+        delete state.isWaitingForFirstToken[conversationId];
       }
     },
   },
@@ -433,6 +442,7 @@ export const {
   deleteConversation,
   updateConversationTitle,
   setIsGenerating,
+  setIsWaitingForFirstToken,
 } = ConversationSlice.actions;
 
 export const conversationSelector = (state: RootState) => ({
@@ -443,6 +453,7 @@ export const conversationSelector = (state: RootState) => ({
   files: state.conversationReducer.files,
   links: state.conversationReducer.links,
   isGenerating: state.conversationReducer.isGenerating,
+  isWaitingForFirstToken: state.conversationReducer.isWaitingForFirstToken,
   isUploading: state.conversationReducer.isUploading,
 });
 export default ConversationSlice.reducer;
@@ -500,8 +511,11 @@ export const doConversation = createAsyncThunk(
 
     // Set generating state - user has submitted, waiting for AI to start responding
     dispatch(setIsGenerating({ conversationId: activeConversationId, isGenerating: true }));
+    // Set waiting for first token state - critical resource usage period
+    dispatch(setIsWaitingForFirstToken({ conversationId: activeConversationId, isWaiting: true }));
 
     let result = "";
+    let firstTokenReceived = false;
     try {
       fetchEventSource(CHAT_QNA_URL, {
         method: "POST",
@@ -544,6 +558,12 @@ export const doConversation = createAsyncThunk(
               }
               // Store back result if it is not null
               if (result) {
+                // Clear waiting for first token state when we get the first meaningful content
+                if (!firstTokenReceived) {
+                  dispatch(setIsWaitingForFirstToken({ conversationId: activeConversationId, isWaiting: false }));
+                  firstTokenReceived = true;
+                }
+
                 dispatch(setOnGoingResultForConversation({
                   conversationId: activeConversationId,
                   result
@@ -559,6 +579,7 @@ export const doConversation = createAsyncThunk(
           console.log("error", err);
           dispatch(clearOnGoingResultForConversation(activeConversationId));
           dispatch(setIsGenerating({ conversationId: activeConversationId, isGenerating: false }));
+          dispatch(setIsWaitingForFirstToken({ conversationId: activeConversationId, isWaiting: false }));
 
           (async () => {
             const healthStatus = await checkHealth();
@@ -578,6 +599,7 @@ export const doConversation = createAsyncThunk(
         onclose() {
           dispatch(clearOnGoingResultForConversation(activeConversationId));
           dispatch(setIsGenerating({ conversationId: activeConversationId, isGenerating: false }));
+          dispatch(setIsWaitingForFirstToken({ conversationId: activeConversationId, isWaiting: false }));
 
           dispatch(
             addMessageToConversation({

@@ -26,8 +26,11 @@ export default function DataSource({ opened, onClose }: Props) {
   const [selectedLinks, setSelectedLinks] = useState<string[]>([])
   
   const dispatch = useAppDispatch()
-  const { files, links, isUploading } = useAppSelector(conversationSelector)
+  const { files, links, isUploading, isWaitingForFirstToken } = useAppSelector(conversationSelector)
   
+  // Check if any conversation is currently waiting for first token
+  const isAnyConversationWaitingForFirstToken = Object.values(isWaitingForFirstToken).some(Boolean)
+
   // Fetch initial data when component opens
   useEffect(() => {
     if (opened) {
@@ -232,15 +235,15 @@ export default function DataSource({ opened, onClose }: Props) {
               />
               <Button 
                 onClick={handleFileUpload} 
-                disabled={!file || isUploading}
+                disabled={!file || isUploading || isAnyConversationWaitingForFirstToken}
                 size="sm"
                 loading={isUploading}
               >
                 Upload File
               </Button>
-              {isUploading && (
+              {(isUploading || isAnyConversationWaitingForFirstToken) && (
                 <Text size="xs" c="dimmed" ta="center">
-                  Upload in progress...
+                  {isUploading ? "Upload in progress..." : "System busy preparing response – upload available shortly"}
                 </Text>
               )}
             </Stack>
@@ -254,15 +257,15 @@ export default function DataSource({ opened, onClose }: Props) {
               />
               <Button 
                 onClick={handleURLSubmit} 
-                disabled={!url || isUploading}
+                disabled={!url || isUploading || isAnyConversationWaitingForFirstToken}
                 size="sm"
                 loading={isUploading}
               >
                 Submit URLs
               </Button>
-              {isUploading && (
+              {(isUploading || isAnyConversationWaitingForFirstToken) && (
                 <Text size="xs" c="dimmed" ta="center">
-                  Upload in progress...
+                  {isUploading ? "Upload in progress..." : "System busy preparing response – upload available shortly"}
                 </Text>
               )}
             </Stack>

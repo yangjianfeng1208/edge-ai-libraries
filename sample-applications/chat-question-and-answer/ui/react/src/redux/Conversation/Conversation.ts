@@ -38,5 +38,6 @@ export interface ConversationReducer {
   files: File[];
   links: string[];
   isGenerating: { [conversationId: string]: boolean };
+  isWaitingForFirstToken: { [conversationId: string]: boolean };
   isUploading: boolean;
 }
