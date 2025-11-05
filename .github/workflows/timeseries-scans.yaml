@@ -468,7 +468,7 @@ jobs:
         with:
           name: Trivy image scan report
           path: |
-                microservices/time-series-analytics/docker/trivy_*
+                microservices/time-series-analytics/docker/trivy-image*
 
       - name: Trivy config scan for helm charts 
         run: |
