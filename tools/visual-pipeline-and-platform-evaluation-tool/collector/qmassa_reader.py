@@ -16,11 +16,17 @@ LOCK_FILE = "/tmp/qmassa_reader.lock"
 HOSTNAME = os.uname()[1]
 
 # Configure logger
-logging.basicConfig(
-    filename=DEBUG_LOG,
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s (line %(lineno)d)",
+file_handler = logging.FileHandler(DEBUG_LOG)
+file_handler.setFormatter(
+    logging.Formatter(
+        fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%SZ",
+    )
 )
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.handlers = [file_handler]
 
 
 def execute_qmassa_command():
@@ -55,11 +61,11 @@ def load_log_file():
         with open(LOG_FILE, "r") as f:
             return json.load(f)
     except FileNotFoundError:
-        logging.error(f"Log file {LOG_FILE} not found.")
+        logger.error(f"Log file {LOG_FILE} not found.")
     except json.JSONDecodeError as e:
-        logging.error(f"Failed to decode JSON from log file: {e}")
+        logger.error(f"Failed to decode JSON from log file: {e}")
     except Exception as e:
-        logging.error(f"Unexpected error while loading log file: {e}")
+        logger.error(f"Unexpected error while loading log file: {e}")
     sys.exit(1)
 
 
@@ -103,14 +109,14 @@ def process_states(data):
     try:
         states = data.get("states", [])
         if not states:
-            logging.error("No states found in the log file")
+            logger.error("No states found in the log file")
             return
 
         current_ts_ns = int(time.time() * 1e9)
 
         devs_state = states[-1].get("devs_state", [])
         if not devs_state:
-            logging.warning("No devs_state found in the log file")
+            logger.warning("No devs_state found in the log file")
             return
 
         # Process all devices in devs_state
@@ -122,7 +128,7 @@ def process_states(data):
 
             number = int(match.group(1))
             if number < 128:
-                logging.warning(
+                logger.warning(
                     f"renderD{number} in dev_nodes '{dev_nodes}' is less than 128, skipping device"
                 )
                 continue
@@ -130,7 +136,7 @@ def process_states(data):
             gpu_id = number - 128
             process_device_metrics(dev, gpu_id, current_ts_ns)
     except Exception as e:
-        logging.error(f"Error processing log file: {e}")
+        logger.error(f"Error processing log file: {e}")
 
 
 # === Lock to prevent multiple instances ===
@@ -138,7 +144,7 @@ with open(LOCK_FILE, "w") as lock_fp:
     try:
         fcntl.flock(lock_fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        logging.error("Another instance is running")
+        logger.error("Another instance is running")
         sys.exit(1)
 
     # Execute the qmassa command to generate the log file
