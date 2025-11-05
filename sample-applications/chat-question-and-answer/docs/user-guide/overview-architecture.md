@@ -46,13 +46,19 @@ ChatQ&A application is a combination of the core LangChain application logic tha
    - **Convert to embeddings space**: The ChatQ&A backend microservice creates the embeddings out of the uploaded documents and web pages using the document ingestion microservice. The Embeddings microservice is used to create the embeddings. The embeddings are stored in a vector database. PGVector is used in the sample application.
 3. **Chat flow**
    - **Ask a query**: The UI microservice provides prompt window in which the query is asked.
+   - **Chat history management**: The application maintains conversation history, allowing users to:
+     - Continue conversations across sessions
+     - View and manage multiple conversation threads
+     - Switch between conversations and access previous questions and responses for context
    - **Execute the RAG AI pipeline**: The ChatQ&A backend microservice performs the following actions to generate the output response using the RAG pipeline.
       -   The query is converted into embedding space using the Embeddings microservice.
       - Semantic retrieval is done to fetch the relevant documents or data points from VectorDB. The reranker microservice ranks them in order of accuracy.
       - The retrieved documents and data points is used as part of the prompt to the LLM model and a response is generated using the LLM microservice which hosts the configured LLM model.
 4. **Output Generation**:
    - **Response**: The generated response from the LLM microservice is sent to the UI for display and consumption by the user.
-   - **Observability dashboard**: If set up, the dashboard displays real-time logs, metrics, and traces providing a view of the performance, accuracy, and resource consumption by the application..
+   - **Observability dashboard**: If set up, the dashboard displays real-time logs, metrics, and traces providing a view of the performance, accuracy, and resource consumption by the application.
+
+> **Note**: The application stores Redux state in localStorage to preserve chat data across page reloads. Since localStorage is managed by the browser and not cleared when containers are restarted, previously saved state may still appear after a restart. If you see old chats or outdated data, please clear your browser’s localStorage to reset the session.
 
 The application flow is illustrated in the flow diagram below. The diagram shows the API used and the data sharing protocol.
 ![Data flow diagram](./images/request.jpg)
