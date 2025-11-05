@@ -46,7 +46,7 @@ def extract_test_results(xml_file, test_type):
 
 
 def save_summary(test_type, results):
-    with open(summary_file, "a") as f:
+    with open(summary_file, "a", encoding="utf-8") as f:
         f.write(
             f"{test_type}: Total: {results[0]}, Passed: {results[1]}, "
             f"Failed: {results[2]}, Errors: {results[3]}, Skipped: {results[4]}\n"

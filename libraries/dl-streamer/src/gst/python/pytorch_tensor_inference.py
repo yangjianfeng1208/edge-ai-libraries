@@ -100,13 +100,13 @@ def gst_caps_to_tensor_info(caps: Gst.Caps, caps_index: int) -> List[TensorInfo]
         strides_str = ""
 
     types_array = types_str.split(",")
-    shapes_array = shapes_str.split(",") if shapes_str else list()
-    strides_array = strides_str.split(",") if strides_str else list()
+    shapes_array = shapes_str.split(",") if shapes_str else []
+    strides_array = strides_str.split(",") if strides_str else []
 
     for i in range(num_tensors):
         data_type = str_to_datatype(types_array[i])
-        shape = str_to_list(shapes_array[i]) if shapes_array else list()
-        stride = str_to_list(strides_array[i]) if strides_array else list()
+        shape = str_to_list(shapes_array[i]) if shapes_array else []
+        stride = str_to_list(strides_array[i]) if strides_array else []
 
         # reverse order
         shape.reverse()
@@ -125,7 +125,8 @@ def tensor_info_to_gst_caps(tensors_info: List[TensorInfo]) -> Gst.Caps:
     shapes_str = ",".join(
         ":".join(str(d) for d in tensor_info.shape[::-1]) for tensor_info in tensors_info
     )
-    caps_str = f'other/tensors,num_tensors=(uint){len(tensors_info)},types=(string)"{dtypes_str}",dimensions=(string)"{shapes_str}"'
+    caps_str = f'other/tensors,num_tensors=(uint){len(tensors_info)}'
+    caps_str += f',types=(string)"{dtypes_str}",dimensions=(string)"{shapes_str}"'
 
     return Gst.Caps.from_string(caps_str)
 
@@ -151,14 +152,16 @@ class InferencePyTorch(GstBase.BaseTransform):
         "model": (
             GObject.TYPE_STRING,
             "model",
-            "The full module name of the PyTorch model to be imported from torchvision or model path. Ex. 'torchvision.models.resnet50' or '/path/to/model.pth'",
+            ("The full module name of the PyTorch model to be imported from torchvision " +
+             "or model path. Ex. 'torchvision.models.resnet50' or '/path/to/model.pth'"),
             "",
             GObject.ParamFlags.READWRITE,
         ),
         "model-weights": (
             GObject.TYPE_STRING,
             "model_weights",
-            "PyTorch model weights path. If model-weights is empty, the default weights will be used",
+            ("PyTorch model weights path. If model-weights is empty, the default " +
+             "weights will be used"),
             "",
             GObject.ParamFlags.READWRITE,
         ),
@@ -200,7 +203,8 @@ class InferencePyTorch(GstBase.BaseTransform):
             model_name_arr = model_str.split(".")
             if len(model_name_arr) < 2:
                 raise AttributeError(
-                    f"Invalid module name in property 'model'. It must include at least the name of the import module and the name of the model. Got: {model_str}"
+                    f"Invalid module name in property 'model'. It must include at least " +
+                    f"the name of the import module and the name of the model. Got: {model_str}"
                 )
 
             model_name = model_name_arr[-1]
@@ -224,7 +228,8 @@ class InferencePyTorch(GstBase.BaseTransform):
                     model_args["weights"] = weights_class.DEFAULT
                 else:
                     Gst.warning(
-                        "No suitable class with weights was found in the module. No pre-trained weights are used"
+                        "No suitable class with weights was found in the module. " +
+                        "No pre-trained weights are used"
                     )
 
                 self.model = creator(**model_args)
@@ -282,9 +287,10 @@ class InferencePyTorch(GstBase.BaseTransform):
     def get_output_tensors_info(self, input_tensors_info: List[TensorInfo]) -> List[TensorInfo]:
         if (
             len(input_tensors_info) != 1
-        ):  # TODO: remove limitation. Support models with multiple inputs
+        ):
             raise RuntimeError(
-                f"Models with one layer only are supported now. Got tensors array from caps size of: {len(input_tensors_info)}"
+                "Models with one layer only are supported now. Got tensors array " +
+                f"from caps size of: {len(input_tensors_info)}"
             )
 
         output_tensors_info = list()
@@ -331,7 +337,8 @@ class InferencePyTorch(GstBase.BaseTransform):
         resize_size = preproc.resize_size
         if len(resize_size) != 1:
             Gst.warning(
-                "Unsupported resize size. Unable to parse preprocessing info from weights. Default values from caps will be used"
+                "Unsupported resize size. Unable to parse preprocessing info from weights. " +
+                "Default values from caps will be used"
             )
         else:
             input_tensors_info.append(
@@ -408,10 +415,10 @@ class InferencePyTorch(GstBase.BaseTransform):
                 )
                 tensor = (
                     torch.Tensor(nd_arr, device=self.device).float().unsqueeze(0)
-                )  # FIXME: support batching
+                )
 
                 with torch.no_grad():
-                    output_tensor = self.model.forward(tensor)[0]  # FIXME: support batching
+                    output_tensor = self.model.forward(tensor)[0]
 
                 # Unmap input Gst.Memory
                 mem.unmap(map)

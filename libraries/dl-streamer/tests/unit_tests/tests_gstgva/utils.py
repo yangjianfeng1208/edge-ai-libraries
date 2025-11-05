@@ -28,9 +28,10 @@ def get_model_path(model_name, type="ir", precision="FP32"):
         for path, subdirs, files in os.walk(models_path):
             for name in files:
                 if type == "ir":
+                    precision_lower = precision.lower()
                     if (
                         precision.lower() in path.lower() and name == (model_name + ".xml")
-                    ) or name == "{}-{}.xml".format(model_name, precision.lower()):
+                    ) or name == f"{model_name}-{precision_lower}.xml":
                         return os.path.join(path, name)
                 if type == "onnx":
                     if name == model_name + ".onnx":
@@ -44,9 +45,8 @@ def get_model_path(model_name, type="ir", precision="FP32"):
                     return os.path.join(path, name)
 
     raise ValueError(
-        "Model was not found. Check your MODELS_PATH={} environment variable or model's name ({}) & precision ({})".format(
-            models_path_list, model_name, precision
-        )
+        f"Model was not found. Check your MODELS_PATH={models_path_list} " +
+        f"environment variable or model's name ({model_name}) & precision ({precision})"
     )
 
 
@@ -134,14 +134,14 @@ class BBox:
                         zip(pr_info_item["data"], gt_info_item["data"])
                     ):
                         if abs(pr_data - gt_data) > 0.01:
-                            print("landmark_points[{}]: ".format(i), pr_data, gt_data)
+                            print(f"landmark_points[{i}]: ", pr_data, gt_data)
                             return False
                 if pr_info_item["format"] == gt_info_item["format"] == "keypoints":
                     for i, (pr_data, gt_data) in enumerate(
                         zip(pr_info_item["data"], gt_info_item["data"])
                     ):
                         if abs(pr_data - gt_data) > 0.01:
-                            print("keypoints[{}]: ".format(i), pr_data, gt_data)
+                            print(f"keypoints[{i}]: ", pr_data, gt_data)
                             return False
             if "name" in pr_info_item and "name" in gt_info_item:
                 supported_names = [
@@ -160,7 +160,8 @@ class BBox:
                     and pr_info_item["label"] != gt_info_item["label"]
                 ):
                     print(
-                        f"Labels aren't equal for '{pr_name}': pr - '{pr_info_item['label']}'; gt - '{gt_info_item['label']}'"
+                        f"Labels aren't equal for '{pr_name}': pr - '{pr_info_item['label']}'" +
+                        f"; gt - '{gt_info_item['label']}'"
                     )
                     return False
 
@@ -175,11 +176,9 @@ class BBox:
             if only_number:
                 return True
         else:
-            print(
-                "Number of bboxes is not equal: pr: {}, gt: {}".format(
-                    len(pr_bboxes), len(gt_bboxes)
-                )
-            )
+            len_pr_bboxes = len(pr_bboxes)
+            len_gt_bboxes = len(gt_bboxes)
+            print(f"Number of bboxes is not equal: pr: {len_pr_bboxes}, gt: {len_gt_bboxes}")
             print("Predicted bboxes:", pr_bboxes)
             return False
 
@@ -192,8 +191,7 @@ class BBox:
                 # Different components (OpenVINO™ Toolkit and its plugins, VAS OT, etc.) can change between releases. To track exact accuracy we have Regression Tests.
                 # This IoU check is just sanity check to find out if things really got bad
                 if (
-                    iou > 0.7
-                    and iou <= 1
+                    1 >= iou > 0.7
                     and iou > max_iou
                     and gt_bbox.class_id == pr_bbox.class_id
                     and gt_bbox.tracker_id == pr_bbox.tracker_id

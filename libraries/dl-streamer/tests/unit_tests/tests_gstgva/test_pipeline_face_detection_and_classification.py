@@ -57,7 +57,7 @@ def set_of_pipelines():
             preproc,
             FILE_PATH,
         )
-        yield (pipeline_str)
+        yield pipeline_str
 
 
 GROUND_TRUTH_CV = [

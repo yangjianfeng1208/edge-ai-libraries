@@ -54,7 +54,7 @@ def set_of_pipelines():
             FILE_PATH,
         )
         print(pipeline_str)
-        yield (pipeline_str)
+        yield pipeline_str
 
 
 PEOPLE_GOLD_TRUE = [

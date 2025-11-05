@@ -139,6 +139,14 @@ class Identifier(GstBase.BaseTransform):
         for key, value in gproperties.items():
             self.property[key] = value[3] if value[0] in (bool, str) else value[5]
 
+        self._object_class = None
+        self._rewrite_roi = None
+        self._save_label = None
+        self._nn_budget = None
+        self._max_iou_distance = None
+        self._max_age = None
+        self._n_init = None
+
     def __get_properties(self):
         self._object_class = self.property["object-class"]
         self._rewrite_roi = self.property["overwrite-roi"]
@@ -192,7 +200,7 @@ class Identifier(GstBase.BaseTransform):
             if len(tensors) > 2:
                 # TODO: create special label for embedding
                 Gst.warning(
-                    f"Limitation: must be only 1 tensor meta per ROI which is embedding, except detection meta."
+                    "Limitation: must be only 1 tensor meta per ROI which is embedding, except detection meta."
                 )
                 continue
 

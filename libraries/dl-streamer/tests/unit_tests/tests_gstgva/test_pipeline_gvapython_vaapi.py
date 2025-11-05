@@ -35,7 +35,8 @@ class TestGvapythonVaapiMap(unittest.TestCase):
                         pipeline_runner.assertGreater(
                             len(pipeline_runner.exceptions),
                             0,
-                            "No exception when mapping VAAPI buffer for writing. Expected at least one.",
+                            ("No exception when mapping VAAPI buffer for writing. " +
+                             "Expected at least one."),
                         )
                     else:
                         pipeline_runner.assertEqual(
