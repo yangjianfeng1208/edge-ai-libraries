@@ -23,12 +23,15 @@ x-vippet: &vippet
     LOG_LEVEL: INFO
     TZ: America/Los_Angeles
     MODELS_PATH: /models/output
+    SUPPORTED_MODELS_FILE: /models/supported_models.yaml
+    RECORDINGS_PATH: /videos/input
     http_proxy: ${http_proxy}
     https_proxy: ${https_proxy}
     no_proxy: ${no_proxy}
   volumes:
     - ./shared/collector-signals:/home/dlstreamer/vippet/.collector-signals
     - ./shared/models/:/models
+    - ./shared/videos/:/videos
 
 services:
   vippet-ui:
@@ -66,6 +69,7 @@ services:
       - ./shared/models/:/models
     environment:
       - MODELS_PATH=/models/output
+      - SUPPORTED_MODELS_FILE=/models/supported_models.yaml
       - MODEL_INSTALLATION=${MODEL_INSTALLATION:-once}
       - http_proxy=${http_proxy}
       - https_proxy=${https_proxy}
@@ -115,7 +119,7 @@ services:
         no_proxy:
     container_name: videogenerator
     volumes:
-      - "./shared/videos:/usr/src/app/output"
+      - "./shared/videos/video-generator:/usr/src/app/output"
       - "./video_generator/config.json:/usr/src/app/config.json"
       - "./video_generator/background.gif:/usr/src/app/background.gif"
       - "./video_generator/images:/usr/src/app/images"

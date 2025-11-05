@@ -4,4 +4,5 @@ __pycache__
 .idea
 shared/collector-signals/
 shared/models/output/*
-shared/videos/
+shared/videos/input/*
+shared/videos/video-generator/*
