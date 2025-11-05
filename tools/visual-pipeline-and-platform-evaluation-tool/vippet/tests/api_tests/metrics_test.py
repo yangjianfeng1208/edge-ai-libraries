@@ -15,5 +15,18 @@ class TestMetricsAPI(unittest.TestCase):
 
     def test_placeholder(self):
         """Placeholder test to ensure the test suite runs."""
+        # Test WebSocket endpoint exists (404 for regular GET is expected)
         response = self.client.get("/metrics")
-        self.assertIn(response.status_code, [200, 400])
+        self.assertEqual(response.status_code, 404)
+
+    def test_websocket_collector_endpoint(self):
+        """Test that the collector WebSocket endpoint can be connected to."""
+        with self.client.websocket_connect("/metrics/ws/collector") as websocket:
+            # Connection successful
+            self.assertIsNotNone(websocket)
+
+    def test_websocket_clients_endpoint(self):
+        """Test that the clients WebSocket endpoint can be connected to."""
+        with self.client.websocket_connect("/metrics/ws/clients") as websocket:
+            # Connection successful
+            self.assertIsNotNone(websocket)

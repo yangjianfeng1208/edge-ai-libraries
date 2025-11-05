@@ -5,9 +5,10 @@ import yaml
 
 from typing import Optional
 
-
 # Path to the file containing the list of supported models
-SUPPORTED_MODELS_FILE: str = "/models/supported_models.yaml"
+SUPPORTED_MODELS_FILE: str = os.environ.get(
+    "SUPPORTED_MODELS_FILE", "/models/supported_models.yaml"
+)
 # Path to the directory where models are stored
 MODELS_PATH: str = os.environ.get("MODELS_PATH", "/models/output")
 

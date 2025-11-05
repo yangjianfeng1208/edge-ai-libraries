@@ -644,6 +644,32 @@
           }
         }
       }
+    },
+    "/videos": {
+      "get": {
+        "tags": [
+          "videos"
+        ],
+        "summary": "Get Videos",
+        "description": "Returns a list of all available video files with their metadata.\n\nReturns:\n    List[schemas.Video]: List of video metadata objects.",
+        "operationId": "get_videos",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Video"
+                  },
+                  "type": "array",
+                  "title": "Response Get Videos"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -755,7 +781,14 @@
             "title": "Display Name"
           },
           "category": {
-            "$ref": "#/components/schemas/ModelCategory"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "precision": {
             "anyOf": [
@@ -1379,6 +1412,49 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Video": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "fps": {
+            "type": "number",
+            "title": "Fps"
+          },
+          "frame_count": {
+            "type": "integer",
+            "title": "Frame Count"
+          },
+          "codec": {
+            "type": "string",
+            "title": "Codec"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "width",
+          "height",
+          "fps",
+          "frame_count",
+          "codec",
+          "duration"
+        ],
+        "title": "Video"
       }
     }
   }
