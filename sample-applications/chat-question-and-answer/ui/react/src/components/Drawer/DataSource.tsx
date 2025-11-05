@@ -4,6 +4,7 @@
 import { SyntheticEvent, useState, useEffect } from 'react'
 import { Button, Drawer, FileInput, Text, TextInput, SegmentedControl,
   Table, Checkbox, Group, Stack, Paper, Badge, Divider} from '@mantine/core'
+import { notifications } from '@mantine/notifications'
 import { IconTrash, IconFile } from '@tabler/icons-react'
 import { useAppDispatch, useAppSelector } from '../../redux/store'
 import { submitDataSourceURL, uploadFile, fetchInitialFiles, fetchInitialLinks,
@@ -45,7 +46,14 @@ export default function DataSource({ opened, onClose }: Props) {
     // Check file size (MAX_FILE_SIZE is in MB)
     const fileSizeInMB = file.size / (1024 * 1024);
     if (fileSizeInMB > MAX_FILE_SIZE) {
-      alert(`File size exceeds ${MAX_FILE_SIZE} MB limit. Current size: ${fileSizeInMB.toFixed(2)} MB`);
+      notifications.show({
+        id: 'file-size-error',
+        title: 'File Size Exceeded',
+        message: `File size exceeds ${MAX_FILE_SIZE} MB limit. Current size: ${fileSizeInMB.toFixed(2)} MB`,
+        color: 'red',
+        autoClose: 3000,
+      });
+      setFile(null); // Clear the selected file
       return;
     }
 
@@ -57,12 +65,15 @@ export default function DataSource({ opened, onClose }: Props) {
     });
 
     if (isDuplicate) {
-      const confirmUpload = window.confirm(
-        `A file with the name "${originalFileName}" already exists. Do you want to upload anyway?`
-      );
-      if (!confirmUpload) {
-        return;
-      }
+      notifications.show({
+        id: 'duplicate-file',
+        title: 'File Already Exists',
+        message: `A file with the name "${originalFileName}" already exists. Please choose a different file.`,
+        color: 'red',
+        autoClose: 3000,
+      });
+      setFile(null); // Clear the selected file
+      return;
     }
 
     try {

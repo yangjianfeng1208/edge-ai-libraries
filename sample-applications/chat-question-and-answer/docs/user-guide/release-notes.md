@@ -7,7 +7,7 @@
 
 - Integrated OPEA UI with OEP backend and added conversation history to improve contextual responses.
 
-- Enhanced file and link uploads with success/failure alerts, duplicate detection alerts, single-upload restriction, and selected file/urls deletion and bulk delete options.
+- Enhanced file and link uploads with success/failure alerts, duplicate detection alerts, file size exceed alerts, single-upload restriction, and selected file/urls deletion and bulk delete options.
 
 - Added options to rename, delete, and view full conversation titles via tooltip. Added a loading spinner beside conversation titles while a response is in progress for that conversation.
 
