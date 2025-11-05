@@ -146,9 +146,10 @@ jobs:
     - name: Convert JSON to CSV
       run: |
         cat > convert_json_to_csv.py << 'EOF'
+        import os
         import json
         import csv
-
+        json_file = 'reports/bandit-report.json'
         if os.path.exists(json_file):
             print(f"Processing {json_file}")
             with open(json_file) as f:
