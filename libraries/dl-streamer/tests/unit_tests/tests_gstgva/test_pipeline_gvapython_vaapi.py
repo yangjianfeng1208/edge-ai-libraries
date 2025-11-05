@@ -26,16 +26,21 @@ class TestGvapythonVaapiMap(unittest.TestCase):
                 for func_exception in [(READ_FUNC, False), (WRITE_FUNC, True)]:
                     (func, expect_exception) = func_exception
                     pipeline_str = PIPELINE_TEMPLATE.format(
-                        IMAGE_PATH, caps_format, MODULE_PATH, func, enc)
+                        IMAGE_PATH, caps_format, MODULE_PATH, func, enc
+                    )
                     pipeline_runner = TestGenericPipelineRunner()
                     pipeline_runner.set_pipeline(pipeline_str)
                     pipeline_runner.run_pipeline()
                     if expect_exception:
                         pipeline_runner.assertGreater(
-                            len(pipeline_runner.exceptions), 0, "No exception when mapping VAAPI buffer for writing. Expected at least one.")
+                            len(pipeline_runner.exceptions),
+                            0,
+                            "No exception when mapping VAAPI buffer for writing. Expected at least one.",
+                        )
                     else:
                         pipeline_runner.assertEqual(
-                            len(pipeline_runner.exceptions), 0, "Exceptions have been caught.")
+                            len(pipeline_runner.exceptions), 0, "Exceptions have been caught."
+                        )
 
 
 if __name__ == "__main__":

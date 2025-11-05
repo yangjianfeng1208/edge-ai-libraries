@@ -9,7 +9,8 @@ import unittest
 import numpy as np
 
 import gi
-gi.require_version('Gst', '1.0')
+
+gi.require_version("Gst", "1.0")
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gst, GstVideo, GLib
@@ -27,23 +28,19 @@ class VideoFrameTestCase(unittest.TestCase):
 
         self.buffer = Gst.Buffer.new_allocate(None, 0, None)
         self.video_info_nv12 = GstVideo.VideoInfo.new()
-        self.video_info_nv12.set_format(
-            GstVideo.VideoFormat.NV12, 1920, 1080)  # FullHD
+        self.video_info_nv12.set_format(GstVideo.VideoFormat.NV12, 1920, 1080)  # FullHD
 
         self.video_frame_nv12 = va.VideoFrame(self.buffer, self.video_info_nv12)
 
         self.video_info_i420 = GstVideo.VideoInfo.new()
-        self.video_info_i420.set_format(
-            GstVideo.VideoFormat.I420, 1920, 1080)  # FullHD
+        self.video_info_i420.set_format(GstVideo.VideoFormat.I420, 1920, 1080)  # FullHD
 
         self.video_frame_i420 = va.VideoFrame(self.buffer, self.video_info_i420)
 
         self.video_info_bgrx = GstVideo.VideoInfo.new()
-        self.video_info_bgrx.set_format(
-            GstVideo.VideoFormat.BGRX, 1920, 1080)  # FullHD
+        self.video_info_bgrx.set_format(GstVideo.VideoFormat.BGRX, 1920, 1080)  # FullHD
 
         self.video_frame_bgrx = va.VideoFrame(self.buffer, self.video_info_bgrx)
-        
 
     def tearDown(self):
         pass
@@ -79,9 +76,7 @@ class VideoFrameTestCase(unittest.TestCase):
                 counter += 1
         self.assertEqual(counter, rois_num)
 
-        self.video_frame_nv12.add_region(
-            0.0, 0.0, 0.3, 0.6, "label", 0.8, normalized=True
-        )
+        self.video_frame_nv12.add_region(0.0, 0.0, 0.3, 0.6, "label", 0.8, normalized=True)
         self.assertEqual(len(list(self.video_frame_nv12.regions())), rois_num + 1)
         self.assertEqual(len(regions), rois_num)
 
@@ -101,8 +96,9 @@ class VideoFrameTestCase(unittest.TestCase):
 
         for ind in range(tensor_meta_size):
             test_model = model_name + str(ind)
-            tensor_ind = next(i for i, tensor in enumerate(tensors)
-                              if tensor.model_name() == test_model)
+            tensor_ind = next(
+                i for i, tensor in enumerate(tensors) if tensor.model_name() == test_model
+            )
             del tensors[tensor_ind]
 
         self.assertEqual(len(tensors), 0)
@@ -118,8 +114,9 @@ class VideoFrameTestCase(unittest.TestCase):
         self.assertEqual(len(messages), messages_num)
 
         for ind in range(messages_num):
-            message_ind = next(i for i, message in enumerate(messages)
-                               if message == test_message + str(ind))
+            message_ind = next(
+                i for i, message in enumerate(messages) if message == test_message + str(ind)
+            )
             messages.pop(message_ind)
             pass
         self.assertEqual(len(messages), 0)
@@ -157,5 +154,5 @@ class VideoFrameTestCase(unittest.TestCase):
             self.assertRaises(Exception, frame_from_buf.data())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(verbosity=3)

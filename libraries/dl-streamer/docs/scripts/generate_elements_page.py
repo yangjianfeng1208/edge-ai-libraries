@@ -14,34 +14,38 @@ import subprocess
 import re
 import sys
 import gi
-gi.require_version('Gst', '1.0')
+
+gi.require_version("Gst", "1.0")
 from gi.repository import Gst
 
 import inspect
 
+
 def get_elements(lib):
     elements = []
 
-    result = subprocess.Popen(['gst-inspect-1.0', lib], stdout=subprocess.PIPE)
+    result = subprocess.Popen(["gst-inspect-1.0", lib], stdout=subprocess.PIPE)
     while True:
         line = result.stdout.readline()
         if not line:
             break
-        line = line.decode('utf-8').rstrip('\n')
+        line = line.decode("utf-8").rstrip("\n")
         match = re.match(r"^\s+([^\s]\w+):", str(line))
         if match:
             elements.append(match.group(1))
 
     return elements
 
+
 def get_element_description(element_name):
     factory = Gst.ElementFactory.find(element_name)
     return factory.get_metadata("description")
 
+
 def get_field_info(field, value, pfx):
     str = Gst.value_serialize(value)
-    return "{0:s}  {1:15s}: {2:s}".format(
-        pfx, GLib.quark_to_string(field), str)
+    return "{0:s}  {1:15s}: {2:s}".format(pfx, GLib.quark_to_string(field), str)
+
 
 def get_caps_info(caps):
     if not caps:
@@ -65,21 +69,34 @@ def get_caps_info(caps):
 
     return caps_info
 
-def generate_table(table_data, table_header = ["", ""]):
+
+def generate_table(table_data, table_header=["", ""]):
     table = ""
 
     first_collumn_length = len(table_header[0])
     second_collumn_length = len(table_header[1])
 
     for first_column in table_data:
-        first_collumn_length = len(first_column) if len(first_column) > first_collumn_length else first_collumn_length
+        first_collumn_length = (
+            len(first_column) if len(first_column) > first_collumn_length else first_collumn_length
+        )
 
         for second_column in table_data[first_column]:
-            second_collumn_length = len(second_column) if len(second_column) > second_collumn_length else second_collumn_length
+            second_collumn_length = (
+                len(second_column)
+                if len(second_column) > second_collumn_length
+                else second_collumn_length
+            )
 
     if table_header[0]:
         table = "=" * first_collumn_length + "      " + "=" * second_collumn_length + "\n"
-        table += table_header[0] + " " * (first_collumn_length - len(table_header[0])) + "      " + table_header[1] + "\n"
+        table += (
+            table_header[0]
+            + " " * (first_collumn_length - len(table_header[0]))
+            + "      "
+            + table_header[1]
+            + "\n"
+        )
 
     table += "=" * first_collumn_length + "      " + "=" * second_collumn_length + "\n"
 
@@ -88,19 +105,19 @@ def generate_table(table_data, table_header = ["", ""]):
         table += table_data[first_column][0] + "\n"
 
         i = 0
-        for second_column_line in table_data[first_column]: 
+        for second_column_line in table_data[first_column]:
             i += 1
             if i == 1:
                 continue
 
             table += " " * first_collumn_length + "      " + second_column_line + "\n"
 
-    
     table += "=" * first_collumn_length + "      " + "=" * second_collumn_length + "\n"
     return table
 
+
 def get_pad_templates_information(factory):
-    
+
     if factory.get_num_pad_templates() == 0:
         return None
 
@@ -116,7 +133,7 @@ def get_pad_templates_information(factory):
         if pad.direction == Gst.PadDirection.SRC:
             pad_direction = "SRC template: {}".format(padtemplate.name_template)
         elif pad.direction == Gst.PadDirection.SINK:
-           pad_direction = "SINK template: {}".format(padtemplate.name_template)
+            pad_direction = "SINK template: {}".format(padtemplate.name_template)
         else:
             pad_direction = "UNKNOWN template: {}".format(padtemplate.name_template)
 
@@ -141,6 +158,7 @@ def get_pad_templates_information(factory):
 
     return "\nCapabilities\r\n**********************\r\n" + generate_table(table) + "\n"
 
+
 def get_properties_info(element):
 
     table = {}
@@ -153,16 +171,31 @@ def get_properties_info(element):
 
         default_value = str(prop.default_value).replace("__main__.", "")
         if not default_value:
-            default_value = "\"\""
+            default_value = '""'
 
         table[prop.name].append("*Default: {}*\n".format(default_value))
 
-    return "\nProperties\r\n**********************\r\n" + generate_table(table, ["Name", "Description"]) + "\n"
+    return (
+        "\nProperties\r\n**********************\r\n"
+        + generate_table(table, ["Name", "Description"])
+        + "\n"
+    )
+
 
 def generate_elements_page(page_file_name):
     page = "------------\nElements 2.0\n------------\n\n"
-    
-    libraries = ["dlstreamer_bins", "dlstreamer_elements", "dlstreamer_cpu", "dlstreamer_openvino", "dlstreamer_opencv", "dlstreamer_vaapi", "dlstreamer_opencl", "dlstreamer_sycl", "python"]
+
+    libraries = [
+        "dlstreamer_bins",
+        "dlstreamer_elements",
+        "dlstreamer_cpu",
+        "dlstreamer_openvino",
+        "dlstreamer_opencv",
+        "dlstreamer_vaapi",
+        "dlstreamer_opencl",
+        "dlstreamer_sycl",
+        "python",
+    ]
 
     for lib in libraries:
         elements = get_elements(lib)
@@ -186,7 +219,7 @@ def generate_elements_page(page_file_name):
     elements_list_file.write(page)
     elements_list_file.close()
 
-            
+
 if __name__ == "__main__":
     Gst.init(sys.argv)
 
@@ -194,6 +227,5 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1]:
         page_file_name = sys.argv[1]
-
 
     generate_elements_page(page_file_name)

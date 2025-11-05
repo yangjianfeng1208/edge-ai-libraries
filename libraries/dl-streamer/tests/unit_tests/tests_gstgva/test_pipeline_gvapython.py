@@ -16,17 +16,18 @@ MODULE_PATH = os.path.join(SCRIPT_DIR, "test_files", "test_module.py")
 
 PIPELINE_TEMPLATE = "filesrc location={} ! jpegdec ! gvapython module={} {} ! fakesink"
 
+
 class TestGvaPythonParameters(unittest.TestCase):
     def generate_pipelines(self):
         additional_args = [
             [""],
             ["class=MyClass"],
-            ["class=MyClass", "function=\"my_function\""],
+            ["class=MyClass", 'function="my_function"'],
             ["class=MyClassWithArgs", "arg=[]", "kwarg=[]"],
             ["class=MyClassWithArgs", "arg=[]"],
-            ["class=MyClass", "function=\"my_functions\""],
-            ["function=\"my_func\""],
-            ["class=MyClass", "arg=[\"foo\"]"]
+            ["class=MyClass", 'function="my_functions"'],
+            ['function="my_func"'],
+            ["class=MyClass", 'arg=["foo"]'],
         ]
         pipelines = []
         for args in additional_args:
@@ -47,6 +48,7 @@ class TestGvaPythonParameters(unittest.TestCase):
             except Exception as e:
                 actual_result.append(False)
         pipeline_runner.assertEqual(expected_result, actual_result)
+
 
 if __name__ == "__main__":
     unittest.main()

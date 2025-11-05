@@ -12,30 +12,47 @@ import cv2
 from argparse import ArgumentParser
 
 import gi
-gi.require_version('GObject', '2.0')
-gi.require_version('Gst', '1.0')
-gi.require_version('GstApp', '1.0')
-gi.require_version('GstVideo', '1.0')
+
+gi.require_version("GObject", "2.0")
+gi.require_version("Gst", "1.0")
+gi.require_version("GstApp", "1.0")
+gi.require_version("GstVideo", "1.0")
 from gi.repository import Gst, GLib, GstApp, GstVideo
 
 parser = ArgumentParser(add_help=False)
-_args = parser.add_argument_group('Options')
-_args.add_argument("-i", "--input", help="Required. Path to input video file",
-                   required=True, type=str)
-_args.add_argument("-d", "--detection_model", help="Required. Path to an .xml file with object detection model",
-                   required=True, type=str)
-_args.add_argument("-c1", "--classification_model1",
-                   help="Required. Path to an .xml file with object classification model",
-                   required=True, type=str)
-_args.add_argument("-c2", "--classification_model2",
-                   help="Required. Path to an .xml file with object classification model",
-                   required=True, type=str)
-_args.add_argument("-c3", "--classification_model3",
-                   help="Required. Path to an .xml file with object classification model",
-                   required=True, type=str)
-_args.add_argument("-o", "--output",
-                   help="Required. Output type",
-                   required=True, type=str)
+_args = parser.add_argument_group("Options")
+_args.add_argument(
+    "-i", "--input", help="Required. Path to input video file", required=True, type=str
+)
+_args.add_argument(
+    "-d",
+    "--detection_model",
+    help="Required. Path to an .xml file with object detection model",
+    required=True,
+    type=str,
+)
+_args.add_argument(
+    "-c1",
+    "--classification_model1",
+    help="Required. Path to an .xml file with object classification model",
+    required=True,
+    type=str,
+)
+_args.add_argument(
+    "-c2",
+    "--classification_model2",
+    help="Required. Path to an .xml file with object classification model",
+    required=True,
+    type=str,
+)
+_args.add_argument(
+    "-c3",
+    "--classification_model3",
+    help="Required. Path to an .xml file with object classification model",
+    required=True,
+    type=str,
+)
+_args.add_argument("-o", "--output", help="Required. Output type", required=True, type=str)
 args = parser.parse_args()
 
 
@@ -51,8 +68,7 @@ def frame_callback(frame: VideoFrame):
                     for i in range(0, len(data), 2):
                         x = int(rect.x + rect.w * data[i])
                         y = int(rect.y + rect.h * data[i + 1])
-                        cv2.circle(mat, (x, y), int(
-                            1 + 0.02 * rect.w), lm_color, -1)
+                        cv2.circle(mat, (x, y), int(1 + 0.02 * rect.w), lm_color, -1)
                 elif "prob" == tensor.layer_name():
                     data = tensor.data()
                     if data[1] > 0.5:
@@ -70,8 +86,15 @@ def frame_callback(frame: VideoFrame):
 
             if labels:
                 label = " ".join(labels)
-                cv2.putText(mat, label, (rect.x, rect.y + rect.h + 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.putText(
+                    mat,
+                    label,
+                    (rect.x, rect.y + rect.h + 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 0, 255),
+                    2,
+                )
 
 
 def pad_probe_callback(pad, info):
@@ -103,13 +126,13 @@ def create_launch_string():
         print("Unsupported output type")
         sys.exit()
 
-    return f"{source}={args.input} ! decodebin3 ! \
-    videoconvert n-threads=4 ! capsfilter caps=\"video/x-raw,format=BGRx\" ! \
+    return f'{source}={args.input} ! decodebin3 ! \
+    videoconvert n-threads=4 ! capsfilter caps="video/x-raw,format=BGRx" ! \
     gvadetect model={args.detection_model} device=CPU ! queue ! \
     gvainference model={args.classification_model1} device=CPU inference-region=roi-list ! queue ! \
     gvainference model={args.classification_model2} device=CPU inference-region=roi-list ! queue ! \
     gvainference model={args.classification_model3} device=CPU inference-region=roi-list ! queue ! \
-    {sink}"
+    {sink}'
 
 
 def glib_mainloop():
@@ -137,7 +160,7 @@ def bus_call(bus, message, pipeline):
 
 
 def set_callbacks(pipeline):
-    if(args.output != "json"):
+    if args.output != "json":
         gvawatermark = pipeline.get_by_name("gvawatermark")
         pad = gvawatermark.get_static_pad("src")
         pad.add_probe(Gst.PadProbeType.BUFFER, pad_probe_callback)
@@ -147,7 +170,7 @@ def set_callbacks(pipeline):
     bus.connect("message", bus_call, pipeline)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     Gst.init(sys.argv)
     gst_launch_string = create_launch_string()
     print(gst_launch_string)

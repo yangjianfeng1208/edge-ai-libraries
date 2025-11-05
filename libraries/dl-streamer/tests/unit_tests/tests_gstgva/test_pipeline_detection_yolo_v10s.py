@@ -21,16 +21,36 @@ PIPELINE_STR = """appsrc name=mysrc \
 ! decodebin ! videoconvert ! video/x-raw,format=BGRA \
 ! gvadetect pre-process-backend=ie model={} \
 ! gvawatermark \
-! appsink name=mysink emit-signals=true sync=false """.format(D_MODEL_PATH)
+! appsink name=mysink emit-signals=true sync=false """.format(
+    D_MODEL_PATH
+)
 
 
 GOLD_TRUE = [
-    BBox(0.16600936461207816, 0.38890058405662487,
-         0.4078545726244531, 0.9406926827498019, [], class_id=16),
-    BBox(0.6055093107665357, 0.13401658383886872,
-         0.8919420810698284, 0.2956839696427691, [], class_id=7),
-    BBox(0.1501398097734139, 0.21889342922873212,
-         0.7452847887655665, 0.7433104570456628, [], class_id=1)
+    BBox(
+        0.16600936461207816,
+        0.38890058405662487,
+        0.4078545726244531,
+        0.9406926827498019,
+        [],
+        class_id=16,
+    ),
+    BBox(
+        0.6055093107665357,
+        0.13401658383886872,
+        0.8919420810698284,
+        0.2956839696427691,
+        [],
+        class_id=7,
+    ),
+    BBox(
+        0.1501398097734139,
+        0.21889342922873212,
+        0.7452847887655665,
+        0.7433104570456628,
+        [],
+        class_id=1,
+    ),
 ]
 
 
@@ -41,10 +61,10 @@ class TestDetectionYoloV10sPipeline(unittest.TestCase):
         pipeline_runner.run_pipeline()
         for e in pipeline_runner.exceptions:
             print(e)
-        pipeline_runner.assertEqual(len(pipeline_runner.exceptions), 0,
-                                    "Exceptions have been caught.")
+        pipeline_runner.assertEqual(
+            len(pipeline_runner.exceptions), 0, "Exceptions have been caught."
+        )
 
 
 if __name__ == "__main__":
     unittest.main()
-

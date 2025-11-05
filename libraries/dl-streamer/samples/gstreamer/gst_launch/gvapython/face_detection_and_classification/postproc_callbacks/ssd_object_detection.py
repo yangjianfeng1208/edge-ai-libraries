@@ -6,7 +6,8 @@
 
 import sys
 import gi
-gi.require_version('Gst', '1.0')
+
+gi.require_version("Gst", "1.0")
 from gi.repository import Gst, GObject
 
 from gstgva import VideoFrame
@@ -39,6 +40,7 @@ def process_frame(frame: VideoFrame, threshold: float = DETECT_THRESHOLD) -> boo
                 continue
 
             roi = frame.add_region(
-                x_min, y_min, x_max - x_min, y_max - y_min, str(label_id), confidence)
+                x_min, y_min, x_max - x_min, y_max - y_min, str(label_id), confidence
+            )
 
     return True

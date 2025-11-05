@@ -8,16 +8,97 @@ import sys
 import gi
 import numpy as np
 
-gi.require_version('Gst', '1.0')
+gi.require_version("Gst", "1.0")
 from gi.repository import GLib, Gst, GObject
 
 from gstgva import VideoFrame, Tensor, RegionOfInterest
+
 Gst.init(sys.argv)
 
 
 DETECTION_CONFEDENCE_THRESHOLD = 0.9
-LABELS = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
-          "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
+LABELS = [
+    "person",
+    "bicycle",
+    "car",
+    "motorbike",
+    "aeroplane",
+    "bus",
+    "train",
+    "truck",
+    "boat",
+    "traffic light",
+    "fire hydrant",
+    "stop sign",
+    "parking meter",
+    "bench",
+    "bird",
+    "cat",
+    "dog",
+    "horse",
+    "sheep",
+    "cow",
+    "elephant",
+    "bear",
+    "zebra",
+    "giraffe",
+    "backpack",
+    "umbrella",
+    "handbag",
+    "tie",
+    "suitcase",
+    "frisbee",
+    "skis",
+    "snowboard",
+    "sports ball",
+    "kite",
+    "baseball bat",
+    "baseball glove",
+    "skateboard",
+    "surfboard",
+    "tennis racket",
+    "bottle",
+    "wine glass",
+    "cup",
+    "fork",
+    "knife",
+    "spoon",
+    "bowl",
+    "banana",
+    "apple",
+    "sandwich",
+    "orange",
+    "broccoli",
+    "carrot",
+    "hot dog",
+    "pizza",
+    "donut",
+    "cake",
+    "chair",
+    "sofa",
+    "pottedplant",
+    "bed",
+    "diningtable",
+    "toilet",
+    "tvmonitor",
+    "laptop",
+    "mouse",
+    "remote",
+    "keyboard",
+    "cell phone",
+    "microwave",
+    "oven",
+    "toaster",
+    "sink",
+    "refrigerator",
+    "book",
+    "clock",
+    "vase",
+    "scissors",
+    "teddy bear",
+    "hair drier",
+    "toothbrush",
+]
 # n c h w
 INPUT_SHAPE = (1, 3, 768, 1024)
 
@@ -71,11 +152,11 @@ def process_frame(frame: VideoFrame) -> bool:
 
     for tensor in frame.tensors():
         layer_name = tensor.layer_name()
-        if layer_name == 'labels':
+        if layer_name == "labels":
             labels_out = tensor
-        if layer_name == 'boxes':
+        if layer_name == "boxes":
             boxes_out = tensor
-        if layer_name == 'masks':
+        if layer_name == "masks":
             masks_out = tensor
 
     labels = list()
@@ -90,7 +171,14 @@ def process_frame(frame: VideoFrame) -> bool:
 
     for bbox, label, mask in zip(bboxes, labels, masks):
         if bbox.confidence > DETECTION_CONFEDENCE_THRESHOLD:
-            frame.add_region(bbox.top_left_x, bbox.top_left_y, bbox.bottom_right_x - bbox.top_left_x,
-                             bbox.bottom_right_y - bbox.top_left_y, label=label, confidence=bbox.confidence, normalized=True)
+            frame.add_region(
+                bbox.top_left_x,
+                bbox.top_left_y,
+                bbox.bottom_right_x - bbox.top_left_x,
+                bbox.bottom_right_y - bbox.top_left_y,
+                label=label,
+                confidence=bbox.confidence,
+                normalized=True,
+            )
 
     return True

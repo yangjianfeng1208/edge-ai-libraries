@@ -10,8 +10,8 @@ import ctypes
 import gi
 import numpy as np
 
-gi.require_version('Gst', '1.0')
-gi.require_version('GstAudio', '1.0')
+gi.require_version("Gst", "1.0")
+gi.require_version("GstAudio", "1.0")
 
 from gi.repository import Gst, GstAudio
 from gstgva.audio.audio_frame import AudioFrame
@@ -25,7 +25,7 @@ from tests_gstgva import register_metadata
 class TestAudioFrame(unittest.TestCase):
     def setUp(self):
         register_metadata()
-        
+
         self.buffer = Gst.Buffer.new_allocate(None, 0, None)
 
         self.meta = AudioEventMeta()
@@ -48,7 +48,7 @@ class TestAudioFrame(unittest.TestCase):
         caps = self.audio_info.to_caps()
         new_audio_frame = AudioFrame(Gst.Buffer.new_allocate(None, 0, None), None, caps)
         # Check for GST 1.20 API
-        if hasattr(GstAudio.AudioInfo, 'new_from_caps'):
+        if hasattr(GstAudio.AudioInfo, "new_from_caps"):
             audio_info = GstAudio.AudioInfo.new_from_caps(caps)
         else:
             audio_info = new_audio_frame.audio_info()
@@ -79,8 +79,8 @@ class TestAudioFrame(unittest.TestCase):
 
     def test_data(self):
 
-        data=np.array([1, 2, 3])
-        buffer= Gst.Buffer.new_wrapped(data)
+        data = np.array([1, 2, 3])
+        buffer = Gst.Buffer.new_wrapped(data)
 
         frame_from_info = AudioFrame(buffer, self.audio_info)
         self.assertNotEqual(frame_from_info.data().any(), None)
@@ -93,5 +93,6 @@ class TestAudioFrame(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             AudioFrame(buffer)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

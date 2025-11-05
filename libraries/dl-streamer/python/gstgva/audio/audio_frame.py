@@ -15,9 +15,10 @@ from typing import List
 from warnings import warn
 
 import gi
-gi.require_version('Gst', '1.0')
+
+gi.require_version("Gst", "1.0")
 gi.require_version("GstAudio", "1.0")
-gi.require_version('GObject', '2.0')
+gi.require_version("GObject", "2.0")
 
 from gi.repository import GObject, Gst, GstAudio
 from .audio_event_meta import AudioEventMeta
@@ -40,7 +41,9 @@ class AudioFrame:
     #  @param buffer Gst.Buffer to which metadata is attached and retrieved
     #  @param audio_info GstAudio.AudioInfo containing audio information
     #  @param caps Gst.Caps from which audio information is obtained
-    def __init__(self, buffer: Gst.Buffer, audio_info: GstAudio.AudioInfo = None, caps: Gst.Caps = None):
+    def __init__(
+        self, buffer: Gst.Buffer, audio_info: GstAudio.AudioInfo = None, caps: Gst.Caps = None
+    ):
         self.__buffer = buffer
         self.__audio_info = None
 
@@ -79,15 +82,19 @@ class AudioFrame:
     ## @brief Remove message from this AudioFrame
     #  @param message GVAJSONMetaStr message to remove
     def remove_message(self, message: str):
-        if not isinstance(message,GVAJSONMetaStr) or not GVAJSONMeta.remove_json_meta(self.__buffer, message.meta):
+        if not isinstance(message, GVAJSONMetaStr) or not GVAJSONMeta.remove_json_meta(
+            self.__buffer, message.meta
+        ):
             raise RuntimeError("AudioFrame: message doesn't belong to this AudioFrame")
 
     ## @brief Remove audio event with the specified index
     #  @param event audio event to remove
     def remove_event(self, event) -> None:
         if not libgst.gst_buffer_remove_meta(hash(self.__buffer), ctypes.byref(event.meta())):
-            raise RuntimeError("AudioFrame: Underlying GstGVAAudioEventMeta for AudioEvent "
-                               "doesn't belong to this AudioFrame")
+            raise RuntimeError(
+                "AudioFrame: Underlying GstGVAAudioEventMeta for AudioEvent "
+                "doesn't belong to this AudioFrame"
+            )
 
     @staticmethod
     def __get_label_by_label_id(event_tensor: Gst.Structure, label_id: int) -> str:

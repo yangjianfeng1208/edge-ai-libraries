@@ -7,21 +7,24 @@
 import ctypes
 import unittest
 import gi
-gi.require_version('GLib', '2.0')
+
+gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 from gstgva.util import GList, libgst, GLIST_POINTER
 from gstgva.tensor import Tensor
 from gstgva.audio.audio_event import AudioEvent
 from gstgva.audio.audio_event_meta import AudioEventMeta
 
+
 class TestAudioEvent(unittest.TestCase):
     tensors_count = 2
     confidence_value = 1
     label_id = 9
+
     def setUp(self):
 
-        classification_structure = libgst.gst_structure_new_empty('classification'.encode("utf-8"))
-        detection_structure = libgst.gst_structure_new_empty('detection'.encode("utf-8"))
+        classification_structure = libgst.gst_structure_new_empty("classification".encode("utf-8"))
+        detection_structure = libgst.gst_structure_new_empty("detection".encode("utf-8"))
         tensor = Tensor(detection_structure)
         tensor.__setitem__("confidence", self.confidence_value)
         tensor.__setitem__("label_id", self.label_id)
@@ -63,7 +66,7 @@ class TestAudioEvent(unittest.TestCase):
     def test_tensors(self):
         tensors_count = 0
         for tensor in self.audio_event.tensors():
-            tensors_count+=1
+            tensors_count += 1
         self.assertEqual(tensors_count, self.tensors_count)
 
     def test_audio_event_label_id(self):
@@ -92,5 +95,6 @@ class TestAudioEvent(unittest.TestCase):
     def tearDown(self):
         pass
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

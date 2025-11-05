@@ -17,9 +17,10 @@ from ..util import libgst, libgobject, GLIST_POINTER
 from .audio_event_meta import AudioEventMeta
 
 import gi
-gi.require_version('GstAudio', '1.0')
-gi.require_version('GLib', '2.0')
-gi.require_version('Gst', '1.0')
+
+gi.require_version("GstAudio", "1.0")
+gi.require_version("GLib", "2.0")
+gi.require_version("Gst", "1.0")
 from gi.repository import GstAudio, GLib, GObject, Gst
 
 Segment = namedtuple("Segment", "start_time end_time")
@@ -30,12 +31,14 @@ Segment = namedtuple("Segment", "start_time end_time")
 # gvaspeechtotext element with speechtotext model. Such AudioEvent will have start and end timestamps filled and will
 # have 2 Tensor objects attached - 1 Tensor object with detection result, other with speech to text tensor objectresult
 
+
 class AudioEvent(object):
     ## @brief Get clip of  AudioEvent as start and end time stamps
     #  @return Start and end time of AudioEvent
     def segment(self):
-        return Segment(start_time = self.__event_meta.start_timestamp,
-                    end_time = self.__event_meta.end_timestamp)
+        return Segment(
+            start_time=self.__event_meta.start_timestamp, end_time=self.__event_meta.end_timestamp
+        )
 
     ## @brief Get AudioEvent label
     #  @return AudioEvent label
@@ -94,7 +97,9 @@ class AudioEvent(object):
         gpointer = ctypes.c_void_p()
         while True:
             try:
-                value = libgst.gst_buffer_iterate_meta_filtered(hash(buffer), ctypes.byref(gpointer), meta_api)
+                value = libgst.gst_buffer_iterate_meta_filtered(
+                    hash(buffer), ctypes.byref(gpointer), meta_api
+                )
             except:
                 value = None
 

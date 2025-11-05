@@ -7,9 +7,10 @@
 # ==============================================================================
 
 import gi
-gi.require_version('Gst', '1.0')
-gi.require_version('GstBase', '1.0')
-gi.require_version('GstVideo', '1.0')
+
+gi.require_version("Gst", "1.0")
+gi.require_version("GstBase", "1.0")
+gi.require_version("GstVideo", "1.0")
 
 from gi.repository import Gst, GObject, GstBase
 
@@ -49,8 +50,7 @@ def str_to_datatype(data_type: str):
     if data_type == "int32":
         return np.int32
 
-    raise RuntimeError(
-        "Unknown data type. Can't convert it to numpy data type")
+    raise RuntimeError("Unknown data type. Can't convert it to numpy data type")
 
 
 def datatype_to_str(data_type) -> str:
@@ -70,7 +70,7 @@ def str_to_list(arr: str) -> list:
     if not arr:
         return list()
 
-    res = map(lambda x: int(x), arr.split(':'))
+    res = map(lambda x: int(x), arr.split(":"))
     return list(res)
 
 
@@ -99,9 +99,9 @@ def gst_caps_to_tensor_info(caps: Gst.Caps, caps_index: int) -> List[TensorInfo]
     if not strides_str:
         strides_str = ""
 
-    types_array = types_str.split(',')
-    shapes_array = shapes_str.split(',') if shapes_str else list()
-    strides_array = strides_str.split(',') if strides_str else list()
+    types_array = types_str.split(",")
+    shapes_array = shapes_str.split(",") if shapes_str else list()
+    strides_array = strides_str.split(",") if strides_str else list()
 
     for i in range(num_tensors):
         data_type = str_to_datatype(types_array[i])
@@ -121,11 +121,11 @@ def tensor_info_to_gst_caps(tensors_info: List[TensorInfo]) -> Gst.Caps:
     if not tensors_info:
         return Gst.Caps.new_any()
 
-    dtypes_str = ",".join(datatype_to_str(tensor_info.data_type)
-                          for tensor_info in tensors_info)
-    shapes_str = ",".join(":".join(
-        str(d) for d in tensor_info.shape[::-1]) for tensor_info in tensors_info)
-    caps_str = f"other/tensors,num_tensors=(uint){len(tensors_info)},types=(string)\"{dtypes_str}\",dimensions=(string)\"{shapes_str}\""
+    dtypes_str = ",".join(datatype_to_str(tensor_info.data_type) for tensor_info in tensors_info)
+    shapes_str = ",".join(
+        ":".join(str(d) for d in tensor_info.shape[::-1]) for tensor_info in tensors_info
+    )
+    caps_str = f'other/tensors,num_tensors=(uint){len(tensors_info)},types=(string)"{dtypes_str}",dimensions=(string)"{shapes_str}"'
 
     return Gst.Caps.from_string(caps_str)
 
@@ -139,17 +139,36 @@ def is_pytorch_model(model_str: str) -> bool:
 
 
 class InferencePyTorch(GstBase.BaseTransform):
-    __gstmetadata__ = ('PyTorch inference', 'Transform',
-                       'PyTorch inference element', 'dkl')
+    __gstmetadata__ = ("PyTorch inference", "Transform", "PyTorch inference element", "dkl")
 
-    __gsttemplates__ = (Gst.PadTemplate.new("sink", Gst.PadDirection.SINK, Gst.PadPresence.ALWAYS, TENSORS_CAPS),
-                        Gst.PadTemplate.new("src", Gst.PadDirection.SRC, Gst.PadPresence.ALWAYS, TENSORS_CAPS))
+    __gsttemplates__ = (
+        Gst.PadTemplate.new("sink", Gst.PadDirection.SINK, Gst.PadPresence.ALWAYS, TENSORS_CAPS),
+        Gst.PadTemplate.new("src", Gst.PadDirection.SRC, Gst.PadPresence.ALWAYS, TENSORS_CAPS),
+    )
 
     # TODO: support batching
     __gproperties__ = {
-        "model": (GObject.TYPE_STRING, "model", "The full module name of the PyTorch model to be imported from torchvision or model path. Ex. 'torchvision.models.resnet50' or '/path/to/model.pth'", "", GObject.ParamFlags.READWRITE),
-        "model-weights": (GObject.TYPE_STRING, "model_weights", "PyTorch model weights path. If model-weights is empty, the default weights will be used", "", GObject.ParamFlags.READWRITE),
-        "device": (GObject.TYPE_STRING, "device", "Inference device", "cpu", GObject.ParamFlags.READWRITE)
+        "model": (
+            GObject.TYPE_STRING,
+            "model",
+            "The full module name of the PyTorch model to be imported from torchvision or model path. Ex. 'torchvision.models.resnet50' or '/path/to/model.pth'",
+            "",
+            GObject.ParamFlags.READWRITE,
+        ),
+        "model-weights": (
+            GObject.TYPE_STRING,
+            "model_weights",
+            "PyTorch model weights path. If model-weights is empty, the default weights will be used",
+            "",
+            GObject.ParamFlags.READWRITE,
+        ),
+        "device": (
+            GObject.TYPE_STRING,
+            "device",
+            "Inference device",
+            "cpu",
+            GObject.ParamFlags.READWRITE,
+        ),
     }
 
     def __init__(self, gproperties=__gproperties__):
@@ -157,8 +176,11 @@ class InferencePyTorch(GstBase.BaseTransform):
 
         self.property = {}  # default values
         for key, value in gproperties.items():
-            self.property[key] = value[3] if value[0] in (
-                bool, str, GObject.TYPE_STRING, GObject.TYPE_BOOLEAN) else value[5]
+            self.property[key] = (
+                value[3]
+                if value[0] in (bool, str, GObject.TYPE_STRING, GObject.TYPE_BOOLEAN)
+                else value[5]
+            )
 
         self.device = torch.device(self.property["device"])
         self.model = None
@@ -178,7 +200,8 @@ class InferencePyTorch(GstBase.BaseTransform):
             model_name_arr = model_str.split(".")
             if len(model_name_arr) < 2:
                 raise AttributeError(
-                    f"Invalid module name in property 'model'. It must include at least the name of the import module and the name of the model. Got: {model_str}")
+                    f"Invalid module name in property 'model'. It must include at least the name of the import module and the name of the model. Got: {model_str}"
+                )
 
             model_name = model_name_arr[-1]
             import_module = ".".join(module for module in model_name_arr[:-1])
@@ -187,8 +210,7 @@ class InferencePyTorch(GstBase.BaseTransform):
 
             if self.property["model-weights"]:
                 self.model = creator()
-                self.model.load_state_dict(
-                    torch.load(self.property["model-weights"]))
+                self.model.load_state_dict(torch.load(self.property["model-weights"]))
             else:
                 weights_class = None
                 for attr in dir(module):
@@ -202,7 +224,8 @@ class InferencePyTorch(GstBase.BaseTransform):
                     model_args["weights"] = weights_class.DEFAULT
                 else:
                     Gst.warning(
-                        "No suitable class with weights was found in the module. No pre-trained weights are used")
+                        "No suitable class with weights was found in the module. No pre-trained weights are used"
+                    )
 
                 self.model = creator(**model_args)
         else:
@@ -235,8 +258,7 @@ class InferencePyTorch(GstBase.BaseTransform):
                 if not self.output_tensors_info:
                     for i in range(caps.get_size()):
                         input_tensors_info = gst_caps_to_tensor_info(caps, i)
-                        output_tensors_info = self.get_output_tensors_info(
-                            input_tensors_info)
+                        output_tensors_info = self.get_output_tensors_info(input_tensors_info)
                         if output_tensors_info:
                             self.input_tensors_info = input_tensors_info
                             self.output_tensors_info = output_tensors_info
@@ -258,9 +280,12 @@ class InferencePyTorch(GstBase.BaseTransform):
             return Gst.Caps.new_empty()
 
     def get_output_tensors_info(self, input_tensors_info: List[TensorInfo]) -> List[TensorInfo]:
-        if len(input_tensors_info) != 1:  # TODO: remove limitation. Support models with multiple inputs
+        if (
+            len(input_tensors_info) != 1
+        ):  # TODO: remove limitation. Support models with multiple inputs
             raise RuntimeError(
-                f"Models with one layer only are supported now. Got tensors array from caps size of: {len(input_tensors_info)}")
+                f"Models with one layer only are supported now. Got tensors array from caps size of: {len(input_tensors_info)}"
+            )
 
         output_tensors_info = list()
         input_tensor_info = input_tensors_info[0]
@@ -278,17 +303,14 @@ class InferencePyTorch(GstBase.BaseTransform):
             x = x.unsqueeze(0)  # add batch dimension
             output = self.model(x)[0]  # TODO: support batching
         except Exception as model_exc:
-            Gst.debug(
-                f"Model inferencing failed at caps transform stage: {str(model_exc)}")
+            Gst.debug(f"Model inferencing failed at caps transform stage: {str(model_exc)}")
             return output_tensors_info  # wait for the next input tensor shape
 
         if isinstance(output, torch.Tensor):
-            output_tensors_info.append(
-                TensorInfo(output.shape, output.dtype, []))
+            output_tensors_info.append(TensorInfo(output.shape, output.dtype, []))
         elif isinstance(output, dict):
             for tensor in output.values():
-                output_tensors_info.append(
-                    TensorInfo(tensor.shape, tensor.dtype, []))
+                output_tensors_info.append(TensorInfo(tensor.shape, tensor.dtype, []))
         else:
             raise RuntimeError("Unsupported model output")
 
@@ -309,10 +331,12 @@ class InferencePyTorch(GstBase.BaseTransform):
         resize_size = preproc.resize_size
         if len(resize_size) != 1:
             Gst.warning(
-                "Unsupported resize size. Unable to parse preprocessing info from weights. Default values from caps will be used")
+                "Unsupported resize size. Unable to parse preprocessing info from weights. Default values from caps will be used"
+            )
         else:
-            input_tensors_info.append(TensorInfo(
-                [3, resize_size[0], resize_size[0]], torch.float32, []))
+            input_tensors_info.append(
+                TensorInfo([3, resize_size[0], resize_size[0]], torch.float32, [])
+            )
 
         return input_tensors_info
 
@@ -339,7 +363,7 @@ class InferencePyTorch(GstBase.BaseTransform):
         input_shapes = ""
         input_types = ""
         for i, tensor_info in enumerate(self.input_tensors_info):
-            if (i):
+            if i:
                 input_shapes += ","
                 input_types += ","
 
@@ -375,17 +399,19 @@ class InferencePyTorch(GstBase.BaseTransform):
                 input_tensor_info = self.input_tensors_info[0]
 
                 if not input_tensor_info.shape:
-                    raise RuntimeError(
-                        "Input shape is empty. Unable to create tensor")
+                    raise RuntimeError("Input shape is empty. Unable to create tensor")
 
-                nd_arr = np.ndarray(shape=input_tensor_info.shape,
-                                    buffer=map.data, dtype=input_tensor_info.data_type)
-                tensor = torch.Tensor(nd_arr, device=self.device).float(
-                ).unsqueeze(0)  # FIXME: support batching
+                nd_arr = np.ndarray(
+                    shape=input_tensor_info.shape,
+                    buffer=map.data,
+                    dtype=input_tensor_info.data_type,
+                )
+                tensor = (
+                    torch.Tensor(nd_arr, device=self.device).float().unsqueeze(0)
+                )  # FIXME: support batching
 
                 with torch.no_grad():
-                    output_tensor = self.model.forward(
-                        tensor)[0]  # FIXME: support batching
+                    output_tensor = self.model.forward(tensor)[0]  # FIXME: support batching
 
                 # Unmap input Gst.Memory
                 mem.unmap(map)
@@ -397,7 +423,8 @@ class InferencePyTorch(GstBase.BaseTransform):
                     self.append_tensor_to_buffer(dst, output_tensor)
                 else:
                     raise RuntimeError(
-                        f"Unsupported inference output type: '{type(output_tensor)}'")
+                        f"Unsupported inference output type: '{type(output_tensor)}'"
+                    )
 
             # Copy timestamps from input buffer
             dst.copy_into(src, Gst.BufferCopyFlags.TIMESTAMPS, 0, 0)
@@ -415,14 +442,15 @@ class InferencePyTorch(GstBase.BaseTransform):
 
         mem = self.gst_alloc.alloc(tensor_nd_arr.nbytes)
         if not mem:
-            raise RuntimeError(
-                "Unable to allocate memory using default gst allocator")
+            raise RuntimeError("Unable to allocate memory using default gst allocator")
         res, map = mem.map(Gst.MapFlags.WRITE)
         if not res:
             raise RuntimeError("Unable to map gst memory to write")
 
-        np.copyto(np.ndarray(shape=tensor_nd_arr.shape,
-                  buffer=map.data, dtype=tensor_nd_arr.dtype), tensor_nd_arr)
+        np.copyto(
+            np.ndarray(shape=tensor_nd_arr.shape, buffer=map.data, dtype=tensor_nd_arr.dtype),
+            tensor_nd_arr,
+        )
         mem.unmap(map)
 
         buf.append_memory(mem)
@@ -430,5 +458,4 @@ class InferencePyTorch(GstBase.BaseTransform):
 
 GObject.type_register(InferencePyTorch)
 
-__gstelementfactory__ = ("pytorch_tensor_inference",
-                         Gst.Rank.NONE, InferencePyTorch)
+__gstelementfactory__ = ("pytorch_tensor_inference", Gst.Rank.NONE, InferencePyTorch)

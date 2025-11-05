@@ -147,9 +147,7 @@ class VideoFrame:
         video_roi_meta.id = od_mtd.id
         roi = RegionOfInterest(
             od_mtd,
-            ctypes.cast(
-                hash(video_roi_meta), ctypes.POINTER(VideoRegionOfInterestMeta)
-            ).contents,
+            ctypes.cast(hash(video_roi_meta), ctypes.POINTER(VideoRegionOfInterestMeta)).contents,
         )
 
         tensor_structure = libgst.gst_structure_new_empty("detection".encode("utf-8"))
@@ -179,9 +177,7 @@ class VideoFrame:
     ## @brief Get messages attached to this VideoFrame
     #  @return messages attached to this VideoFrame
     def messages(self) -> List[str]:
-        return [
-            json_meta.get_message() for json_meta in GVAJSONMeta.iterate(self.__buffer)
-        ]
+        return [json_meta.get_message() for json_meta in GVAJSONMeta.iterate(self.__buffer)]
 
     ## @brief Attach message to this VideoFrame
     #  @param message message to attach to this VideoFrame
@@ -199,9 +195,7 @@ class VideoFrame:
     ## @brief Remove region with the specified index
     #  @param roi Region to remove
     def remove_region(self, roi) -> None:
-        if not libgst.gst_buffer_remove_meta(
-            hash(self.__buffer), ctypes.byref(roi.meta())
-        ):
+        if not libgst.gst_buffer_remove_meta(hash(self.__buffer), ctypes.byref(roi.meta())):
             raise RuntimeError(
                 "VideoFrame: Underlying GstVideoRegionOfInterestMeta for RegionOfInterest "
                 "doesn't belong to this VideoFrame"
@@ -236,9 +230,7 @@ class VideoFrame:
             if mapped_data_size != requested_size:
                 warn(
                     "Size of buffer's data: {}, and requested size: {}\n"
-                    "Let to get shape from video meta...".format(
-                        mapped_data_size, requested_size
-                    ),
+                    "Let to get shape from video meta...".format(mapped_data_size, requested_size),
                     stacklevel=2,
                 )
                 meta = self.video_meta()
@@ -246,17 +238,13 @@ class VideoFrame:
                     h, w = meta.height, meta.width
                     requested_size = h * w * bytes_per_pix
                 else:
-                    warn(
-                        "Video meta is {}. Can't get shape.".format(meta), stacklevel=2
-                    )
+                    warn("Video meta is {}. Can't get shape.".format(meta), stacklevel=2)
 
             try:
                 if mapped_data_size < requested_size:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")
                 elif mapped_data_size == requested_size:
-                    yield numpy.ndarray(
-                        (h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8
-                    )
+                    yield numpy.ndarray((h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8)
                 elif is_yuv_format:
                     # In some cases image size after mapping can be larger than expected image size.
                     # One of the reasons can be vaapi decoder which appends lines to the end of an image
@@ -300,9 +288,7 @@ class VideoFrame:
         n_planes = self.__video_info.finfo.n_planes
         if n_planes not in [2, 3]:
             raise RuntimeError(
-                "VideoFrame.__repack_video_frame: Unsupported number of planes {}".format(
-                    n_planes
-                )
+                "VideoFrame.__repack_video_frame: Unsupported number of planes {}".format(n_planes)
             )
 
         h, w = self.__video_info.height, self.__video_info.width
@@ -341,9 +327,7 @@ class VideoFrame:
 
     @staticmethod
     def __extract_plane(data_ptr, data_size, shape):
-        plane_raw = ctypes.cast(
-            data_ptr, ctypes.POINTER(ctypes.c_byte * data_size)
-        ).contents
+        plane_raw = ctypes.cast(data_ptr, ctypes.POINTER(ctypes.c_byte * data_size)).contents
         return numpy.ndarray(shape, buffer=plane_raw, dtype=numpy.uint8)
 
     @staticmethod

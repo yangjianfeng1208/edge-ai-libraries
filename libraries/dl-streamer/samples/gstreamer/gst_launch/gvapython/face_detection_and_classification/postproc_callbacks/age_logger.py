@@ -14,10 +14,10 @@ class AgeLogger:
     def log_age(self, frame: VideoFrame) -> bool:
         for roi in frame.regions():
             for tensor in roi.tensors():
-                if tensor.name() == 'detection':
+                if tensor.name() == "detection":
                     continue
                 layer_name = tensor.layer_name()
-                if 'age_conv3' == layer_name:
+                if "age_conv3" == layer_name:
                     self.log_file.write(tensor.label() + "\n")
                     continue
         return True

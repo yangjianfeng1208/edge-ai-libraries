@@ -34,9 +34,7 @@ Rect = namedtuple("Rect", "x y w h")
 # attached - 1 Tensor object with detection result and 2 Tensor objects with classification results coming from 2 classifications
 class RegionOfInterest(object):
 
-    def __init__(
-        self, od_meta: GstAnalytics.ODMtd, roi_meta: VideoRegionOfInterestMeta
-    ):
+    def __init__(self, od_meta: GstAnalytics.ODMtd, roi_meta: VideoRegionOfInterestMeta):
         self.__roi_meta = roi_meta
         self.__od_meta = od_meta
         self._detection = None
@@ -48,10 +46,7 @@ class RegionOfInterest(object):
             while param:
                 tensor_structure = param.contents.data
                 tensor = Tensor(tensor_structure)
-                if (
-                    tensor.name() != "object_id"
-                    and tensor.type() != "classification_result"
-                ):
+                if tensor.name() != "object_id" and tensor.type() != "classification_result":
                     self._tensors.append(tensor)
                     if tensor.is_detection():
                         self._detection = tensor
@@ -137,10 +132,7 @@ class RegionOfInterest(object):
     # @return object id as an int, None if failed to get
     def object_id(self) -> int | None:
         for trk_mtd in self.__od_meta.meta:
-            if (
-                trk_mtd.id == self.__od_meta.id
-                or type(trk_mtd) != GstAnalytics.TrackingMtd
-            ):
+            if trk_mtd.id == self.__od_meta.id or type(trk_mtd) != GstAnalytics.TrackingMtd:
                 continue
 
             rel = self.__od_meta.meta.get_relation(self.__od_meta.id, trk_mtd.id)
@@ -172,9 +164,7 @@ class RegionOfInterest(object):
                 tensor_object_id = Tensor(s_object_id)
                 tensor_object_id["id"] = object_id
             else:
-                tensor_structure = libgst.gst_structure_new_empty(
-                    "object_id".encode("utf-8")
-                )
+                tensor_structure = libgst.gst_structure_new_empty("object_id".encode("utf-8"))
                 tensor_object_id = Tensor(tensor_structure)
                 tensor_object_id["id"] = object_id
                 libgstvideo.gst_video_region_of_interest_meta_add_param(
@@ -182,10 +172,7 @@ class RegionOfInterest(object):
                 )
 
         for trk_mtd in self.__od_meta.meta:
-            if (
-                trk_mtd.id == self.__od_meta.id
-                or type(trk_mtd) != GstAnalytics.TrackingMtd
-            ):
+            if trk_mtd.id == self.__od_meta.id or type(trk_mtd) != GstAnalytics.TrackingMtd:
                 continue
 
             rel = self.__od_meta.meta.get_relation(self.__od_meta.id, trk_mtd.id)
@@ -203,9 +190,7 @@ class RegionOfInterest(object):
         success, trk_mtd = self.__od_meta.meta.add_tracking_mtd(object_id, 0)
 
         if not success:
-            raise RuntimeError(
-                "RegionOfInterest:set_object_id: Failed to add tracking metadata"
-            )
+            raise RuntimeError("RegionOfInterest:set_object_id: Failed to add tracking metadata")
 
         if not self.__od_meta.meta.set_relation(
             GstAnalytics.RelTypes.RELATE_TO, self.__od_meta.id, trk_mtd.id
@@ -260,9 +245,7 @@ class RegionOfInterest(object):
             ):
                 continue
 
-            rel = self.__od_meta.meta.get_relation(
-                self.__od_meta.id, cls_descriptor_mtd.id
-            )
+            rel = self.__od_meta.meta.get_relation(self.__od_meta.id, cls_descriptor_mtd.id)
 
             if rel == GstAnalytics.RelTypes.RELATE_TO:
                 break
@@ -360,8 +343,6 @@ class RegionOfInterest(object):
                     "RegionOfInterest:_iterate: Failed to get VideoRegionOfInterestMeta by id from buffer"
                 )
 
-            roi_meta = ctypes.cast(
-                value, ctypes.POINTER(VideoRegionOfInterestMeta)
-            ).contents
+            roi_meta = ctypes.cast(value, ctypes.POINTER(VideoRegionOfInterestMeta)).contents
 
             yield RegionOfInterest(od_mtd, roi_meta)

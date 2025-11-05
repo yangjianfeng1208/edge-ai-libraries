@@ -7,13 +7,15 @@
 import unittest
 
 import gi
-gi.require_version('Gst', '1.0')
+
+gi.require_version("Gst", "1.0")
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import GstVideo, GLib, Gst, GObject
 
 from gstgva.util import libgst
 from gstgva.tensor import Tensor
+
 
 class TensorTestCase(unittest.TestCase):
     def setUp(self):
@@ -24,7 +26,7 @@ class TensorTestCase(unittest.TestCase):
         test_label_id = 2
         test_confidence = 0.5
 
-        structure = libgst.gst_structure_new_empty('classification'.encode("utf-8"))
+        structure = libgst.gst_structure_new_empty("classification".encode("utf-8"))
         tensor = Tensor(structure)
 
         self.assertEqual(tensor.name(), "classification")
@@ -72,8 +74,7 @@ class TensorTestCase(unittest.TestCase):
 
         tensor["precision"] = Tensor.PRECISION.U8.value
         self.assertEqual(tensor.has_field("precision"), True)
-        self.assertEqual((Tensor.PRECISION)(
-            tensor.__getitem__("precision")), tensor.precision())
+        self.assertEqual((Tensor.PRECISION)(tensor.__getitem__("precision")), tensor.precision())
 
         tensor["layout"] = Tensor.LAYOUT.NCHW.value
         self.assertEqual(tensor.has_field("layout"), True)
@@ -100,5 +101,5 @@ class TensorTestCase(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

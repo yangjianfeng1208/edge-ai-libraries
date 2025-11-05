@@ -44,25 +44,25 @@ class Tensor:
 
     ## @brief This enum describes model layer precision
     class PRECISION(Enum):
-        UNSPECIFIED = 255 # Unspecified value. Used by default
-        FP32 = 10         # 32bit floating point value
-        FP16 = 11         # 16bit floating point value, 5 bit for exponent, 10 bit for mantisa
-        BF16 = 12         # 16bit floating point value, 8 bit for exponent, 7 bit for mantis
-        FP64 = 13         # 64bit floating point value
-        Q78 = 20          # 16bit specific signed fixed point precision
-        I16 = 30          # 16bit signed integer value
-        U4 = 39           # 4bit unsigned integer value
-        U8 = 40           # 8bit unsigned integer value
-        I4 = 49           # 4bit signed integer value
-        I8 = 50           # 8bit signed integer value
-        U16 = 60          # 16bit unsigned integer value
-        I32 = 70          # 32bit signed integer value
-        U32 = 74          # 32bit unsigned integer value
-        I64 = 72          # 64bit signed integer value
-        U64 = 73          # 64bit unsigned integer value
-        BIN = 71          # 1bit integer value
-        BOOL = 41         # 8bit bool type
-        CUSTOM = 80        # custom precision has it's own name and size of elements
+        UNSPECIFIED = 255  # Unspecified value. Used by default
+        FP32 = 10  # 32bit floating point value
+        FP16 = 11  # 16bit floating point value, 5 bit for exponent, 10 bit for mantisa
+        BF16 = 12  # 16bit floating point value, 8 bit for exponent, 7 bit for mantis
+        FP64 = 13  # 64bit floating point value
+        Q78 = 20  # 16bit specific signed fixed point precision
+        I16 = 30  # 16bit signed integer value
+        U4 = 39  # 4bit unsigned integer value
+        U8 = 40  # 8bit unsigned integer value
+        I4 = 49  # 4bit signed integer value
+        I8 = 50  # 8bit signed integer value
+        U16 = 60  # 16bit unsigned integer value
+        I32 = 70  # 32bit signed integer value
+        U32 = 74  # 32bit unsigned integer value
+        I64 = 72  # 64bit signed integer value
+        U64 = 73  # 64bit unsigned integer value
+        BIN = 71  # 1bit integer value
+        BOOL = 41  # 8bit bool type
+        CUSTOM = 80  # custom precision has it's own name and size of elements
 
     __precision_str = {
         PRECISION.UNSPECIFIED: "UNSPECIFIED",
@@ -138,20 +138,14 @@ class Tensor:
 
         precision = self.__precision_numpy_dtype[self.precision()]
 
-        gvalue = libgst.gst_structure_get_value(
-            self.__structure, "data_buffer".encode("utf-8")
-        )
+        gvalue = libgst.gst_structure_get_value(self.__structure, "data_buffer".encode("utf-8"))
 
         if gvalue:
             gvariant = libgobject.g_value_get_variant(gvalue)
             nbytes = ctypes.c_size_t()
-            data_ptr = libgobject.g_variant_get_fixed_array(
-                gvariant, ctypes.byref(nbytes), 1
-            )
+            data_ptr = libgobject.g_variant_get_fixed_array(gvariant, ctypes.byref(nbytes), 1)
             array_type = ctypes.c_ubyte * nbytes.value
-            return numpy.ctypeslib.as_array(array_type.from_address(data_ptr)).view(
-                dtype=precision
-            )
+            return numpy.ctypeslib.as_array(array_type.from_address(data_ptr)).view(dtype=precision)
 
         return None
 
@@ -223,15 +217,11 @@ class Tensor:
             return res.decode("utf-8") if res else None
         elif gtype == hash(GObject.TYPE_INT):
             value = ctypes.c_int()
-            res = libgst.gst_structure_get_int(
-                self.__structure, key, ctypes.byref(value)
-            )
+            res = libgst.gst_structure_get_int(self.__structure, key, ctypes.byref(value))
             return value.value if res else None
         elif gtype == hash(GObject.TYPE_DOUBLE):
             value = ctypes.c_double()
-            res = libgst.gst_structure_get_double(
-                self.__structure, key, ctypes.byref(value)
-            )
+            res = libgst.gst_structure_get_double(self.__structure, key, ctypes.byref(value))
             return value.value if res else None
         elif gtype == hash(GObject.TYPE_VARIANT):
             # TODO Returning pointer for now that can be used with other ctypes functions
@@ -254,9 +244,7 @@ class Tensor:
             else:
                 value = list()
                 for i in range(0, gvalue_array.contents.n_values):
-                    g_value = libgobject.g_value_array_get_nth(
-                        gvalue_array, ctypes.c_uint(i)
-                    )
+                    g_value = libgobject.g_value_array_get_nth(gvalue_array, ctypes.c_uint(i))
                     if g_value.contents.g_type == hash(GObject.TYPE_FLOAT):
                         value.append(libgobject.g_value_get_float(g_value))
                     elif g_value.contents.g_type == hash(GObject.TYPE_UINT):
@@ -377,9 +365,7 @@ class Tensor:
             raise NotImplementedError
         else:
             raise TypeError
-        libgst.gst_structure_set_value(
-            self.__structure, key.encode("utf-8"), hash(gvalue)
-        )
+        libgst.gst_structure_set_value(self.__structure, key.encode("utf-8"), hash(gvalue))
 
     @classmethod
     def _iterate(cls, buffer):
@@ -403,25 +389,17 @@ class Tensor:
             tensor_meta = ctypes.cast(value, ctypes.POINTER(GVATensorMeta)).contents
             yield Tensor(tensor_meta.data)
 
-    def convert_to_meta(
-        self, relation_meta: GstAnalytics.RelationMeta
-    ) -> GstAnalytics.Mtd | None:
+    def convert_to_meta(self, relation_meta: GstAnalytics.RelationMeta) -> GstAnalytics.Mtd | None:
         mtd = None
         if self.type() == "classification_result":
-            confidence_level = (
-                self.confidence() if self.confidence() is not None else 0.0
-            )
+            confidence_level = self.confidence() if self.confidence() is not None else 0.0
 
-            class_quark = (
-                GLib.quark_from_string(self.label()) if self.label() is not None else 0
-            )
+            class_quark = GLib.quark_from_string(self.label()) if self.label() is not None else 0
 
             success, mtd = relation_meta.add_one_cls_mtd(confidence_level, class_quark)
 
             if not success:
-                raise RuntimeError(
-                    "Failed to add classification metadata to RelationMeta"
-                )
+                raise RuntimeError("Failed to add classification metadata to RelationMeta")
 
         return mtd
 

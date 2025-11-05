@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 import gi
-gi.require_version('Gst', '1.0')
+
+gi.require_version("Gst", "1.0")
 from gi.repository import Gst
+
 
 class MyClass:
     def __init__(self):
@@ -35,14 +37,12 @@ class MyClassVaapi:
     def read_frame_data(self, frame):
         print("MyClassVaapi.read_frame_data")
         with frame.data() as mat:
-            print(
-                f"MyClassVaapi.read_frame_data: Get frame.data() size {mat.nbytes}")
+            print(f"MyClassVaapi.read_frame_data: Get frame.data() size {mat.nbytes}")
 
     def write_frame_data(self, frame):
         print("MyClassVaapi.write_frame_data")
         with frame.data(Gst.MapFlags.WRITE) as mat:
-            print(
-                f"MyClassVaapi.write_frame_data: Get frame.data() size {mat.nbytes}")
+            print(f"MyClassVaapi.write_frame_data: Get frame.data() size {mat.nbytes}")
 
 
 def process_frame(frame):
