@@ -60,15 +60,31 @@
             },
             "content": {
               "application/json": {
-                "schema": {},
-                "example": {
-                  "message": "Pipeline created"
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Pipeline already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             }
           },
           "500": {
-            "description": "Internal server error"
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -106,12 +122,21 @@
             "description": "Pipeline is valid",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
               }
             }
           },
           "400": {
-            "description": "Invalid launch string"
+            "description": "Invalid launch string",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -182,6 +207,16 @@
               }
             }
           },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -218,11 +253,37 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PipelineInstanceStatus"
-                  },
-                  "title": "Response Stop Pipeline Instance"
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pipeline instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Pipeline instance not running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             }
@@ -266,6 +327,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PipelineInstanceStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             }
@@ -321,6 +392,26 @@
               }
             }
           },
+          "404": {
+            "description": "Pipeline not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -371,20 +462,12 @@
           }
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "202": {
-            "description": "Pipeline execution started",
-            "content": {
-              "application/json": {
-                "example": {
-                  "instance_id": "a1b2c3d4e5f6"
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineInstanceResponse"
                 }
               }
             }
@@ -432,12 +515,21 @@
             "description": "Pipeline deleted",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
               }
             }
           },
           "400": {
-            "description": "Cannot delete pipeline"
+            "description": "Cannot delete pipeline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -491,11 +583,13 @@
           }
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineInstanceResponse"
+                }
               }
             }
           },
@@ -621,31 +715,6 @@
         }
       }
     },
-    "/metrics": {
-      "get": {
-        "tags": [
-          "metrics"
-        ],
-        "summary": "Get Metrics",
-        "operationId": "get_metrics",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MetricSample"
-                  },
-                  "type": "array",
-                  "title": "Response Get Metrics"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/videos": {
       "get": {
         "tags": [
@@ -743,33 +812,18 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "MetricSample": {
+      "MessageResponse": {
         "properties": {
-          "name": {
+          "message": {
             "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description"
-          },
-          "timestamp": {
-            "type": "integer",
-            "title": "Timestamp"
-          },
-          "value": {
-            "type": "number",
-            "title": "Value"
+            "title": "Message"
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "description",
-          "timestamp",
-          "value"
+          "message"
         ],
-        "title": "MetricSample"
+        "title": "MessageResponse"
       },
       "Model": {
         "properties": {
@@ -906,6 +960,19 @@
           "parameters"
         ],
         "title": "PipelineDefinition"
+      },
+      "PipelineInstanceResponse": {
+        "properties": {
+          "instance_id": {
+            "type": "string",
+            "title": "Instance Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instance_id"
+        ],
+        "title": "PipelineInstanceResponse"
       },
       "PipelineInstanceState": {
         "type": "string",
