@@ -2,34 +2,26 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from gstpipeline import GstPipeline, PipelineLoader
 
 
 class TestGstPipeline(unittest.TestCase):
     def setUp(self):
-        self.pipeline = GstPipeline()
+        test_launch_string = (
+            "videotestsrc "
+            " num-buffers=5 "
+            " pattern=snow ! "
+            "videoconvert ! "
+            "gvafpscounter ! "
+            "fakesink"
+        )
+        self.pipeline = GstPipeline(launch_string=test_launch_string)
 
-    def test_diagram_property(self):
-        with self.assertRaises(ValueError):
-            self.pipeline.diagram()
-
-    def test_bounding_boxes_property(self):
-        with self.assertRaises(ValueError):
-            self.pipeline.bounding_boxes()
-
+    # TODO: Implement test for GstPipeline as part of ITEP-80181
     def test_evaluate_method(self):
-        with self.assertRaises(NotImplementedError):
-            self.pipeline.evaluate(
-                **{
-                    "constants": {},
-                    "parameters": {},
-                    "regular_channels": 1,
-                    "inference_channels": 1,
-                    "elements": [],
-                }
-            )
+        launch_string = self.pipeline.evaluate(regular_channels=0, inference_channels=1)
+        self.assertFalse(launch_string.startswith("gst-launch-1.0 -q "))
 
 
 class TestPipelineLoader(unittest.TestCase):
@@ -63,24 +55,18 @@ class TestPipelineLoader(unittest.TestCase):
             PipelineLoader.config("non_existent_pipeline", self.test_dir.name)
 
     def test_load(self):
-        os.mkdir(Path(self.test_dir.name) / "pipeline1")
-        config_path = Path(self.test_dir.name) / "pipeline1" / "config.yaml"
-        config_path.write_text(
-            """
-            metadata:
-                classname: MockPipeline
-            """
+        test_launch_string = (
+            "videotestsrc "
+            " num-buffers=5 "
+            " pattern=snow ! "
+            "videoconvert ! "
+            "gvafpscounter ! "
+            "fakesink"
         )
 
-        class MockPipeline(GstPipeline):
-            def __init__(self):
-                pass
-
-        with patch("importlib.import_module") as mock_import:
-            mock_import.return_value.MockPipeline = MockPipeline
-            pipeline, config = PipelineLoader.load("pipeline1", self.test_dir.name)
-            self.assertIsInstance(pipeline, MockPipeline)
-            self.assertEqual(config, {"metadata": {"classname": "MockPipeline"}})
+        pipeline = PipelineLoader.load(launch_string=test_launch_string)
+        self.assertIsInstance(pipeline, GstPipeline)
+        self.assertEqual(pipeline._launch_string, test_launch_string)
 
 
 if __name__ == "__main__":

@@ -1,27 +1,28 @@
 FROM docker.io/library/rust:1.88 AS qmassa
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libudev-dev && \
+    apt-get install -y --no-install-recommends libudev-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN cargo install --locked --git https://github.com/ulissesf/qmassa.git --tag v1.0.1
+RUN cargo install --locked qmassa@1.1.0
 
 FROM docker.io/library/telegraf:1.36.3 AS collector
 
 COPY --from=qmassa /usr/local/cargo/bin/qmassa /usr/local/bin/qmassa
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        python3 && \
+    apt-get install -y --no-install-recommends python3 supervisor && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY telegraf.conf /etc/telegraf
+
 COPY qmassa_reader.py qmassa_reader.py
+
 COPY read_cpu_freq.sh read_cpu_freq.sh
 RUN chmod +x read_cpu_freq.sh
 

@@ -25,7 +25,8 @@ $(VENV_DIR): $(PROJECT_NAME)/requirements.txt ## Create Python venv
 	python3 -m venv $@ ;\
 	set +u; . ./$@/bin/activate; set -u ;\
 	python -m pip install --upgrade pip ;\
-	python -m pip install -r $(PROJECT_NAME)/requirements-dev.txt
+	python -m pip install -r $(PROJECT_NAME)/requirements-dev.txt ;\
+	python -m pip install -r video_generator/requirements.txt # needed for pyright checks
 
 all: lint build run test ## Run lint, build, run and test
 

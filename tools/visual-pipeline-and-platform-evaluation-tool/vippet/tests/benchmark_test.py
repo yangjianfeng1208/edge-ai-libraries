@@ -1,184 +1,105 @@
-import sys
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-from benchmark import Benchmark
+from benchmark import Benchmark, BenchmarkResult
 from gstpipeline import GstPipeline
+from pipeline_runner import PipelineRunResult
 
 
 class TestPipeline(GstPipeline):
-    def __init__(self):
-        super().__init__()
-        self._pipeline = (
-            "videotestsrc "
-            " num-buffers={NUM_BUFFERS} "
-            " pattern={pattern} ! "
-            "videoconvert ! "
-            "gvafpscounter ! "
-            "fakesink"
-        )
+    def __init__(self, launch_string):
+        super().__init__(launch_string=launch_string)
 
-    def evaluate(
-        self, constants, parameters, regular_channels, inference_channels, elements
-    ):
-        return " ".join(
-            [self._pipeline.format(**parameters, **constants)]
-            * (inference_channels + regular_channels)
-        )
+    def evaluate(self, regular_channels, inference_channels):
+        return " ".join([self._launch_string] * (inference_channels + regular_channels))
 
 
 class TestBenchmark(unittest.TestCase):
     def setUp(self):
-        self.pipeline_cls = TestPipeline
+        test_launch_string = (
+            "videotestsrc "
+            " num-buffers=5 "
+            " pattern=snow ! "
+            "videoconvert ! "
+            "gvafpscounter ! "
+            "fakesink"
+        )
+        self.pipeline_cls = TestPipeline(launch_string=test_launch_string)
         self.fps_floor = 30.0
         self.rate = 50
-        self.parameters = {"object_detection_device": ["cpu"]}
-        self.constants = {"const1": "value1"}
-        self.elements = [("element1", "type1", "name1")]
-        self.benchmark = Benchmark(
-            pipeline_cls=self.pipeline_cls,
-            fps_floor=self.fps_floor,
-            rate=self.rate,
-            parameters=self.parameters,
-            constants=self.constants,
-            elements=self.elements,
-        )
+        self.benchmark = Benchmark()
 
     def test_run_successful_scaling(self):
-        with patch.object(Benchmark, "_run_pipeline_and_extract_metrics") as mock_run:
-            mock_run.side_effect = [
+        expected_result = BenchmarkResult(
+            n_streams=3,
+            ai_streams=2,
+            non_ai_streams=1,
+            per_stream_fps=31.0,
+        )
+
+        with patch.object(self.benchmark.runner, "run") as mock_runner:
+            mock_runner.side_effect = [
                 # First call with 1 stream
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 30,
-                        "per_stream_fps": 30,
-                        "num_streams": 1,
-                    }
-                ],
+                PipelineRunResult(
+                    total_fps=30,
+                    per_stream_fps=30,
+                    num_streams=1,
+                ),
                 # Second call with 2 streams
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 80,
-                        "per_stream_fps": 40,
-                        "num_streams": 2,
-                    }
-                ],
+                PipelineRunResult(
+                    total_fps=80,
+                    per_stream_fps=40,
+                    num_streams=2,
+                ),
                 # Third call with 4 streams
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 100,
-                        "per_stream_fps": 25,
-                        "num_streams": 4,
-                    }
-                ],
+                PipelineRunResult(
+                    total_fps=100,
+                    per_stream_fps=25,
+                    num_streams=4,
+                ),
                 # Fourth call with 3 streams
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 93,
-                        "per_stream_fps": 31,
-                        "num_streams": 3,
-                    }
-                ],
+                PipelineRunResult(
+                    total_fps=93,
+                    per_stream_fps=31,
+                    num_streams=3,
+                ),
+                # Fourth call with 3 streams
+                PipelineRunResult(
+                    total_fps=93,
+                    per_stream_fps=31,
+                    num_streams=3,
+                ),
                 # Fifth call with 4 streams
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 100,
-                        "per_stream_fps": 25,
-                        "num_streams": 4,
-                    }
-                ],
-                [],
+                PipelineRunResult(
+                    total_fps=100,
+                    per_stream_fps=25,
+                    num_streams=4,
+                ),
             ]
-            result = self.benchmark.run()
-            self.assertEqual(result, (3, 2, 1, 31))
+
+            result = self.benchmark.run(self.pipeline_cls, self.fps_floor, self.rate)
+
+            self.assertEqual(result, expected_result)
 
     def test_zero_total_fps(self):
-        with patch.object(Benchmark, "_run_pipeline_and_extract_metrics") as mock_run:
-            mock_run.side_effect = [
+        with patch.object(self.benchmark.runner, "run") as mock_runner:
+            mock_runner.side_effect = [
                 # First call with 1 stream
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 0,
-                        "per_stream_fps": 30,
-                        "num_streams": 1,
-                    }
-                ],
-                [],
+                PipelineRunResult(total_fps=0, per_stream_fps=30, num_streams=1),
             ]
-            result = self.benchmark.run()
-            self.assertEqual(result, (0, 0, 0, 0.0))
-
-    def test_invalid_fps(self):
-        with patch.object(Benchmark, "_run_pipeline_and_extract_metrics") as mock_run:
-            mock_run.side_effect = [
-                # First call with 1 stream
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 0,
-                        "per_stream_fps": "NaN",
-                        "num_streams": 1,
-                    }
-                ],
-                [],
-            ]
-            result = self.benchmark.run()
-            self.assertEqual(result, (0, 0, 0, 0.0))
-
-    def test_pipeline_crash(self):
-        with patch.object(Benchmark, "_run_pipeline_and_extract_metrics") as mock_run:
-            mock_run.side_effect = [
-                # First call with 1 stream
-                [
-                    {
-                        "params": {},
-                        "exit_code": 1,
-                        "total_fps": 30,
-                        "per_stream_fps": 30,
-                        "num_streams": 1,
-                    }
-                ],
-                [],
-            ]
-            result = self.benchmark.run()
-            self.assertEqual(result, (0, 0, 0, 0.0))
+            with self.assertRaises(
+                RuntimeError, msg="Pipeline returned zero or invalid FPS metrics."
+            ):
+                _ = self.benchmark.run(self.pipeline_cls, self.fps_floor, self.rate)
 
     def test_pipeline_returns_none(self):
-        with patch.object(Benchmark, "_run_pipeline_and_extract_metrics") as mock_run:
-            mock_run.side_effect = [[None]]
-            result = self.benchmark.run()
-            self.assertEqual(result, (0, 0, 0, 0.0))
+        with patch.object(self.benchmark.runner, "run") as mock_runner:
+            mock_runner.side_effect = [None]
 
-    def test_pipeline_low_fps(self):
-        with patch.object(Benchmark, "_run_pipeline_and_extract_metrics") as mock_run:
-            mock_run.side_effect = [
-                [
-                    {
-                        "params": {},
-                        "exit_code": 0,
-                        "total_fps": 8,
-                        "per_stream_fps": 8,
-                        "num_streams": 1,
-                    }
-                ]
-            ]
-            result = self.benchmark.run()
-            self.assertEqual(result, (0, 0, 0, 0.0))
+            with self.assertRaises(
+                RuntimeError, msg="Pipeline runner returned invalid results."
+            ):
+                _ = self.benchmark.run(self.pipeline_cls, self.fps_floor, self.rate)
 
 
 if __name__ == "__main__":

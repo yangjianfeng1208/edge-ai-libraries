@@ -114,6 +114,7 @@ class PipelineInstanceStatus(BaseModel):
     per_stream_fps: Optional[float]
     ai_streams: Optional[int]
     non_ai_streams: Optional[int]
+    error_message: Optional[str]
 
 
 class PipelineInstanceSummary(BaseModel):

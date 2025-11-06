@@ -15,8 +15,7 @@ from api.api_schemas import (
     PipelineType,
 )
 from gstpipeline import PipelineLoader
-from optimize import PipelineOptimizer
-from explore import GstInspector
+from pipeline_runner import PipelineRunner
 from benchmark import Benchmark
 from utils import download_file, replace_file_path
 
@@ -37,12 +36,10 @@ class PipelineInstance:
     error_message: Optional[str] = None
 
 
-gst_inspector = GstInspector()
-
-
 class InstanceManager:
     def __init__(self):
         self.instances: Dict[str, PipelineInstance] = {}
+        self.runners: Dict[str, PipelineRunner | Benchmark] = {}
         self.lock = threading.Lock()
         self.logger = logging.getLogger(__name__)
 
@@ -123,6 +120,7 @@ class InstanceManager:
             per_stream_fps=instance.per_stream_fps,
             ai_streams=instance.ai_streams,
             non_ai_streams=instance.non_ai_streams,
+            error_message=instance.error_message,
         )
 
     def get_all_instance_statuses(self) -> list[PipelineInstanceStatus]:
@@ -169,6 +167,37 @@ class InstanceManager:
 
             return pipeline_instance_summary
 
+    def stop_instance(self, instance_id: str) -> tuple[bool, str]:
+        """Stop a running pipeline instance by calling cancel on its runner. Returns (success, message)."""
+        with self.lock:
+            if instance_id not in self.instances:
+                msg = f"Instance {instance_id} not found"
+                self.logger.warning(msg)
+                return False, msg
+
+            if instance_id not in self.runners:
+                msg = f"No active runner found for instance {instance_id}. It may have already completed or was never started."
+                self.logger.warning(msg)
+                return False, msg
+
+            instance = self.instances[instance_id]
+
+            if instance.state != PipelineInstanceState.RUNNING:
+                msg = f"Instance {instance_id} is not running (state: {instance.state})"
+                self.logger.warning(msg)
+                return False, msg
+
+            runner = self.runners.get(instance_id)
+            if runner is None:
+                msg = f"No active runner found for instance {instance_id}"
+                self.logger.warning(msg)
+                return False, msg
+
+        runner.cancel()
+        msg = f"Instance {instance_id} stopped"
+        self.logger.info(msg)
+        return True, msg
+
     def _update_instance_error(self, instance_id: str, error_message: str):
         """Update instance with error state."""
         with self.lock:
@@ -204,9 +233,7 @@ class InstanceManager:
             launch_string = replace_file_path(launch_string, file_path)
 
             # Initialize pipeline object from launch string
-            gst_pipeline, config = PipelineLoader.load_from_launch_string(
-                launch_string, name=version
-            )
+            gst_pipeline = PipelineLoader.load(launch_string)
 
             inferencing_channels = pipeline_request.parameters.inferencing_channels
             recording_channels = pipeline_request.parameters.recording_channels
@@ -217,34 +244,51 @@ class InstanceManager:
                 )
                 return
 
-            # TODO: Enable live preview when implemented
-            param_grid = {"live_preview_enabled": ["false"]}
+            # Initialize PipelineRunner
+            runner = PipelineRunner()
 
-            optimizer = PipelineOptimizer(
-                pipeline=gst_pipeline,
-                param_grid=param_grid,
-                channels=(recording_channels, inferencing_channels),
-                elements=gst_inspector.get_elements(),
+            # Store runner for this instance
+            with self.lock:
+                self.runners[instance_id] = runner
+
+            # Run the pipeline
+            results = runner.run(
+                pipeline_description=gst_pipeline,
+                regular_channels=recording_channels,
+                inference_channels=inferencing_channels,
             )
-
-            optimizer.run_without_live_preview()
-
-            best_result = optimizer.evaluate()
 
             # Update instance with results
             with self.lock:
                 if instance_id in self.instances:
                     instance = self.instances[instance_id]
-                    instance.state = PipelineInstanceState.COMPLETED
-                    instance.end_time = int(time.time() * 1000)
 
-                    if best_result is not None:
-                        instance.total_fps = best_result.total_fps
-                        instance.per_stream_fps = best_result.per_stream_fps
-                        instance.ai_streams = inferencing_channels
-                        instance.non_ai_streams = recording_channels
+                    # Check if instance was cancelled while running
+                    if runner.is_cancelled():
+                        self.logger.info(
+                            f"Pipeline {instance_id} was cancelled, updating state to ABORTED"
+                        )
+                        instance.state = PipelineInstanceState.ABORTED
+                        instance.end_time = int(time.time() * 1000)
+                        instance.error_message = "Cancelled by user"
+                    else:
+                        # Normal completion
+                        instance.state = PipelineInstanceState.COMPLETED
+                        instance.end_time = int(time.time() * 1000)
+
+                        if results is not None:
+                            instance.total_fps = results.total_fps
+                            instance.per_stream_fps = results.per_stream_fps
+                            instance.ai_streams = inferencing_channels
+                            instance.non_ai_streams = recording_channels
+
+                # Clean up runner after completion
+                self.runners.pop(instance_id, None)
 
         except Exception as e:
+            # Clean up runner on error
+            with self.lock:
+                self.runners.pop(instance_id, None)
             self._update_instance_error(instance_id, str(e))
 
     # TODO: Refactor the temporary pipeline benchmark execution method
@@ -272,40 +316,54 @@ class InstanceManager:
             launch_string = replace_file_path(launch_string, file_path)
 
             # Initialize pipeline object from launch string
-            gst_pipeline, config = PipelineLoader.load_from_launch_string(
-                launch_string, name=version
-            )
+            gst_pipeline = PipelineLoader.load(launch_string)
 
-            # Disable live preview for benchmarking
-            param_grid = {"live_preview_enabled": ["false"]}
+            # Initialize Benchmark
+            benchmark = Benchmark()
 
-            # Initialize the benchmark class
-            bm = Benchmark(
-                pipeline_cls=gst_pipeline,
-                fps_floor=pipeline_request.parameters.fps_floor,
-                rate=pipeline_request.parameters.ai_stream_rate,
-                parameters=param_grid,
-                elements=gst_inspector.get_elements(),
-            )
+            # Store benchmark runner for this instance
+            with self.lock:
+                self.runners[instance_id] = benchmark
 
             # Run the benchmark
-            s, ai, non_ai, fps = bm.run()
-
-            self.logger.info(
-                f"Benchmark completed for instance {instance_id}: streams={s}, ai={ai}, non_ai={non_ai}, fps={fps}"
+            results = benchmark.run(
+                pipeline_description=gst_pipeline,
+                fps_floor=pipeline_request.parameters.fps_floor,
+                rate=pipeline_request.parameters.ai_stream_rate,
             )
 
             # Update instance with results
             with self.lock:
                 if instance_id in self.instances:
                     instance = self.instances[instance_id]
-                    instance.state = PipelineInstanceState.COMPLETED
-                    instance.end_time = int(time.time() * 1000)
 
-                    instance.total_fps = None
-                    instance.per_stream_fps = fps
-                    instance.ai_streams = ai
-                    instance.non_ai_streams = non_ai
+                    # Check if instance was cancelled while running
+                    if benchmark.runner.is_cancelled():
+                        self.logger.info(
+                            f"Benchmark {instance_id} was cancelled, updating state to ABORTED"
+                        )
+                        instance.state = PipelineInstanceState.ABORTED
+                        instance.end_time = int(time.time() * 1000)
+                        instance.error_message = "Cancelled by user"
+                    else:
+                        # Normal completion
+                        instance.state = PipelineInstanceState.COMPLETED
+                        instance.end_time = int(time.time() * 1000)
+
+                        instance.total_fps = None
+                        instance.per_stream_fps = results.per_stream_fps
+                        instance.ai_streams = results.ai_streams
+                        instance.non_ai_streams = results.non_ai_streams
+
+                        self.logger.info(
+                            f"Benchmark completed for instance {instance_id}: streams={results.n_streams}, ai={results.ai_streams}, non_ai={results.non_ai_streams}, fps={results.per_stream_fps}"
+                        )
+
+                # Clean up benchmark after completion
+                self.runners.pop(instance_id, None)
 
         except Exception as e:
+            # Clean up benchmark on error
+            with self.lock:
+                self.runners.pop(instance_id, None)
             self._update_instance_error(instance_id, str(e))

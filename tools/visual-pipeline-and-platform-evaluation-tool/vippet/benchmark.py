@@ -5,66 +5,45 @@ based on configurable parameters and stream counts.
 """
 
 import logging
+from dataclasses import dataclass
 import math
-from typing import List, Dict, Tuple
 
-from utils import run_pipeline_and_extract_metrics
+from pipeline_runner import PipelineRunner, PipelineRunResult
+from gstpipeline import GstPipeline
+
+
+@dataclass
+class BenchmarkResult:
+    n_streams: int
+    ai_streams: int
+    non_ai_streams: int
+    per_stream_fps: float
+
+    def __repr__(self):
+        return (
+            f"BenchmarkResult("
+            f"n_streams={self.n_streams}, "
+            f"ai_streams={self.ai_streams}, "
+            f"non_ai_streams={self.non_ai_streams}, "
+            f"per_stream_fps={self.per_stream_fps}"
+            f")"
+        )
 
 
 class Benchmark:
     """Benchmarking class for pipeline evaluation."""
 
-    DEFAULT_RATE = 100  # Default rate for AI stream percentage
-
-    def __init__(
-        self,
-        pipeline_cls,
-        fps_floor: float,
-        rate: int | None,
-        parameters: Dict[str, List[str]],
-        constants: Dict[str, str] = {},
-        elements: List[tuple[str, str, str]] | None = None,
-    ):
-        self.pipeline_cls = pipeline_cls
-        self.fps_floor = fps_floor
-        self.rate = rate if rate is not None else self.DEFAULT_RATE
-        self.parameters = parameters
-        self.constants = constants
-        self.elements = elements if elements is not None else []
+    def __init__(self):
         self.best_result = None
-        self.results = []
+        self.runner = PipelineRunner()
+        self.logger = logging.getLogger(__name__)
 
-        self.logger = logging.getLogger("Benchmark")
-
-    def _run_pipeline_and_extract_metrics(
-        self,
-        pipeline_cls,
-        constants: Dict[str, str],
-        parameters: Dict[str, List[str]],
-        channels: Tuple[int, int],
-        elements: List[tuple[str, str, str]],
-    ) -> List[Dict[str, float]]:
-        """Run the pipeline and extract metrics."""
-        result = run_pipeline_and_extract_metrics(
-            pipeline_cls,
-            constants=constants,
-            parameters=parameters,
-            channels=channels,
-            elements=elements,
-        )
-
-        # Handle both generator and direct return
-        try:
-            # Exhaust generator to get StopIteration value
-            while True:
-                next(result)
-        except StopIteration as e:
-            results = e.value
-        return results
-
-    def run(self) -> Tuple[int, int, int, float]:
+    def run(
+        self, pipeline_description: GstPipeline, fps_floor: float, rate: int
+    ) -> BenchmarkResult:
         """Run the benchmark and return the best configuration."""
         n_streams = 1
+        per_stream_fps = 0.0
         exponential = True
         lower_bound = 1
         # We'll set this once we fall below the fps_floor
@@ -72,33 +51,26 @@ class Benchmark:
         best_config = (0, 0, 0, 0.0)
 
         while True:
-            ai_streams = math.ceil(n_streams * (self.rate / 100))
+            ai_streams = math.ceil(n_streams * (rate / 100))
             non_ai_streams = n_streams - ai_streams
 
-            try:
-                results = self._run_pipeline_and_extract_metrics(
-                    self.pipeline_cls,
-                    constants=self.constants,
-                    parameters=self.parameters,
-                    channels=(non_ai_streams, ai_streams),
-                    elements=self.elements,
-                )
-            except StopIteration:
-                return (0, 0, 0, 0.0)
+            results = self.runner.run(pipeline_description, non_ai_streams, ai_streams)
 
-            if not results or results[0] is None or not isinstance(results[0], dict):
-                return (0, 0, 0, 0.0)
-            if results[0].get("exit_code") != 0:
-                return (0, 0, 0, 0.0)
+            # Check for cancellation
+            if self.runner.is_cancelled():
+                self.logger.info("Benchmark cancelled.")
+                break
 
-            result = results[0]
+            if results is None or not isinstance(results, PipelineRunResult):
+                raise RuntimeError("Pipeline runner returned invalid results.")
+
             try:
-                total_fps = float(result["total_fps"])
+                total_fps = results.total_fps
                 per_stream_fps = total_fps / n_streams if n_streams > 0 else 0.0
             except (ValueError, TypeError, ZeroDivisionError):
-                return (0, 0, 0, 0.0)
+                raise RuntimeError("Failed to parse FPS metrics from pipeline results.")
             if total_fps == 0 or math.isnan(per_stream_fps):
-                return (0, 0, 0, 0.0)
+                raise RuntimeError("Pipeline returned zero or invalid FPS metrics.")
 
             self.logger.info(
                 "n_streams=%d, total_fps=%f, per_stream_fps=%f, exponential=%s, lower_bound=%d, higher_bound=%s",
@@ -112,7 +84,7 @@ class Benchmark:
 
             # increase number of streams exponentially until we drop below fps_floor
             if exponential:
-                if per_stream_fps >= self.fps_floor:
+                if per_stream_fps >= fps_floor:
                     best_config = (
                         n_streams,
                         ai_streams,
@@ -127,7 +99,7 @@ class Benchmark:
                     n_streams = (lower_bound + higher_bound) // 2
             # use bisecting search for fine tune maximum number of streams
             else:
-                if per_stream_fps >= self.fps_floor:
+                if per_stream_fps >= fps_floor:
                     best_config = (
                         n_streams,
                         ai_streams,
@@ -146,8 +118,23 @@ class Benchmark:
             if n_streams <= 0:
                 n_streams = 1  # Prevent N from going below 1
 
-        return (
-            best_config
-            if best_config[0] > 0
-            else (n_streams, ai_streams, non_ai_streams, per_stream_fps)
-        )
+        if best_config[0] > 0:
+            bm_result = BenchmarkResult(
+                n_streams=best_config[0],
+                ai_streams=best_config[1],
+                non_ai_streams=best_config[2],
+                per_stream_fps=best_config[3],
+            )
+        else:
+            bm_result = BenchmarkResult(
+                n_streams=n_streams,
+                ai_streams=ai_streams,
+                non_ai_streams=non_ai_streams,
+                per_stream_fps=per_stream_fps,
+            )
+
+        return bm_result
+
+    def cancel(self):
+        """Cancel the ongoing benchmark."""
+        self.runner.cancel()

@@ -1,36 +1,7 @@
-name: Simple Video Structurization (D-T-C)
+name: SimpleVideoStructurizationPipeline
+display_name: Simple Video Structurization (D-T-C)
 definition: >
   The Simple Video Structurization (D-T-C) pipeline is a versatile, use case-agnostic solution that supports
   license plate recognition, vehicle detection with attribute classification, and other object detection and
   classification tasks, adaptable based on the selected model.
-metadata:
-  classname: SimpleVideoStructurizationPipeline
-  enabled: true
-recording:
-  url: "https://github.com/open-edge-platform/edge-ai-resources/raw/6d452bf87bb1707630f747774d2d15caa1a6f7aa/videos/ParkingVideo.mp4"
-  filename: license-plate-detection.mp4
-parameters:
-  run:
-    recording_channels: false
-    video_output_checkbox: true
-  benchmark:
-    ai_stream_rate: false
-    result_format: "Best Config: {ai} AI streams -> {fps:.2f} FPS"
-  inference:
-    detection_models:
-      - "SSDLite MobileNet V2 (INT8)"
-      - "YOLO v5m 416x416 (INT8)"
-      - "YOLO v5s 416x416 (INT8)"
-      - "YOLO v5m 640x640 (INT8)"
-      - "YOLO v10s 640x640 (FP16)"
-      - "YOLO v10m 640x640 (FP16)"
-      - "YOLO v8 License Plate Detector (FP32)"
-    detection_model_default: "YOLO v8 License Plate Detector (FP32)"
-    classification_models:
-      - "Disabled"
-      - "EfficientNet B0 (INT8)"
-      - "MobileNet V2 PyTorch (FP16)"
-      - "ResNet-50 TF (INT8)"
-      - "PaddleOCR (FP32)"
-      - "Vehicle Attributes Recognition Barrier 0039 (FP16)"
-    classification_model_default: "PaddleOCR (FP32)"
+pipeline_description: "vacompositor   name=comp   sink_0::xpos=0 sink_0::ypos=0 sink_0::alpha=1 sink_1::xpos=640 sink_1::ypos=0 sink_1::alpha=1  ! vah264enc ! h264parse ! mp4mux ! filesink   location=/tmp/dummy-video-output.mp4 async=false filesrc   location=/tmp/dummy-video.mp4 ! qtdemux ! h264parse ! tee name=t0 ! queue2 ! mp4mux ! filesink   location=/tmp/stream0.mp4 t0. ! queue2 ! vah264dec ! video/x-raw(memory:VAMemory) ! gvafpscounter starting-frame=500 ! gvadetect   model=/models/output/public/yolov8_license_plate_detector/FP32/yolov8_license_plate_detector.xml    model-instance-id=detect0   pre-process-backend=opencv   device=CPU   batch-size=0   inference-interval=3      nireq=0 ! queue2 ! gvatrack   tracking-type=short-term-imageless ! queue2 ! gvaclassify   model=/models/output/public/ch_PP-OCRv4_rec_infer/FP32/ch_PP-OCRv4_rec_infer.xml    model-instance-id=classify0   pre-process-backend=opencv   device=CPU   batch-size=0   inference-interval=3   nireq=0   reclassify-interval=1 ! queue2 ! gvawatermark ! gvametaconvert   format=json   json-indent=4   source=/tmp/dummy-video.mp4 ! gvametapublish   method=file   file-path=/dev/null ! queue2   max-size-buffers=0   max-size-bytes=0   max-size-time=0 ! vapostproc ! video/x-raw,width=640,height=360 ! comp.sink_0 filesrc   location=/tmp/dummy-video.mp4 ! qtdemux ! h264parse ! tee name=t1 ! queue2 ! mp4mux ! filesink   location=/tmp/stream1.mp4 t1. ! queue2 ! vah264dec ! video/x-raw(memory:VAMemory) ! gvafpscounter starting-frame=500 ! queue2   max-size-buffers=1   max-size-bytes=0   max-size-time=0 ! vapostproc ! video/x-raw,width=640,height=360 ! comp.sink_1 "
