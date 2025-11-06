@@ -5,6 +5,11 @@
     "description": "API for Visual Pipeline and Platform Evaluation Tool",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
   "paths": {
     "/pipelines": {
       "get": {
@@ -621,31 +626,6 @@
         }
       }
     },
-    "/metrics": {
-      "get": {
-        "tags": [
-          "metrics"
-        ],
-        "summary": "Get Metrics",
-        "operationId": "get_metrics",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MetricSample"
-                  },
-                  "type": "array",
-                  "title": "Response Get Metrics"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/videos": {
       "get": {
         "tags": [
@@ -742,34 +722,6 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
-      },
-      "MetricSample": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description"
-          },
-          "timestamp": {
-            "type": "integer",
-            "title": "Timestamp"
-          },
-          "value": {
-            "type": "number",
-            "title": "Value"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "description",
-          "timestamp",
-          "value"
-        ],
-        "title": "MetricSample"
       },
       "Model": {
         "properties": {

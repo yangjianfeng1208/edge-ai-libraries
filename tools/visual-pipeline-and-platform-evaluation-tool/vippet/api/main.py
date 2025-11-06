@@ -33,6 +33,12 @@ app = FastAPI(
     title="Visual Pipeline and Platform Evaluation Tool API",
     description="API for Visual Pipeline and Platform Evaluation Tool",
     version="1.0.0",
+    root_path="/api/v1",
+    # without explicitly setting servers to the same value as root_path,
+    # generating openapi schema would omit whole servers section in vippet.json
+    servers=[
+        {"url": "/api/v1"},
+    ],
 )
 
 # Include routers from different modules
