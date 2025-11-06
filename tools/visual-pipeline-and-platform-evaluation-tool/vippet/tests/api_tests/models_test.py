@@ -120,6 +120,32 @@ class TestModelsAPI(unittest.TestCase):
             data = response.json()
             self.assertEqual(data, [])
 
+    def test_get_models_with_unknown_category(self):
+        """Test GET /models returns category=None for unknown model_type."""
+        mock_models = [
+            self._make_model(
+                "weird-model",
+                "Weird Model",
+                "not_a_category",
+                "FP32",
+                "/fake/path/weird.xml",
+                "/fake/path/weird_proc.json",
+            ),
+        ]
+        with patch(
+            "api.routes.models.get_supported_models_manager"
+        ) as mock_get_manager:
+            mock_manager_instance = mock_get_manager.return_value
+            mock_manager_instance.get_all_installed_models.return_value = mock_models
+            response = self.client.get("/models")
+
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            self.assertEqual(len(data), 1)
+            self.assertEqual(data[0]["name"], "weird-model")
+            self.assertIsNone(data[0]["category"])
+            self.assertEqual(data[0]["precision"], "FP32")
+
 
 if __name__ == "__main__":
     unittest.main()

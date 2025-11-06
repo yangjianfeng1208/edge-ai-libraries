@@ -6,4 +6,4 @@ if ! ./video_manager.sh; then
     exit 1
 fi
 
-fastapi run --port 7860 api/main.py
+uvicorn api.main:app --host 0.0.0.0 --port 7860 --ws-ping-interval 10 --ws-ping-timeout 30

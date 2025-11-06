@@ -44,11 +44,12 @@ class PipelineLoader:
     def list(pipeline_path: str = "pipelines") -> List[str]:
         """Return available predefined pipeline folder names (not display names)."""
         pipelines_dir = Path(pipeline_path)
-        return [
+        pipelines = [
             name.name
             for name in pipelines_dir.iterdir()
             if name.is_dir() and not name.name.startswith("_")
         ]
+        return sorted(pipelines)
 
     @staticmethod
     def config(pipeline_name: str, pipeline_path: str = "pipelines") -> dict:
