@@ -1,104 +1,33 @@
-import { useState } from "react";
-import useWebSocket, { ReadyState } from "react-use-websocket";
 import { Cpu, Gauge, Gpu } from "lucide-react";
+import { useMetrics } from "@/features/metrics/useMetrics.ts";
+import { useConnectionStatus } from "@/features/metrics/useConnectionStatus.ts";
 
 interface FpsDisplayProps {
   className?: string;
 }
 
 const FpsDisplay = ({ className = "" }: FpsDisplayProps) => {
-  const [lastMessage, setLastMessage] = useState<string>("");
-
-  // Construct WebSocket URL based on current location
-  const getWebSocketUrl = () => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    return `${protocol}//${host}/metrics/ws/clients`;
-  };
-
-  const { readyState } = useWebSocket(getWebSocketUrl(), {
-    onOpen: () => {
-      console.log("WebSocket connected");
-    },
-    onMessage: (event) => {
-      setLastMessage(event.data);
-    },
-    onError: (error) => {
-      console.error("WebSocket error:", error);
-    },
-    onClose: () => {
-      console.log("WebSocket disconnected");
-    },
-    shouldReconnect: () => true, // Automatically reconnect on close
-  });
-
-  const getStatusColor = () => {
-    switch (readyState) {
-      case ReadyState.OPEN:
-        return "text-green-600";
-      case ReadyState.CONNECTING:
-        return "text-yellow-600";
-      case ReadyState.CLOSING:
-      case ReadyState.CLOSED:
-      case ReadyState.UNINSTANTIATED:
-        return "text-red-600";
-      default:
-        return "text-gray-600";
-    }
-  };
-
-  const getStatusIcon = () => {
-    switch (readyState) {
-      case ReadyState.OPEN:
-        return "●";
-      case ReadyState.CONNECTING:
-        return "○";
-      case ReadyState.CLOSING:
-      case ReadyState.CLOSED:
-      case ReadyState.UNINSTANTIATED:
-        return "●";
-      default:
-        return "○";
-    }
-  };
-
-  const parseMessage = (msg: string): [string, string, string] | null => {
-    if (msg === "") return null;
-    const json = JSON.parse(msg);
-    console.log(json);
-    if ("metrics" in json) {
-      const fps =
-        json.metrics.find((m) => m.name === "fps")?.fields?.value ?? "0";
-      const cpu =
-        json.metrics.find((m) => m.name === "cpu")?.fields?.usage_user ?? "0";
-      const gpu =
-        json.metrics.find(
-          (m) => m.name === "gpu_engine_usage" && m.fields.usage > 0,
-        )?.fields?.usage ?? "0";
-      return [fps, cpu, gpu];
-    }
-    return null;
-  };
-
-  const metrics = parseMessage(lastMessage);
+  const { fps, cpu, gpu } = useMetrics();
+  const { isConnected, statusColor, statusIcon } = useConnectionStatus();
 
   return (
     <div
       className={`bg-black/80 text-white p-2 rounded-lg shadow-lg text-sm ${className}`}
     >
       <div className="flex flex-row gap-2 font-mono justify-center items-center">
-        <span className={getStatusColor()}>{getStatusIcon()}</span>
-        {metrics && (
+        <span className={statusColor}>{statusIcon}</span>
+        {isConnected ? (
           <>
             <Gauge />
-            {metrics[0]}
+            {fps}
             <Cpu />
-            {parseFloat(metrics[1]).toFixed(2)}%
+            {cpu.toFixed(2)}%
             <Gpu />
-            {parseFloat(metrics[2]).toFixed(2)}%
+            {gpu.toFixed(2)}%
           </>
+        ) : (
+          "No connection"
         )}
-        {!metrics && "No messages"}
       </div>
     </div>
   );
