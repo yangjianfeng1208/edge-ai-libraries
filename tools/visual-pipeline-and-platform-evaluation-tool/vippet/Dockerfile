@@ -14,30 +14,44 @@
 
 # SPDX-License-Identifier: Apache-2.0
 
+# Use DLStreamer as the base image
 FROM intel/dlstreamer:2025.2-ubuntu24-rc1 AS prod
 
+# Switch to root user to install dependencies
 USER root
 
+# Set environment variable to non-interactive mode (avoids some prompts)
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install necessary dependencies
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends gstreamer1.0-plugins-ugly yq && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Switch to dlstreamer user
 USER dlstreamer
 
+# Set GStreamer plugin path
 ENV GST_PLUGIN_PATH=$GST_PLUGIN_PATH/usr/lib/x86_64-linux-gnu/gstreamer-1.0/
 
+# Set the working directory inside the container
 WORKDIR /home/dlstreamer/vippet
 
+# Create and activate a virtual environment for Python dependencies
 ENV VIRTUAL_ENV=/home/dlstreamer/.venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
+# Copy the requirements file into the container
 COPY --chown=dlstreamer:dlstreamer vippet/requirements.txt /home/dlstreamer/vippet/requirements.txt
 
+# Install necessary Python dependencies
 RUN \
-    pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir -r requirements.txt
+    pip3 install --upgrade pip && \
+    pip3 install --disable-pip-version-check --no-cache-dir -r requirements.txt
 
+# Copy the Python scripts and configuration files into the container
 COPY --chown=dlstreamer:dlstreamer \
     vippet/*.py \
     vippet/entrypoint.sh \
@@ -48,14 +62,17 @@ COPY --chown=dlstreamer:dlstreamer vippet/pipelines/ /home/dlstreamer/vippet/pip
 COPY --chown=dlstreamer:dlstreamer vippet/api/ /home/dlstreamer/vippet/api
 COPY --chown=dlstreamer:dlstreamer vippet/managers/ /home/dlstreamer/vippet/managers
 
-RUN chmod +x ./entrypoint.sh
-RUN chmod +x ./video_manager.sh
+# Make scripts executable
+RUN chmod +x ./entrypoint.sh ./video_manager.sh
 
+# Set the entrypoint for the container to run the main Python script
 CMD ["./entrypoint.sh"]
 
+# Image for testing with dev dependencies
 FROM prod AS test
 
+# Copy the dev requirements file into the container
 COPY --chown=dlstreamer:dlstreamer vippet/requirements-dev.txt /home/dlstreamer/vippet/requirements-dev.txt
-RUN \
-    pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir -r requirements-dev.txt
+
+# Install only dev requirements on top of prod image
+RUN pip3 install --disable-pip-version-check --no-cache-dir -r requirements-dev.txt
