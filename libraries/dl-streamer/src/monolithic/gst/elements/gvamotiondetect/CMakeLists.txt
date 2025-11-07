@@ -14,8 +14,10 @@ pkg_check_modules(GST REQUIRED IMPORTED_TARGET
   gstreamer-video-1.0
 )
 
-# GstVA (the 'va' plugin helper library)
-pkg_check_modules(GSTVA REQUIRED IMPORTED_TARGET gstreamer-va-1.0)
+# GstVA (the 'va' plugin helper library) – skip on MSVC builds (Windows) where VAAPI isn't available
+if(NOT MSVC)
+  pkg_check_modules(GSTVA REQUIRED IMPORTED_TARGET gstreamer-va-1.0)
+endif()
 
 # Renamed target and output (old: gstva_gpu_filter / va_gpu_filter)
 # Add required post-processing implementation sources for ROIToFrameAttacher vtable
@@ -93,19 +95,27 @@ target_include_directories(gstgvamotiondetect PRIVATE
 
 target_link_libraries(gstgvamotiondetect PRIVATE
   PkgConfig::GST
-  PkgConfig::GSTVA
   dlstreamer_gst
-  dlstreamer_vaapi
   dlstreamer_gst_meta
 )
 
-pkg_check_modules(LIBVA QUIET IMPORTED_TARGET libva)
-if (LIBVA_FOUND)
-  target_link_libraries(gstgvamotiondetect PRIVATE PkgConfig::LIBVA)
-else()
-  find_library(LIBVA_LIB va)
-  if (LIBVA_LIB)
-    target_link_libraries(gstgvamotiondetect PRIVATE ${LIBVA_LIB})
+if(NOT MSVC)
+  # VAAPI / GstVA only for non-Windows builds
+  target_link_libraries(gstgvamotiondetect PRIVATE
+    PkgConfig::GSTVA
+    dlstreamer_vaapi
+  )
+endif()
+
+if(NOT MSVC)
+  pkg_check_modules(LIBVA QUIET IMPORTED_TARGET libva)
+  if (LIBVA_FOUND)
+    target_link_libraries(gstgvamotiondetect PRIVATE PkgConfig::LIBVA)
+  else()
+    find_library(LIBVA_LIB va)
+    if (LIBVA_LIB)
+      target_link_libraries(gstgvamotiondetect PRIVATE ${LIBVA_LIB})
+    endif()
   endif()
 endif()
 

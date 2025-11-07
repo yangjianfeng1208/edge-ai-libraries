@@ -9,20 +9,21 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
+// Platform‑specific includes: VA path only for non-MSVC builds
+#ifndef _MSC_VER
 #include <gst/va/gstvadisplay.h>
 #include <gst/va/gstvautils.h>
+#include <gmodule.h>
+#include <opencv2/core/va_intel.hpp>
+#include <va/va.h>
+#include <va/va_fei.h>
+#include <va/va_fei_h264.h>
+#endif
 
-#include <gmodule.h>         // <-- for resolving VADisplay from GstVaDisplay at runtime
-#include <gst/video/video.h> // <-- needed for gst_video_info_from_caps
-
+#include <gst/video/video.h>
 #include <opencv2/core.hpp>
 #include <opencv2/core/ocl.hpp>
-#include <opencv2/core/va_intel.hpp>
 #include <opencv2/imgproc.hpp>
-
-#include <va/va.h>
-#include <va/va_fei.h>      // VAStatsStatisticsParameter
-#include <va/va_fei_h264.h> // VAStatsStatisticsH264 layout (variance, pixel averages)
 
 #include "../../inference_elements/common/post_processor/meta_attacher.h" // ROIToFrameAttacher
 
@@ -53,10 +54,11 @@ struct _GstGvaMotionDetect {
     GstBaseTransform parent;
 
     GstVideoInfo vinfo;
+    gboolean caps_is_va; // retained for compatibility
+
+#ifndef _MSC_VER
     VADisplay va_dpy;
     GstVaDisplay *va_display;
-
-    gboolean caps_is_va;
 
     int blur_kernel; // odd size
     double blur_sigma;
@@ -72,6 +74,12 @@ struct _GstGvaMotionDetect {
     VAContextID stats_ctx = 0;
     VASurfaceID prev_sid = VA_INVALID_SURFACE; // simple 1‑frame history
     gboolean stats_ready = FALSE;
+#else
+    // Windows (MSVC) build: no VAAPI. Provide stubs to satisfy logic.
+    void *va_dpy = nullptr;
+    void *va_display = nullptr;
+    int prev_sid = -1;
+#endif
 
     // Software motion detection state
     cv::UMat prev_luma;       // previous full-res grayscale (legacy path)
@@ -116,11 +124,18 @@ static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, G
 
 G_DEFINE_TYPE(GstGvaMotionDetect, gst_gva_motion_detect, GST_TYPE_BASE_TRANSFORM)
 
+#ifndef _MSC_VER
 static GstStaticPadTemplate sink_templ =
     GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw(memory:VAMemory)"));
-
 static GstStaticPadTemplate src_templ =
     GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw(memory:VAMemory)"));
+#else
+// Windows build: system memory only
+static GstStaticPadTemplate sink_templ =
+    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
+static GstStaticPadTemplate src_templ =
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
+#endif
 
 static post_processing::TensorsTable build_motion_tensors(const std::vector<MotionRect> &rois) {
     post_processing::TensorsTable table(1); // one frame
@@ -143,26 +158,31 @@ static void gst_gva_motion_detect_set_context(GstElement *elem, GstContext *cont
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(elem);
     const gchar *ctype = gst_context_get_context_type(context);
     const GstStructure *st = gst_context_get_structure(context);
+#ifndef _MSC_VER
     if (g_strcmp0(ctype, "gst.va.display.handle") == 0 && !self->va_dpy) {
         if (gst_structure_has_field(st, "va-display")) {
             self->va_dpy = (VADisplay)g_value_get_pointer(gst_structure_get_value(st, "va-display"));
         } else if (gst_structure_has_field(st, "gst-display")) {
             GstObject *obj = nullptr;
-            gst_structure_get(st, "gst-display", GST_TYPE_OBJECT, &obj, nullptr);
-            if (obj) {
+            if (gst_structure_get(st, "gst-display", GST_TYPE_OBJECT, &obj, nullptr) && obj) {
                 self->va_dpy = (VADisplay)gst_va_display_get_va_dpy(GST_VA_DISPLAY(obj));
                 gst_object_unref(obj);
             }
         }
     }
+#endif
     GST_ELEMENT_CLASS(gst_gva_motion_detect_parent_class)->set_context(elem, context);
 }
 
 static gboolean gst_gva_motion_detect_query(GstElement *elem, GstQuery *query) {
+#ifndef _MSC_VER
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(elem);
     if (gst_va_handle_context_query(elem, query, self->va_display))
         return TRUE;
     return GST_ELEMENT_CLASS(gst_gva_motion_detect_parent_class)->query(elem, query);
+#else
+    return GST_ELEMENT_CLASS(gst_gva_motion_detect_parent_class)->query(elem, query);
+#endif
 }
 
 static GstCaps *gst_gva_motion_detect_transform_caps(GstBaseTransform *, GstPadDirection /*direction*/, GstCaps *caps,
@@ -231,12 +251,14 @@ static bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *self, const c
 static gboolean gst_gva_motion_detect_start(GstBaseTransform *trans) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
     gst_video_info_init(&self->vinfo);
-    self->va_dpy = nullptr;
-    self->va_display = nullptr;
     self->caps_is_va = FALSE;
     self->frame_index = 0;
+#ifndef _MSC_VER
+    self->va_dpy = nullptr;
+    self->va_display = nullptr;
     gst_element_post_message(GST_ELEMENT(self),
                              gst_message_new_need_context(GST_OBJECT(self), "gst.va.display.handle"));
+#endif
     return TRUE;
 }
 
@@ -244,7 +266,12 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *trans, GstCaps 
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
     if (!gst_video_info_from_caps(&self->vinfo, incaps))
         return FALSE;
+#ifdef _MSC_VER
+    // On Windows we skip VA stats initialization entirely
+    return TRUE;
+#endif
 
+#ifndef _MSC_VER
     if (!self->va_dpy)
         return TRUE;
 
@@ -380,12 +407,58 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *trans, GstCaps 
         }
     }
     return TRUE;
+#endif
 }
 
 // In-place processing: get VASurfaceID via mapper
 static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
+#ifdef _MSC_VER
+    // Windows software-only path: map buffer, build cv::Mat and run motion detection directly.
+    ++self->frame_index;
+    int width = GST_VIDEO_INFO_WIDTH(&self->vinfo);
+    int height = GST_VIDEO_INFO_HEIGHT(&self->vinfo);
+    if (!width || !height)
+        return GST_FLOW_OK;
+    GstMapInfo map;
+    if (!gst_buffer_map(buf, &map, GST_MAP_READ))
+        return GST_FLOW_OK;
+    // Assume packed RGB or BGR; fallback to gray if single channel
+    cv::Mat frame_mat(height, width, CV_8UC3, (void *)map.data);
+    cv::Mat gray;
+    cv::cvtColor(frame_mat, gray, cv::COLOR_BGR2GRAY);
+    cv::Mat prev;
+    if (!self->prev_luma.empty())
+        self->prev_luma.copyTo(prev);
+    gray.copyTo(self->prev_luma);
+    if (prev.empty()) {
+        gst_buffer_unmap(buf, &map);
+        return GST_FLOW_OK;
+    }
+    cv::Mat diff; cv::absdiff(gray, prev, diff);
+    cv::GaussianBlur(diff, diff, cv::Size(3,3), 0);
+    cv::threshold(diff, diff, 15, 255, cv::THRESH_BINARY);
+    cv::Mat k = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
+    cv::morphologyEx(diff, diff, cv::MORPH_OPEN, k);
+    cv::dilate(diff, diff, k);
+    std::vector<std::vector<cv::Point>> contours; cv::findContours(diff, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    std::vector<MotionRect> rois;
+    for (auto &c : contours) {
+        if (c.size() < 3) continue;
+        cv::Rect r = cv::boundingRect(c);
+        if (r.area() < width*height*0.0005) continue;
+        rois.push_back(MotionRect{r.x, r.y, r.width, r.height});
+    }
+    if (!rois.empty()) {
+        post_processing::TensorsTable tensors = build_motion_tensors(rois);
+        post_processing::FramesWrapper frames(buf, "gvamotiondetect", nullptr);
+        post_processing::ROIToFrameAttacher attacher; DummyBlobToMetaConverter dummy; attacher.attach(tensors, frames, dummy);
+    }
+    gst_buffer_unmap(buf, &map);
+    return GST_FLOW_OK;
+#endif
 
+#ifndef _MSC_VER
     if (!self->va_dpy) {
         GST_DEBUG_OBJECT(self, "No VADisplay; pass-through frame=%" G_GUINT64_FORMAT, self->frame_index);
         ++self->frame_index;
@@ -605,14 +678,17 @@ frame_done:
     self->prev_sid = sid;
     ++self->frame_index;
     return GST_FLOW_OK;
+#endif
 }
 
 static void gst_gva_motion_detect_finalize(GObject *obj) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(obj);
+#ifndef _MSC_VER
     if (self->stats_ctx)
         vaDestroyContext(self->va_dpy, self->stats_ctx);
     if (self->stats_cfg)
         vaDestroyConfig(self->va_dpy, self->stats_cfg);
+#endif
     G_OBJECT_CLASS(gst_gva_motion_detect_parent_class)->finalize(obj);
 }
 
@@ -624,8 +700,14 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
     GST_DEBUG_CATEGORY_INIT(gst_gva_motion_detect_debug, "gvamotiondetect", 0, "GVA motion detect filter");
 
     gst_element_class_set_static_metadata(
+#ifndef _MSC_VER
         eclass, "VA GPU filter (VAMemory-only)", "Filter/Video",
-        "Accepts/produces video/x-raw(memory:VAMemory) and reuses VA display via GstContext", "dlstreamer");
+        "Accepts/produces video/x-raw(memory:VAMemory) and reuses VA display via GstContext", "dlstreamer"
+#else
+        eclass, "Motion detect (software)", "Filter/Video",
+        "Software motion detection (system memory frames) - VA skipped under MSVC", "dlstreamer"
+#endif
+    );
 
     gst_element_class_add_static_pad_template(eclass, &sink_templ);
     gst_element_class_add_static_pad_template(eclass, &src_templ);
