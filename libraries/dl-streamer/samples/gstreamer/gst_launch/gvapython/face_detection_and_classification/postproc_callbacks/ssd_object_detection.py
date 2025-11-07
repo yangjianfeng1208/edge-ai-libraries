@@ -41,7 +41,7 @@ def process_frame(frame: VideoFrame, threshold: float = DETECT_THRESHOLD) -> boo
             if confidence < threshold:
                 continue
 
-            frame.add_region(
+            roi = frame.add_region(
                 x_min, y_min, x_max - x_min, y_max - y_min, str(label_id), confidence
             )
 
