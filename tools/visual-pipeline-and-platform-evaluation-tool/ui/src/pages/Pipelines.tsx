@@ -56,9 +56,9 @@ const Pipelines = () => {
     try {
       const apiNodes = currentNodes.map((node) => ({
         id: node.id,
-        type: node.type || "default",
+        type: node.type ?? "default",
         data: Object.fromEntries(
-          Object.entries(node.data || {}).map(([key, value]) => [
+          Object.entries(node.data ?? {}).map(([key, value]) => [
             key,
             String(value),
           ]),

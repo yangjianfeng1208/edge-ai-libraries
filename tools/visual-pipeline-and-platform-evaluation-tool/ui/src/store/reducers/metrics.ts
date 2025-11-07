@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import type { RootState } from "../index.ts";
+import type { RootState } from "@/store";
 
 export interface MetricData {
   name: string;
@@ -74,7 +74,6 @@ export const {
   messageReceived,
 } = metrics.actions;
 
-// Selectors
 export const selectMetricsState = (state: RootState) => state.metrics;
 
 export const selectIsConnected = (state: RootState) =>
@@ -90,7 +89,6 @@ export const selectLastMessage = (state: RootState) =>
 
 export const selectError = (state: RootState) => state.metrics.error;
 
-// Specific metric selectors
 export const selectFpsMetric = (state: RootState) =>
   state.metrics.metrics.find((m) => m.name === "fps")?.fields?.value as
     | number

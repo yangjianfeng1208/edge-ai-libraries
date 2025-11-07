@@ -1,6 +1,5 @@
 import { Handle, Position } from "@xyflow/react";
 
-// Export the node width for layout calculations
 export const GVADetectNodeWidth = 280;
 
 type GVADetectNodeProps = {

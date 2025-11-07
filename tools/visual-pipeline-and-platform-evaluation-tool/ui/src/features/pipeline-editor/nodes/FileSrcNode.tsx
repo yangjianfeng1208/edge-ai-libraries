@@ -1,6 +1,5 @@
 import { Handle, Position } from "@xyflow/react";
 
-// Export the node width for layout calculations
 export const FileSrcNodeWidth = 200;
 
 type FileSrcNodeProps = {

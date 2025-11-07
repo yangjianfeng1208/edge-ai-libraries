@@ -1,6 +1,5 @@
 import { Handle, Position } from "@xyflow/react";
 
-// Export the node width for layout calculations
 export const GVAMetaConvertNodeWidth = 270;
 
 const GVAMetaConvertNode = () => {

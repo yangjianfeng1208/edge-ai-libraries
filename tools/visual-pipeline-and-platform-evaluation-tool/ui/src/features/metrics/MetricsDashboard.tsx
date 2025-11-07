@@ -26,17 +26,12 @@ interface MetricsDashboardProps {
   className?: string;
 }
 
-/**
- * Example component showing how multiple components can consume
- * the same WebSocket data without creating additional connections
- */
 export const MetricsDashboard = ({ className = "" }: MetricsDashboardProps) => {
   const { fps, cpu, gpu } = useMetrics();
   const { isConnected, isConnecting, error } = useConnectionStatus();
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Connection Status */}
       <div className="flex items-center space-x-2 p-3 rounded-lg bg-gray-50">
         {isConnected ? (
           <Wifi className="h-5 w-5 text-green-600" />
@@ -53,7 +48,6 @@ export const MetricsDashboard = ({ className = "" }: MetricsDashboardProps) => {
         {error && <span className="text-sm text-red-600">({error})</span>}
       </div>
 
-      {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <MetricCard
           title="Frame Rate"
@@ -75,7 +69,6 @@ export const MetricsDashboard = ({ className = "" }: MetricsDashboardProps) => {
         />
       </div>
 
-      {/* Real-time indicator */}
       <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
         <Activity className="h-4 w-4" />
         <span>Real-time metrics</span>

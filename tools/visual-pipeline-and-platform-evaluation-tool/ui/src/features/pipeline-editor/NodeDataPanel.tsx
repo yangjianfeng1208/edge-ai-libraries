@@ -33,7 +33,6 @@ const NodeDataPanel = ({
 }: NodeDataPanelProps) => {
   const [editableData, setEditableData] = useState<Record<string, unknown>>({});
 
-  // Update local state when selectedNode changes
   useEffect(() => {
     if (selectedNode) {
       setEditableData({ ...selectedNode.data });
@@ -49,15 +48,14 @@ const NodeDataPanel = ({
     );
   }
 
-  // Handle input changes
   const handleInputChange = (key: string, value: string | unknown) => {
     const updatedData = { ...editableData, [key]: value };
     setEditableData(updatedData);
     onNodeDataUpdate(selectedNode.id, updatedData);
   };
 
-  // Get node configuration
   const getNodeConfig = (nodeType: string): NodeConfig | null => {
+    // TODO: change switch to associative array
     switch (nodeType) {
       case "gvametaconvert":
         return gvaMetaConvertConfig;
@@ -67,25 +65,22 @@ const NodeDataPanel = ({
         return gvaClassifyConfig;
       case "gvadetect":
         return gvaDetectConfig;
-      // Add other node configurations as needed
       default:
         return null;
     }
   };
 
-  const nodeConfig = getNodeConfig(selectedNode.type || "");
+  const nodeConfig = getNodeConfig(selectedNode.type ?? "");
 
-  // If we have a configuration, use it; otherwise fall back to existing data
-  const editableProperties = nodeConfig?.editableProperties || [];
+  const editableProperties = nodeConfig?.editableProperties ?? [];
 
-  // For nodes with configuration, show all configured properties
-  // For nodes without configuration, show current data properties (legacy behavior)
+  // TODO: maybe it should only display defined fields
   const dataEntries = nodeConfig
     ? editableProperties.map((prop) => [
         prop.key,
         editableData[prop.key] ?? prop.defaultValue,
       ])
-    : Object.entries(editableData || {}).filter(
+    : Object.entries(editableData ?? {}).filter(
         ([key]) => !["label"].includes(key),
       );
 
@@ -106,10 +101,8 @@ const NodeDataPanel = ({
             Additional Parameters:
           </h4>
           {dataEntries.map(([key, value]) => {
-            // Ensure key is a string
             const keyStr = String(key);
 
-            // Find the property configuration if available
             const propConfig = editableProperties.find(
               (prop) => prop.key === keyStr,
             );
@@ -120,7 +113,7 @@ const NodeDataPanel = ({
             return (
               <div key={keyStr} className="border-l-2 border-blue-200 pl-3">
                 <label className="text-xs font-medium text-gray-600 block mb-1">
-                  {propConfig?.label || keyStr}:
+                  {propConfig?.label ?? keyStr}:
                   {propConfig?.required && (
                     <span className="text-red-500 ml-1">*</span>
                   )}
@@ -134,7 +127,7 @@ const NodeDataPanel = ({
 
                 {inputType === "select" && propConfig?.options ? (
                   <select
-                    value={String(value || "")}
+                    value={String(value ?? "")}
                     onChange={(e) => handleInputChange(keyStr, e.target.value)}
                     className="w-full text-xs border border-gray-300 rounded px-2 py-1"
                   >
@@ -160,7 +153,7 @@ const NodeDataPanel = ({
                 ) : inputType === "number" ? (
                   <input
                     type="number"
-                    value={String(value || "")}
+                    value={String(value ?? "")}
                     onChange={(e) =>
                       handleInputChange(
                         keyStr,
@@ -168,14 +161,14 @@ const NodeDataPanel = ({
                       )
                     }
                     className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                    placeholder={`Enter ${propConfig?.label || keyStr}`}
+                    placeholder={`Enter ${propConfig?.label ?? keyStr}`}
                   />
                 ) : inputType === "textarea" ? (
                   <textarea
                     value={
                       typeof value === "object"
                         ? JSON.stringify(value, null, 2)
-                        : String(value || "")
+                        : String(value ?? "")
                     }
                     onChange={(e) => {
                       if (typeof value === "object") {
@@ -195,10 +188,10 @@ const NodeDataPanel = ({
                 ) : (
                   <input
                     type="text"
-                    value={String(value || "")}
+                    value={String(value ?? "")}
                     onChange={(e) => handleInputChange(keyStr, e.target.value)}
                     className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                    placeholder={`Enter ${propConfig?.label || keyStr}`}
+                    placeholder={`Enter ${propConfig?.label ?? keyStr}`}
                   />
                 )}
               </div>
