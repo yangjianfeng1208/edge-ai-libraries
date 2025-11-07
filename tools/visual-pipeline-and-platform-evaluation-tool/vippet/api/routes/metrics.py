@@ -25,7 +25,7 @@ async def collector_websocket(websocket: WebSocket):
     """
     global collector_ws
     await websocket.accept()
-    logger.info("Collector connected from %s", websocket.client)
+    logger.debug("Collector connected from %s", websocket.client)
     async with collector_lock:
         if collector_ws is not None:
             logger.warning("Rejecting new collector: one is already connected.")
@@ -38,13 +38,7 @@ async def collector_websocket(websocket: WebSocket):
         while True:
             data = await websocket.receive_json(mode="binary")
             logger.debug("Received metrics from collector: %s", data)
-            # Try to parse as JSON list, else just forward as-is
-            try:
-                # If you want strict typing, use json.loads and validate list.
-                # Here, we just forward text for simplicity
-                pass
-            except Exception as e:
-                logger.warning("Collector sent invalid data: %s", e)
+
             # Broadcast to all clients
             disconnects = []
             async with clients_lock:
@@ -61,7 +55,7 @@ async def collector_websocket(websocket: WebSocket):
                 async with clients_lock:
                     for client in disconnects:
                         client_connections.discard(client)
-                logger.info("Cleaned up %d disconnected clients", len(disconnects))
+                logger.debug("Cleaned up %d disconnected clients", len(disconnects))
     except WebSocketDisconnect:
         logger.info("Collector disconnected: %s", websocket.client)
     except Exception as e:
@@ -70,7 +64,7 @@ async def collector_websocket(websocket: WebSocket):
         async with collector_lock:
             if collector_ws == websocket:
                 collector_ws = None
-        logger.info("Collector slot released")
+        logger.debug("Collector slot released")
 
 
 @router.websocket("/ws/clients")
@@ -79,7 +73,7 @@ async def clients_websocket(websocket: WebSocket):
     WebSocket endpoint for clients that receive metrics in real time.
     """
     await websocket.accept()
-    logger.info("Client connected: %s", websocket.client)
+    logger.debug("Client connected: %s", websocket.client)
     async with clients_lock:
         client_connections.add(websocket)
     try:
@@ -88,10 +82,9 @@ async def clients_websocket(websocket: WebSocket):
             msg = await websocket.receive_text()
             logger.debug("Received message from client (ignored): %s", msg)
     except WebSocketDisconnect:
-        logger.info("Client disconnected: %s", websocket.client)
+        logger.debug("Client disconnected: %s", websocket.client)
     except Exception as e:
         logger.error("Exception in client handler: %s", e)
     finally:
         async with clients_lock:
             client_connections.discard(websocket)
-        logger.info("Client removed from connections: %s", websocket.client)

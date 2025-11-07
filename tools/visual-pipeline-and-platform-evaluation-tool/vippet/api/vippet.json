@@ -5,6 +5,11 @@
     "description": "API for Visual Pipeline and Platform Evaluation Tool",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
   "paths": {
     "/pipelines": {
       "get": {

@@ -14,11 +14,17 @@ HOSTNAME = os.uname()[1]
 RETRY_DELAY = 1  # seconds to wait before retrying after recoverable errors
 
 # Configure logger
-logging.basicConfig(
-    filename=DEBUG_LOG,
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s (line %(lineno)d)",
+file_handler = logging.FileHandler(DEBUG_LOG)
+file_handler.setFormatter(
+    logging.Formatter(
+        fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%SZ",
+    )
 )
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.handlers = [file_handler]
 
 
 def emit_engine_usage(eng_usage, gpu_id, ts):
@@ -63,7 +69,7 @@ def process_line(state_line):
 
         # If parsed JSON is not an object, skip and log.
         if not isinstance(state, dict):
-            logging.debug(
+            logger.debug(
                 "Skipping line: parsed JSON is not an object (expected top-level dict)"
             )
             return
@@ -71,13 +77,13 @@ def process_line(state_line):
         # Use state.get with a safe default list and treat missing/empty as skip.
         ts = state.get("timestamps", [])
         if not ts:
-            logging.debug("Skipping line: missing or empty top-level 'timestamps'")
+            logger.debug("Skipping line: missing or empty top-level 'timestamps'")
             return
 
         current_ts_ns = int(time.time() * 1e9)
         devs_state = state.get("devs_state", [])
         if not devs_state:
-            logging.warning("Skipping line: no devs_state found in state line")
+            logger.warning("Skipping line: no devs_state found in state line")
             return
 
         # Process all devices in devs_state
@@ -89,7 +95,7 @@ def process_line(state_line):
 
             number = int(match.group(1))
             if number < 128:
-                logging.warning(
+                logger.warning(
                     f"renderD{number} in dev_nodes '{dev_nodes}' is less than 128, skipping device"
                 )
                 continue
@@ -98,7 +104,7 @@ def process_line(state_line):
             process_device_metrics(dev, gpu_id, current_ts_ns)
             sys.stdout.flush()
     except Exception as e:
-        logging.error(f"Error processing line: {e}")
+        logger.error(f"Error processing line: {e}")
 
 
 def main():
@@ -115,11 +121,11 @@ def main():
             # If we reach here, the writer closed the FIFO. Loop to reopen and wait for new writers.
         except (KeyboardInterrupt, SystemExit):
             # Allow graceful termination by external signals
-            logging.info("Termination requested, exiting.")
+            logger.info("Termination requested, exiting.")
             raise
         except Exception as e:
             # Log full traceback for diagnostics and retry after a delay for recoverable errors.
-            logging.exception(
+            logger.exception(
                 f"Error reading from FIFO (will retry after {RETRY_DELAY}s): {e}"
             )
             time.sleep(RETRY_DELAY)

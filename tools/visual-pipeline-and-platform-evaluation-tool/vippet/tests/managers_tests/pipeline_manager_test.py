@@ -72,16 +72,16 @@ class TestPipelineManager(unittest.TestCase):
         self.assertEqual(len(pipelines), 2)
 
         self.assertEqual(pipelines[0].name, "predefined_pipelines")
-        self.assertEqual(pipelines[0].version, "SmartNVRPipeline")
+        self.assertEqual(pipelines[0].version, "SimpleVideoStructurizationPipeline")
         self.assertEqual(
-            pipelines[0].description,
-            "Smart Network Video Recorder (NVR) Proxy Pipeline",
+            pipelines[0].description, "Simple Video Structurization (D-T-C)"
         )
         self.assertIsNotNone(pipelines[0].launch_config)
 
         self.assertEqual(pipelines[1].name, "predefined_pipelines")
-        self.assertEqual(pipelines[1].version, "SimpleVideoStructurizationPipeline")
+        self.assertEqual(pipelines[1].version, "SmartNVRPipeline")
         self.assertEqual(
-            pipelines[1].description, "Simple Video Structurization (D-T-C)"
+            pipelines[1].description,
+            "Smart Network Video Recorder (NVR) Proxy Pipeline",
         )
         self.assertIsNotNone(pipelines[1].launch_config)

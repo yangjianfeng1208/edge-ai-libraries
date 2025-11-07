@@ -16,12 +16,14 @@ x-vippet: &vippet
     test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--output", "/dev/null", "http://localhost:7860/pipelines"]
     interval: 10s
     timeout: 5s
-    retries: 50
+    retries: 3
+    start_period: 5s
+    start_interval: 1s
   restart: on-failure:5
   environment:
     GST_DEBUG: "1"
     LOG_LEVEL: INFO
-    TZ: America/Los_Angeles
+    WEB_SERVER_LOG_LEVEL: WARNING
     MODELS_PATH: /models/output
     SUPPORTED_MODELS_FILE: /models/supported_models.yaml
     RECORDINGS_PATH: /videos/input
@@ -47,8 +49,10 @@ services:
     ports:
       - "80:80"
     restart: on-failure:5
+    depends_on:
+      vippet:
+        condition: service_healthy
     environment:
-      TZ: America/Los_Angeles
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
       no_proxy: ${no_proxy}
@@ -124,6 +128,7 @@ services:
       - "./video_generator/background.gif:/usr/src/app/background.gif"
       - "./video_generator/images:/usr/src/app/images"
     environment:
+      LOG_LEVEL: INFO
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
       no_proxy: ${no_proxy}
