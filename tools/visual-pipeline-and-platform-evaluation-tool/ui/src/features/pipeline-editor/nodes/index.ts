@@ -48,7 +48,6 @@ export const nodeTypes = {
   gvaclassify: GVAClassifyNode,
 };
 
-// Node widths mapping - read from individual components
 export const nodeWidths: Record<string, number> = {
   filesrc: FileSrcNodeWidth,
   gvadetect: GVADetectNodeWidth,
@@ -57,7 +56,6 @@ export const nodeWidths: Record<string, number> = {
   queue: QueueNodeWidth,
 };
 
-// Default node width for components that don't specify their own
 export const defaultNodeWidth = 220;
 
 export default nodeTypes;

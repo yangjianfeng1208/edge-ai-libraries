@@ -5,75 +5,20 @@ import {
   type Edge as ReactFlowEdge,
   type Node as ReactFlowNode,
   type NodeMouseHandler,
-  Position,
   ReactFlow,
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
+import type { Node } from "@/api/api.generated.ts";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useState } from "react";
-import dagre from "dagre";
-import {
-  defaultNodeWidth,
-  nodeTypes,
-  nodeWidths,
-} from "@/features/pipeline-editor/nodes";
+import { nodeTypes } from "@/features/pipeline-editor/nodes";
 import NodeDataPanel from "@/features/pipeline-editor/NodeDataPanel.tsx";
 import { type Pipeline } from "@/api/api.generated";
-
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
-const nodeHeight = 120;
-
-// Function to get node width based on node type
-const getNodeWidth = (nodeType: string): number =>
-  nodeWidths[nodeType] || defaultNodeWidth;
-
-const transformApiNodes = (apiNodes: ReactFlowNode[]): ReactFlowNode[] =>
-  apiNodes.map((node) => ({
-    ...node,
-    type: node.type,
-  }));
-
-const getLayoutedElements = (
-  nodes: ReactFlowNode[],
-  edges: ReactFlowEdge[],
-  direction = "LR",
-) => {
-  const isHorizontal = direction === "LR";
-  dagreGraph.setGraph({ rankdir: direction });
-
-  nodes.forEach((node) => {
-    const currentNodeWidth = getNodeWidth(node.type || "default");
-    dagreGraph.setNode(node.id, {
-      width: currentNodeWidth,
-      height: nodeHeight,
-    });
-  });
-
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
-
-  dagre.layout(dagreGraph);
-
-  const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    const currentNodeWidth = getNodeWidth(node.type || "default");
-    return {
-      ...node,
-      targetPosition: isHorizontal ? Position.Left : Position.Top,
-      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
-      position: {
-        x: nodeWithPosition.x - currentNodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
-      },
-    };
-  });
-
-  return { nodes: layoutedNodes, edges };
-};
+import {
+  createGraphLayout,
+  LayoutDirection,
+} from "@/features/pipeline-editor/utils/graphLayout";
 
 interface PipelineEditorProps {
   pipelineData?: Pipeline;
@@ -90,18 +35,15 @@ const PipelineEditor = ({
   const [nodes, setNodes, onNodesChange] = useNodesState<ReactFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<ReactFlowEdge>([]);
 
-  // Handle node click to show data panel
   const onNodeClick: NodeMouseHandler = (event, node) => {
     event.stopPropagation();
     setSelectedNode(node);
   };
 
-  // Handle background click to deselect node
   const onPaneClick = () => {
     setSelectedNode(null);
   };
 
-  // Handle node data updates
   const handleNodeDataUpdate = (
     nodeId: string,
     updatedData: Record<string, unknown>,
@@ -110,13 +52,11 @@ const PipelineEditor = ({
       const updatedNodes = currentNodes.map((node) =>
         node.id === nodeId ? { ...node, data: updatedData } : node,
       );
-      // Notify parent component of nodes change
       onNodesChangeCallback?.(updatedNodes);
       return updatedNodes;
     });
   };
 
-  // Notify parent when nodes or edges change
   useEffect(() => {
     onNodesChangeCallback?.(nodes);
   }, [nodes, onNodesChangeCallback]);
@@ -127,41 +67,37 @@ const PipelineEditor = ({
 
   useEffect(() => {
     if (pipelineData?.launch_config) {
-      // const rawNodes = pipelineData.launch_config.nodes || [];
-      // const rawEdges = pipelineData.launch_config.edges || [];
+      // const nodes = pipelineData.launch_config.nodes || [];
+      // const edges = pipelineData.launch_config.edges || [];
+
       // Get the raw nodes and edges from API (using hardcoded data for now)
-      const rawNodes: ReactFlowNode[] = [
+      const nodes: Node[] = [
         {
           id: "0",
           type: "filesrc",
           data: {
             location: "${VIDEO}",
           },
-          position: { x: 0, y: 0 },
         },
         {
           id: "1",
           type: "qtdemux",
           data: {},
-          position: { x: 0, y: 0 },
         },
         {
           id: "2",
           type: "h264parse",
           data: {},
-          position: { x: 0, y: 0 },
         },
         {
           id: "3",
           type: "vah264dec",
           data: {},
-          position: { x: 0, y: 0 },
         },
         {
           id: "4",
           type: "video/x-raw(memory:VAMemory)",
           data: {},
-          position: { x: 0, y: 0 },
         },
         {
           id: "5",
@@ -169,7 +105,6 @@ const PipelineEditor = ({
           data: {
             "starting-frame": "500",
           },
-          position: { x: 0, y: 0 },
         },
         {
           id: "6",
@@ -180,13 +115,11 @@ const PipelineEditor = ({
             "pre-process-backend": "va-surface-sharing",
             "model-instance-id": "yolo11-pose",
           },
-          position: { x: 0, y: 0 },
         },
         {
           id: "7",
           type: "queue2",
           data: {},
-          position: { x: 0, y: 0 },
         },
         {
           id: "8",
@@ -194,13 +127,11 @@ const PipelineEditor = ({
           data: {
             "tracking-type": "short-term-imageless",
           },
-          position: { x: 0, y: 0 },
         },
         {
           id: "9",
           type: "gvawatermark",
           data: {},
-          position: { x: 0, y: 0 },
         },
         {
           id: "10",
@@ -209,7 +140,6 @@ const PipelineEditor = ({
             format: "json",
             "json-indent": "4",
           },
-          position: { x: 0, y: 0 },
         },
         {
           id: "11",
@@ -218,17 +148,15 @@ const PipelineEditor = ({
             method: "file",
             "file-path": "/dev/null",
           },
-          position: { x: 0, y: 0 },
         },
         {
           id: "12",
           type: "fakesink",
           data: {},
-          position: { x: 0, y: 0 },
         },
       ];
 
-      const rawEdges: ReactFlowEdge[] = [
+      const edges: ReactFlowEdge[] = [
         {
           id: "0",
           source: "0",
@@ -291,15 +219,22 @@ const PipelineEditor = ({
         },
       ];
 
-      // Transform nodes to include custom types and properties
-      const transformedNodes = transformApiNodes(rawNodes);
+      const transformedNodes = nodes.map(
+        (node) =>
+          ({
+            ...node,
+            type: node.type,
+          }) as ReactFlowNode,
+      );
 
-      // Apply Dagre layout to position nodes automatically
-      const { nodes: layoutedNodes, edges: layoutedEdges } =
-        getLayoutedElements(transformedNodes, rawEdges, "LR");
+      const nodesWithPositions = createGraphLayout(
+        transformedNodes,
+        edges,
+        LayoutDirection.LeftToRight,
+      );
 
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
+      setNodes(nodesWithPositions);
+      setEdges(edges);
     }
   }, [pipelineData, setNodes, setEdges]);
 
