@@ -14,7 +14,7 @@ concurrency:
 on:
   pull_request:
     branches:
-      - main
+      - scan_branch
     paths:
       - 'sample-applications/document-summarization/**'
 
