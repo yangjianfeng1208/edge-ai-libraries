@@ -569,7 +569,7 @@ if [ "$1" = "--summary" ] || [ "$1" = "--all" ]; then
         export PM_VLM_CONCURRENT=1
         export PM_LLM_CONCURRENT=1
         export VLM_COMPRESSION_WEIGHT_FORMAT=int4
-        export PM_MULTI_FRAME_COUNT=6
+        export PM_MULTI_FRAME_COUNT=34
         export WORKERS=1        
         echo -e "${BLUE}Using VLM for summarization on GPU${NC}"
     else
