@@ -23,10 +23,10 @@ namespace DeepSortWrapper {
 
 // Deep SORT specific parameters
 constexpr float DEFAULT_MAX_IOU_DISTANCE = 0.7f;
-constexpr float DEFAULT_MAX_AGE = 30.0f;
+constexpr float DEFAULT_MAX_AGE = 30.0f; // Max number of missed misses before track deletion
 constexpr int DEFAULT_N_INIT = 3;
 constexpr float DEFAULT_MAX_COSINE_DISTANCE = 0.2f;
-constexpr int DEFAULT_NN_BUDGET = 10;
+constexpr int DEFAULT_NN_BUDGET = 100;
 
 // Track states
 enum class TrackState { Tentative = 1, Confirmed = 2, Deleted = 3 };

@@ -12,7 +12,8 @@
 
 // Temporary flag to disable feature extraction and use only IoU-based tracking
 // Set to 1 to disable features (IoU-only), set to 0 to enable full Deep SORT features
-#define DISABLE_FEATURE_EXTRACTION 1
+#define DISABLE_FEATURE_EXTRACTION 0
+#define DISABLE_DBG_LOGS 1
 
 namespace DeepSortWrapper {
 
@@ -125,8 +126,11 @@ void Track::update(const Detection &detection) {
 
 void Track::mark_missed() {
     if (state_ == TrackState::Tentative) {
-        state_ = TrackState::Tentative; // Deleted;
-    } else if (time_since_update_ > max_age_) {
+        // For tentative tracks, delete only after max_age misses, not immediately
+        if (time_since_update_ >= max_age_) {
+            state_ = TrackState::Deleted;
+        }
+    } else if (time_since_update_ >= max_age_) {
         state_ = TrackState::Deleted;
     }
     time_since_update_++;
@@ -355,12 +359,14 @@ DeepSortTracker::DeepSortTracker(const std::string &feature_model_path, const st
     // Suppress unused parameter warnings when feature extraction is disabled
     (void)feature_model_path;
     (void)device;
-    g_print(
-        "DeepSortTracker initialized with FEATURE EXTRACTION DISABLED: max_iou_distance=%.3f, max_age=%.3f, n_init=%d",
-        max_iou_distance_, max_age_, n_init_);
+    g_print("DeepSortTracker initialized with FEATURE EXTRACTION DISABLED: max_iou_distance=%.3f, max_age=%.3f, "
+            "n_init=%d\n",
+            max_iou_distance_, max_age_, n_init_);
 #else
-    g_print("DeepSortTracker initialized: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, max_cosine_distance=%.3f",
+#if !DISABLE_DBG_LOGS
+    g_print("DeepSortTracker initialized: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, max_cosine_distance=%.3f\n",
             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
+#endif
 #endif
 }
 
@@ -426,16 +432,17 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     //  Update matched tracks and assign object IDs to existing regions
     for (const auto &match : matches) {
         tracks_[match.second]->update(detections[match.first]);
+
+#if !DISABLE_DBG_LOGS
         auto &detection = detections[match.first];
         auto &track = tracks_[match.second];
         cv::Rect_<float> track_bbox = track->to_bbox();
-
         g_print("{%s} Updating matched tracks: det-bbox[%d][%.1f,%.1f,%.1fx%.1f], trk-bbox[%d][%.1f,%.1f,%.1fx%.1f], "
                 "track_id=%d, track_state=%s\n",
                 __FUNCTION__, match.first, detection.bbox.x, detection.bbox.y, detection.bbox.width,
                 detection.bbox.height, match.second, track_bbox.x, track_bbox.y, track_bbox.width, track_bbox.height,
                 track->track_id(), track->state_str().c_str());
-
+#endif
         // Assign tracking ID to the existing region only if track is confirmed
         // This follows Deep SORT convention where only confirmed tracks get persistent IDs
         if (match.first < static_cast<int>(regions.size()) && tracks_[match.second]->is_confirmed()) {
@@ -454,19 +461,20 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
         auto new_track = std::make_unique<Track>(detections[det_idx].bbox, next_id_++, n_init_, max_age_,
                                                  detections[det_idx].feature);
 #endif
+        tracks_.push_back(std::move(new_track));
+#if !DISABLE_DBG_LOGS
         int new_track_id = new_track->track_id();
         std::string track_state = new_track->state_str();
-        tracks_.push_back(std::move(new_track));
         g_print("{%s} New track created: ID=%d, bbox[%.1f, %.1f, %.1f x %.1f], state=%s\n", __FUNCTION__, new_track_id,
                 detections[det_idx].bbox.x, detections[det_idx].bbox.y, detections[det_idx].bbox.width,
                 detections[det_idx].bbox.height, track_state.c_str());
-
+#endif
         // Note: For Deep SORT, we typically don't assign IDs to new tracks immediately
         // They need to be confirmed first (survive for n_init frames)
         // Testing immediate ID assignment:
-        if (det_idx < static_cast<int>(regions.size())) {
-            // regions[det_idx].set_object_id(new_track_id);
-        }
+        // if (det_idx < static_cast<int>(regions.size())) {
+        // regions[det_idx].set_object_id(new_track_id);
+        //}
     }
 
     // Remove deleted tracks
@@ -489,7 +497,9 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
     // Feature extraction disabled - create dummy zero features
     // Suppress unused parameter warning
     (void)image;
+#if !DISABLE_DBG_LOGS
     g_print("=== FEATURE EXTRACTION DISABLED - Using IoU-only tracking ===\n");
+#endif
     std::vector<std::vector<float>> features(regions.size(), std::vector<float>(128, 0.0f));
 #else
     // Normal feature extraction
@@ -504,6 +514,7 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
         cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
         float confidence = region.confidence();
 
+#if !DISABLE_DBG_LOGS
 #if DISABLE_FEATURE_EXTRACTION
         g_print("{%s} Detection %zu: bbox[%.1f, %.1f, %.1f x %.1f], confidence=%.3f, feature_extraction=DISABLED\n",
                 __FUNCTION__, i, bbox.x, bbox.y, bbox.width, bbox.height, confidence);
@@ -511,7 +522,7 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
         g_print("{%s} Detection %zu: bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n", __FUNCTION__, i,
                 (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence, features[i].size());
 #endif
-
+#endif
         detections.emplace_back(bbox, confidence, features[i], -1);
     }
 
@@ -544,13 +555,16 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
 
             cv::Rect_<float> track_bbox = tracks_[trk_idx]->to_bbox();
             float iou = calculate_iou(detections[det_idx].bbox, track_bbox);
+
+#if !DISABLE_DBG_LOGS
             g_print(
                 "{%s} Detection vs Track : det_bbox[%zu][%.1f, %.1f, %.1f, %.1f] vs track_bbox[%zu][%.1f, %.1f, %.1f, "
                 "%.1f] ; iou=%.3f\n",
                 __FUNCTION__, det_idx, detections[det_idx].bbox.x, detections[det_idx].bbox.y,
                 detections[det_idx].bbox.width, detections[det_idx].bbox.height, trk_idx, track_bbox.x, track_bbox.y,
                 track_bbox.width, track_bbox.height, iou);
-
+#endif
+            // Reject matches with IoU below threshold (poor overlap)
             if (iou < max_iou_distance_) {
                 cost_matrix[det_idx][trk_idx] = 1.0f; // No match
                 continue;
@@ -614,10 +628,21 @@ float DeepSortTracker::calculate_cosine_distance(const std::vector<float> &feat1
 }
 
 float DeepSortTracker::calculate_iou(const cv::Rect_<float> &bbox1, const cv::Rect_<float> &bbox2) {
-    float intersection_area = (bbox1 & bbox2).area();
+    cv::Rect_<float> intersection_rect = bbox1 & bbox2;
+    float intersection_area = intersection_rect.area();
     float union_area = bbox1.area() + bbox2.area() - intersection_area;
 
-    return union_area > 0.0f ? intersection_area / union_area : 0.0f;
+    float iou = union_area > 0.0f ? intersection_area / union_area : 0.0f;
+
+#if !DISABLE_DBG_LOGS
+    // Debug: Print detailed IoU calculation
+    g_print("{%s} IoU calculation: bbox1[%.1f,%.1f,%.1fx%.1f] area=%.1f, bbox2[%.1f,%.1f,%.1fx%.1f] area=%.1f, "
+            "intersection[%.1f,%.1f,%.1fx%.1f] area=%.1f, union=%.1f, iou=%.3f\n",
+            __FUNCTION__, bbox1.x, bbox1.y, bbox1.width, bbox1.height, bbox1.area(), bbox2.x, bbox2.y, bbox2.width,
+            bbox2.height, bbox2.area(), intersection_rect.x, intersection_rect.y, intersection_rect.width,
+            intersection_rect.height, intersection_area, union_area, iou);
+#endif
+    return iou;
 }
 
 void DeepSortTracker::hungarian_assignment(const std::vector<std::vector<float>> &cost_matrix,
