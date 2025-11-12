@@ -244,7 +244,7 @@ class VideoFrame:
                 meta = self.video_meta()
                 if meta:
                     h, w = meta.height, meta.width
-                    requested_size = h * w * bytes_per_pix
+                    requested_size = int(h * w * bytes_per_pix)
                 else:
                     warn(
                         "Video meta is {}. Can't get shape.".format(meta), stacklevel=2
@@ -253,7 +253,7 @@ class VideoFrame:
             try:
                 if mapped_data_size < requested_size:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")
-                elif mapped_data_size == requested_size:
+                elif mapped_data_size == requested_size or bytes_per_pix in [3, 4]:
                     yield numpy.ndarray(
                         (h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8
                     )

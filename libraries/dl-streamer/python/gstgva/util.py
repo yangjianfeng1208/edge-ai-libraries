@@ -4,17 +4,18 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-# pylint: disable=missing-module-docstring
+# pylint: disable=missing-module-docstring,wrong-import-position
 
 import ctypes
 from contextlib import contextmanager
 import gi
-from gi.repository import GstVideo, GstAudio, GLib, GObject, Gst
 
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GstAudio", "1.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gst", "1.0")
+
+from gi.repository import GstVideo, GstAudio, GLib, GObject, Gst
 
 # libgstreamer
 libgst = ctypes.CDLL("libgstreamer-1.0.so.0")
