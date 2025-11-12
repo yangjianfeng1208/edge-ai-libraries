@@ -170,8 +170,8 @@ class DeepSortTracker : public ITracker {
     // Hungarian algorithm for assignment
     void hungarian_assignment(const std::vector<std::vector<float>> &cost_matrix,
                               std::vector<std::pair<int, int>> &assignments);
-    void hungarian_assignment_light(const std::vector<std::vector<float>> &cost_matrix,
-                                    std::vector<std::pair<int, int>> &assignments);
+    void hungarian_assignment_greedy(const std::vector<std::vector<float>> &cost_matrix,
+                                     std::vector<std::pair<int, int>> &assignments);
 };
 
 } // namespace DeepSortWrapper

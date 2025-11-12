@@ -645,8 +645,18 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
         }
     }
 
-    // Hungarian assignment
-    hungarian_assignment(cost_matrix, matches);
+    // Use Hungarian only when confident about assignments
+#if 0    
+    if (max_iou > threshold && feature_confidence > threshold) {
+        hungarian_assignment(cost_matrix, matches);
+    } else {
+        // Hungarian assignment (using greedy version for better ID consistency)
+        hungarian_assignment_greedy(cost_matrix, matches);
+    }
+#endif
+
+    // Hungarian assignment (using greedy version for better ID consistency)
+    hungarian_assignment_greedy(cost_matrix, matches);
 
     // Find unmatched detections and tracks
     std::vector<bool> matched_dets(detections.size(), false);
@@ -920,9 +930,8 @@ void DeepSortTracker::hungarian_assignment(const std::vector<std::vector<float>>
 /**
  * @brief Simple greedy assignment algorithm to solve detection-to-track matching problem
  */
-void DeepSortTracker::hungarian_assignment_light(const std::vector<std::vector<float>> &cost_matrix,
-                                                 std::vector<std::pair<int, int>> &assignments) {
-    // Simple greedy assignment for now (can be replaced with proper Hungarian algorithm)
+void DeepSortTracker::hungarian_assignment_greedy(const std::vector<std::vector<float>> &cost_matrix,
+                                                  std::vector<std::pair<int, int>> &assignments) {
     assignments.clear();
 
     std::vector<bool> det_assigned(cost_matrix.size(), false);
