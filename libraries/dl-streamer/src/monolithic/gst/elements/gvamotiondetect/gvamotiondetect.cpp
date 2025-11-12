@@ -11,9 +11,9 @@
 
 // Platform‑specific includes: VA path only for non-MSVC builds
 #ifndef _MSC_VER
+#include <gmodule.h>
 #include <gst/va/gstvadisplay.h>
 #include <gst/va/gstvautils.h>
-#include <gmodule.h>
 #include <opencv2/core/va_intel.hpp>
 #include <va/va.h>
 #include <va/va_fei.h>
@@ -137,7 +137,8 @@ static GstStaticPadTemplate src_templ =
 
 #if defined(_MSC_VER)
 // Minimal tensor builder stub for Windows build (no analytics meta attachment)
-static inline void attach_motion_meta(GstBuffer * /*buf*/, const std::vector<MotionRect> & /*rois*/) {}
+static inline void attach_motion_meta(GstBuffer * /*buf*/, const std::vector<MotionRect> & /*rois*/) {
+}
 #else
 static post_processing::TensorsTable build_motion_tensors(const std::vector<MotionRect> &rois) {
     post_processing::TensorsTable table(1); // one frame
@@ -249,9 +250,15 @@ static bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *self, const c
 }
 #else
 // Stubs for MSVC build (no VA available)
-static inline int gva_motion_detect_get_surface(GstGvaMotionDetect *, GstBuffer *) { return -1; }
-static inline bool gva_motion_detect_convert_from_surface(GstGvaMotionDetect *, int, int, int, cv::UMat &) { return false; }
-static inline bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *, const cv::UMat &, int, int, int) { return false; }
+static inline int gva_motion_detect_get_surface(GstGvaMotionDetect *, GstBuffer *) {
+    return -1;
+}
+static inline bool gva_motion_detect_convert_from_surface(GstGvaMotionDetect *, int, int, int, cv::UMat &) {
+    return false;
+}
+static inline bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *, const cv::UMat &, int, int, int) {
+    return false;
+}
 #endif
 
 static gboolean gst_gva_motion_detect_start(GstBaseTransform *trans) {
@@ -441,18 +448,22 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         gst_buffer_unmap(buf, &map);
         return GST_FLOW_OK;
     }
-    cv::Mat diff; cv::absdiff(gray, prev, diff);
-    cv::GaussianBlur(diff, diff, cv::Size(3,3), 0);
+    cv::Mat diff;
+    cv::absdiff(gray, prev, diff);
+    cv::GaussianBlur(diff, diff, cv::Size(3, 3), 0);
     cv::threshold(diff, diff, 15, 255, cv::THRESH_BINARY);
-    cv::Mat k = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
+    cv::Mat k = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     cv::morphologyEx(diff, diff, cv::MORPH_OPEN, k);
     cv::dilate(diff, diff, k);
-    std::vector<std::vector<cv::Point>> contours; cv::findContours(diff, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(diff, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     std::vector<MotionRect> rois;
     for (auto &c : contours) {
-        if (c.size() < 3) continue;
+        if (c.size() < 3)
+            continue;
         cv::Rect r = cv::boundingRect(c);
-        if (r.area() < width*height*0.0005) continue;
+        if (r.area() < width * height * 0.0005)
+            continue;
         rois.push_back(MotionRect{r.x, r.y, r.width, r.height});
     }
     // For Windows build stripped of analytics meta system, just log ROI count.
