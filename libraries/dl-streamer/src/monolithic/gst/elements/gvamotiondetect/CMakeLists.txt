@@ -21,52 +21,69 @@ endif()
 
 # Renamed target and output (old: gstva_gpu_filter / va_gpu_filter)
 # Add required post-processing implementation sources for ROIToFrameAttacher vtable
+if(MSVC)
+  # Minimal source set for Windows (avoid OpenVINO-dependent converters)
+  set(GVAMD_EXTRA_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/meta_attacher.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/frame_wrapper.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/post_proc_common.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/blob_to_meta_converter.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/common/gva_utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/logger.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/perf_logger.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp
+  )
+else()
+  set(GVAMD_EXTRA_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/meta_attacher.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/frame_wrapper.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/post_proc_common.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/blob_to_meta_converter.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/common/gva_utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/logger.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/perf_logger.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/clip_token_converter.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/keypoints_3d.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/keypoints_hrnet.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/keypoints_openpose.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/label.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/paddle_ocr.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/raw_data_copy.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/text.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/blob_to_tensor_converter.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/custom_to_tensor.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/detection_anomaly.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/semantic_mask.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/runtime_feature_toggling/runtime_feature_toggler.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/human_pose_extractor/human_pose_extractor.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/human_pose_extractor/peak.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/docTR_ocr.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/base/copy_blob_to_gststruct.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/blob_to_roi_converter.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/boxes_labels.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/detection_output.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/mask_rcnn.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v2.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v3.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v8.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/boxes_labels_scores_base.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/boxes_scores.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/centerface.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/custom_to_roi.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/heatmap_boxes.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_base.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v4.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v5.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v7.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v10.cpp
+    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_x.cpp
+  )
+endif()
+
 add_library(gstgvamotiondetect MODULE
   gvamotiondetect.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/meta_attacher.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/frame_wrapper.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/post_proc_common.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/blob_to_meta_converter.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/common/gva_utils.cpp
-    ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/logger.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/perf_logger.cpp
-  # Converters required by blob_to_meta_converter
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/clip_token_converter.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/keypoints_3d.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/keypoints_hrnet.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/keypoints_openpose.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/label.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/paddle_ocr.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/raw_data_copy.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/text.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/blob_to_tensor_converter.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/custom_to_tensor.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/detection_anomaly.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/semantic_mask.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/runtime_feature_toggling/runtime_feature_toggler.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/human_pose_extractor/human_pose_extractor.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/human_pose_extractor/peak.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_tensor/docTR_ocr.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/base/copy_blob_to_gststruct.cpp
-  ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/blob_to_roi_converter.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/boxes_labels.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/detection_output.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/mask_rcnn.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v2.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v3.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v8.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/boxes_labels_scores_base.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/boxes_scores.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/centerface.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/custom_to_roi.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/heatmap_boxes.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_base.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v4.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v5.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v7.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_v10.cpp
-  ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/converters/to_roi/yolo_x.cpp
+  ${GVAMD_EXTRA_SOURCES}
 )
 
 set_target_properties(gstgvamotiondetect PROPERTIES

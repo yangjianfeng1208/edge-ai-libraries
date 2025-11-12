@@ -38,7 +38,7 @@ class DummyBlobToMetaConverter : public post_processing::BlobToMetaConverter {
 };
 } // namespace
 
-G_BEGIN_DECLS
+// Removed G_BEGIN_DECLS / G_END_DECLS to avoid forcing C linkage on C++ helper functions
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug);
 #define GST_CAT_DEFAULT gst_gva_motion_detect_debug
@@ -52,24 +52,22 @@ struct MotionRect {
 
 struct _GstGvaMotionDetect {
     GstBaseTransform parent;
-
     GstVideoInfo vinfo;
     gboolean caps_is_va; // retained for compatibility
+
+    // Common (both platforms)
+    int blur_kernel;      // odd size (used for potential future smoothing)
+    double blur_sigma;    // gaussian sigma
+    uint64_t frame_index; // running frame counter
 
 #ifndef _MSC_VER
     VADisplay va_dpy;
     GstVaDisplay *va_display;
-
-    int blur_kernel; // odd size
-    double blur_sigma;
-
     cv::UMat scratch;
     cv::Mat overlay_cpu;  // host-side drawing buffer (BGRA)
     cv::UMat overlay_gpu; // device-side buffer used for blending
     bool overlay_ready = false;
     std::string last_text;
-    uint64_t frame_index = 0;
-
     VAConfigID stats_cfg = 0;
     VAContextID stats_ctx = 0;
     VASurfaceID prev_sid = VA_INVALID_SURFACE; // simple 1‑frame history
@@ -197,11 +195,9 @@ static GstCaps *gst_gva_motion_detect_transform_caps(GstBaseTransform *, GstPadD
 }
 
 // -----------------------------------------------------------------------------
+#ifndef _MSC_VER
 // VA API helper functions (extracted from transform_ip for clarity)
-// -----------------------------------------------------------------------------
-
 // Map GST buffer to VA surface (using mapper + fallback) and return VASurfaceID
-
 static VASurfaceID gva_motion_detect_get_surface(GstGvaMotionDetect *self, GstBuffer *buf) {
     if (!buf)
         return VA_INVALID_SURFACE;
@@ -247,6 +243,12 @@ static bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *self, const c
         return false;
     }
 }
+#else
+// Stubs for MSVC build (no VA available)
+static inline int gva_motion_detect_get_surface(GstGvaMotionDetect *, GstBuffer *) { return -1; }
+static inline bool gva_motion_detect_convert_from_surface(GstGvaMotionDetect *, int, int, int, cv::UMat &) { return false; }
+static inline bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *, const cv::UMat &, int, int, int) { return false; }
+#endif
 
 static gboolean gst_gva_motion_detect_start(GstBaseTransform *trans) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
@@ -754,5 +756,3 @@ static gboolean plugin_init(GstPlugin *plugin) {
 
 GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvamotiondetect, "GVA motion detect filter", plugin_init, "1.0",
                   "MIT/X11", "dlstreamer", "https://example.com")
-
-G_END_DECLS
