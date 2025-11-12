@@ -255,7 +255,7 @@ class VideoFrame:
             try:
                 if mapped_data_size < requested_size:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")
-                elif mapped_data_size == requested_size or bytes_per_pix in [3, 4]:
+                elif bytes_per_pix in [3, 4]:
                     yield numpy.ndarray(
                         (h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8
                     )
