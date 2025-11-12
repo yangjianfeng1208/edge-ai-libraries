@@ -212,15 +212,17 @@ class VideoFrame:
     @contextmanager
     def data(self, flag: Gst.MapFlags = Gst.MapFlags.READ) -> numpy.ndarray:
         with gst_buffer_data(self.__buffer, flag) as data:
-            is_yuv_format = self.__video_info.finfo.format in [
-                GstVideo.VideoFormat.NV12,
-                GstVideo.VideoFormat.I420,
+            is_nv12_format = self.__video_info.finfo.format in [
+                GstVideo.VideoFormat.NV12
             ]
             w = self.__video_info.width
             h = self.__video_info.height
-            if is_yuv_format:
+            if is_nv12_format:
                 bytes_per_pix = 1.5
-            elif self.__video_info.finfo.format == GstVideo.VideoFormat.BGR:
+            elif self.__video_info.finfo.format in [
+                GstVideo.VideoFormat.BGR,
+                GstVideo.VideoFormat.I420
+            ]:
                 bytes_per_pix = 3
             elif self.__video_info.finfo.format in [
                 GstVideo.VideoFormat.BGRA,
@@ -257,7 +259,7 @@ class VideoFrame:
                     yield numpy.ndarray(
                         (h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8
                     )
-                elif is_yuv_format:
+                elif is_nv12_format:
                     # In some cases image size after mapping can be larger than expected image size.
                     # One of the reasons can be vaapi decoder which appends lines to the end of an image
                     # so the height is multiple of 16. So we need to return an image that has the same
