@@ -24,11 +24,7 @@ endif()
 if(MSVC)
   # Minimal source set for Windows (avoid OpenVINO-dependent converters)
   set(GVAMD_EXTRA_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/meta_attacher.cpp
-    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/frame_wrapper.cpp
-    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/post_proc_common.cpp
-    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/inference_elements/common/post_processor/blob_to_meta_converter.cpp
-    ${CMAKE_SOURCE_DIR}/src/monolithic/gst/common/gva_utils.cpp
+    # Strip analytics/meta attachment & converters to avoid unresolved externals
     ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/logger.cpp
     ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/logger/perf_logger.cpp
     ${CMAKE_SOURCE_DIR}/src/utils/utils.cpp

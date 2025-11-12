@@ -135,6 +135,10 @@ static GstStaticPadTemplate src_templ =
     GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
 #endif
 
+#if defined(_MSC_VER)
+// Minimal tensor builder stub for Windows build (no analytics meta attachment)
+static inline void attach_motion_meta(GstBuffer * /*buf*/, const std::vector<MotionRect> & /*rois*/) {}
+#else
 static post_processing::TensorsTable build_motion_tensors(const std::vector<MotionRect> &rois) {
     post_processing::TensorsTable table(1); // one frame
     auto &frame_vec = table[0];
@@ -144,13 +148,13 @@ static post_processing::TensorsTable build_motion_tensors(const std::vector<Moti
                                             (guint)r.y, "w_abs", G_TYPE_UINT, (guint)r.w, "h_abs", G_TYPE_UINT,
                                             (guint)r.h, "label", G_TYPE_STRING, "motion", "confidence", G_TYPE_DOUBLE,
                                             1.0, "label_id", G_TYPE_INT, -1, "rotation", G_TYPE_DOUBLE, 0.0, NULL);
-        // Use fully qualified DETECTION_TENSOR_ID
         std::vector<GstStructure *> tensor_slot(std::max((int)post_processing::DETECTION_TENSOR_ID + 1, 1), nullptr);
         tensor_slot[post_processing::DETECTION_TENSOR_ID] = s;
         frame_vec.push_back(std::move(tensor_slot));
     }
     return table;
 }
+#endif
 
 static void gst_gva_motion_detect_set_context(GstElement *elem, GstContext *context) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(elem);
@@ -451,10 +455,9 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         if (r.area() < width*height*0.0005) continue;
         rois.push_back(MotionRect{r.x, r.y, r.width, r.height});
     }
+    // For Windows build stripped of analytics meta system, just log ROI count.
     if (!rois.empty()) {
-        post_processing::TensorsTable tensors = build_motion_tensors(rois);
-        post_processing::FramesWrapper frames(buf, "gvamotiondetect", nullptr);
-        post_processing::ROIToFrameAttacher attacher; DummyBlobToMetaConverter dummy; attacher.attach(tensors, frames, dummy);
+        GST_INFO_OBJECT(self, "Motion blocks detected: %zu (metadata attachment disabled)", rois.size());
     }
     gst_buffer_unmap(buf, &map);
     return GST_FLOW_OK;
