@@ -1,4 +1,8 @@
 ignorefile: tools/visual-pipeline-and-platform-evaluation-tool/.trivyignore.yaml
+scan:
+  scanners:
+    - vuln
+    - license
 format: spdx-json
 vulnerability:
   # This enables ignoring vulnerabilities that don't have a fix yet
