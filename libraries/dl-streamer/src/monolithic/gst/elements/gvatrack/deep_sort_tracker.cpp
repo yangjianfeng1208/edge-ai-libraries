@@ -272,7 +272,7 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
             return std::vector<float>(128, 0.0f);
         }
 
-        // Set input tensor and handle FP16/FP32 data type conversion
+        // Set input tensor
         auto input_tensor = infer_request_.get_input_tensor();
 
         // Bounds check
@@ -284,28 +284,14 @@ std::vector<float> FeatureExtractor::extract(const cv::Mat &image, const cv::Rec
             return std::vector<float>(128, 0.0f);
         }
 
-        // Handle different tensor data types
-        if (input_tensor.get_element_type() == ov::element::f16) {
-            // Model uses FP16 - convert FP32 data to FP16
-            GST_INFO("Model uses FP16, converting FP32 preprocessed data to FP16");
-
-            // Get FP16 data pointer and convert from FP32
-            ov::float16 *input_data_f16 = input_tensor.data<ov::float16>();
-            float *src_data = preprocessed.ptr<float>();
-
-            for (size_t i = 0; i < expected_size; ++i) {
-                input_data_f16[i] = static_cast<ov::float16>(src_data[i]);
-            }
-
-        } else if (input_tensor.get_element_type() == ov::element::f32) {
-            // Model uses FP32 - direct copy
-            GST_INFO("Model uses FP32, direct memcpy");
-
+        if (input_tensor.get_element_type() == ov::element::f32) {
+            // Model uses FP32 (or INT8) - direct copy
             float *input_data = input_tensor.data<float>();
             std::memcpy(input_data, preprocessed.data, expected_size * sizeof(float));
 
         } else {
-            GST_ERROR("Unsupported tensor data type: %s", input_tensor.get_element_type().get_type_name().c_str());
+            GST_ERROR("Unsupported tensor data type: %s. Supporting only FP32 for now.",
+                      input_tensor.get_element_type().get_type_name().c_str());
             return std::vector<float>(128, 0.0f);
         }
 
