@@ -9,7 +9,7 @@ export default createBrowserRouter([
     Component: Layout,
     children: [
       { index: true, Component: Home },
-      { path: "pipelines", Component: Pipelines },
+      { path: "pipelines/:id", Component: Pipelines },
     ],
   },
 ]);

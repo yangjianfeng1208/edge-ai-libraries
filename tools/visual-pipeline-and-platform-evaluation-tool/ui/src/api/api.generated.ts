@@ -3,7 +3,8 @@ export const addTagTypes = [
   "pipelines",
   "devices",
   "models",
-  "metrics",
+  "videos",
+  "convert",
 ] as const;
 const injectedRtkApi = api
   .enhanceEndpoints({
@@ -124,9 +125,28 @@ const injectedRtkApi = api
         query: () => ({ url: `/models` }),
         providesTags: ["models"],
       }),
-      getMetrics: build.query<GetMetricsApiResponse, GetMetricsApiArg>({
-        query: () => ({ url: `/metrics` }),
-        providesTags: ["metrics"],
+      getVideos: build.query<GetVideosApiResponse, GetVideosApiArg>({
+        query: () => ({ url: `/videos` }),
+        providesTags: ["videos"],
+      }),
+      toGraph: build.mutation<ToGraphApiResponse, ToGraphApiArg>({
+        query: (queryArg) => ({
+          url: `/convert/to-graph`,
+          method: "POST",
+          body: queryArg.pipelineDescription,
+        }),
+        invalidatesTags: ["convert"],
+      }),
+      toDescription: build.mutation<
+        ToDescriptionApiResponse,
+        ToDescriptionApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/convert/to-description`,
+          method: "POST",
+          body: queryArg.pipelineGraph,
+        }),
+        invalidatesTags: ["convert"],
       }),
     }),
     overrideExisting: false,
@@ -135,12 +155,13 @@ export { injectedRtkApi as api };
 export type GetPipelinesApiResponse =
   /** status 200 Successful Response */ Pipeline[];
 export type GetPipelinesApiArg = void;
-export type CreatePipelineApiResponse = /** status 201 Pipeline created */ any;
+export type CreatePipelineApiResponse =
+  /** status 201 Pipeline created */ MessageResponse;
 export type CreatePipelineApiArg = {
   pipelineDefinition: PipelineDefinition;
 };
 export type ValidatePipelineApiResponse =
-  /** status 200 Pipeline is valid */ any;
+  /** status 200 Pipeline is valid */ MessageResponse;
 export type ValidatePipelineApiArg = {
   pipelineValidation: PipelineValidation;
 };
@@ -153,7 +174,7 @@ export type GetPipelineInstanceSummaryApiArg = {
   instanceId: string;
 };
 export type StopPipelineInstanceApiResponse =
-  /** status 200 Successful Response */ PipelineInstanceStatus[];
+  /** status 200 Successful Response */ MessageResponse;
 export type StopPipelineInstanceApiArg = {
   instanceId: string;
 };
@@ -168,21 +189,21 @@ export type GetPipelineApiArg = {
   name: string;
   version: string;
 };
-export type RunPipelineApiResponse = /** status 200 Successful Response */
-  | any
-  | /** status 202 Pipeline execution started */ Blob;
+export type RunPipelineApiResponse =
+  /** status 202 Successful Response */ PipelineInstanceResponse;
 export type RunPipelineApiArg = {
   name: string;
   version: string;
   pipelineRequestRunInput: PipelineRequestRun2;
 };
-export type DeletePipelineApiResponse = /** status 200 Pipeline deleted */ any;
+export type DeletePipelineApiResponse =
+  /** status 200 Pipeline deleted */ MessageResponse;
 export type DeletePipelineApiArg = {
   name: string;
   version: string;
 };
 export type BenchmarkPipelineApiResponse =
-  /** status 200 Successful Response */ any;
+  /** status 202 Successful Response */ PipelineInstanceResponse;
 export type BenchmarkPipelineApiArg = {
   name: string;
   version: string;
@@ -201,10 +222,36 @@ export type GetDevicesApiArg = void;
 export type GetModelsApiResponse =
   /** status 200 Successful Response */ Model[];
 export type GetModelsApiArg = void;
-export type GetMetricsApiResponse =
-  /** status 200 Successful Response */ MetricSample[];
-export type GetMetricsApiArg = void;
+export type GetVideosApiResponse =
+  /** status 200 Successful Response */ Video[];
+export type GetVideosApiArg = void;
+export type ToGraphApiResponse =
+  /** status 200 Conversion successful */ PipelineGraph;
+export type ToGraphApiArg = {
+  pipelineDescription: PipelineDescription;
+};
+export type ToDescriptionApiResponse =
+  /** status 200 Conversion successful */ PipelineDescription;
+export type ToDescriptionApiArg = {
+  pipelineGraph: PipelineGraph;
+};
 export type PipelineType = "GStreamer" | "FFmpeg";
+export type Node = {
+  id: string;
+  type: string;
+  data: {
+    [key: string]: string;
+  };
+};
+export type Edge = {
+  id: string;
+  source: string;
+  target: string;
+};
+export type PipelineGraph = {
+  nodes: Node[];
+  edges: Edge[];
+};
 export type PipelineParameters = {
   default: {
     [key: string]: any;
@@ -215,10 +262,11 @@ export type Pipeline = {
   version: string;
   description: string;
   type: PipelineType;
-  launch_config: {
-    [key: string]: any;
-  };
+  pipeline_graph: PipelineGraph;
   parameters: PipelineParameters | null;
+};
+export type MessageResponse = {
+  message: string;
 };
 export type ValidationError = {
   loc: (string | number)[];
@@ -233,12 +281,12 @@ export type PipelineDefinition = {
   version: string;
   description: string;
   type: PipelineType;
-  launch_string: string;
+  pipeline_description: string;
   parameters: PipelineParameters | null;
 };
 export type PipelineValidation = {
   type: PipelineType;
-  launch_string: string;
+  pipeline_description: string;
   parameters: PipelineParameters | null;
 };
 export type PipelineInstanceState =
@@ -255,6 +303,7 @@ export type PipelineInstanceStatus = {
   per_stream_fps: number | null;
   ai_streams: number | null;
   non_ai_streams: number | null;
+  error_message: string | null;
 };
 export type SourceType = "uri" | "gst";
 export type Source = {
@@ -264,7 +313,7 @@ export type Source = {
 export type PipelineParametersRun = {
   inferencing_channels?: number;
   recording_channels?: number;
-  launch_config: string;
+  pipeline_graph: PipelineGraph;
 };
 export type PipelineRequestRun = {
   async_?: boolean | null;
@@ -277,7 +326,7 @@ export type PipelineRequestRun = {
 export type PipelineParametersBenchmark = {
   fps_floor?: number;
   ai_stream_rate?: number;
-  launch_config: string;
+  pipeline_graph: PipelineGraph;
 };
 export type PipelineRequestBenchmark = {
   async_?: boolean | null;
@@ -292,18 +341,31 @@ export type PipelineInstanceSummary = {
   request: PipelineRequestRun | PipelineRequestBenchmark;
   type: string;
 };
+export type PipelineInstanceResponse = {
+  instance_id: string;
+};
+export type PipelineParametersRun2 = {
+  inferencing_channels?: number;
+  recording_channels?: number;
+  pipeline_graph: PipelineGraph;
+};
 export type PipelineRequestRun2 = {
   async_?: boolean | null;
   source: Source;
-  parameters: PipelineParametersRun;
+  parameters: PipelineParametersRun2;
   tags: {
     [key: string]: string;
   } | null;
 };
+export type PipelineParametersBenchmark2 = {
+  fps_floor?: number;
+  ai_stream_rate?: number;
+  pipeline_graph: PipelineGraph;
+};
 export type PipelineRequestBenchmark2 = {
   async_?: boolean | null;
   source: Source;
-  parameters: PipelineParametersBenchmark;
+  parameters: PipelineParametersBenchmark2;
   tags: {
     [key: string]: string;
   } | null;
@@ -331,14 +393,20 @@ export type ModelCategory = "classification" | "detection";
 export type Model = {
   name: string;
   display_name: string;
-  category: ModelCategory;
+  category: ModelCategory | null;
   precision: string | null;
 };
-export type MetricSample = {
-  name: string;
-  description: string;
-  timestamp: number;
-  value: number;
+export type Video = {
+  filename: string;
+  width: number;
+  height: number;
+  fps: number;
+  frame_count: number;
+  codec: string;
+  duration: number;
+};
+export type PipelineDescription = {
+  pipeline_description: string;
 };
 export const {
   useGetPipelinesQuery,
@@ -362,6 +430,8 @@ export const {
   useLazyGetDevicesQuery,
   useGetModelsQuery,
   useLazyGetModelsQuery,
-  useGetMetricsQuery,
-  useLazyGetMetricsQuery,
+  useGetVideosQuery,
+  useLazyGetVideosQuery,
+  useToGraphMutation,
+  useToDescriptionMutation,
 } = injectedRtkApi;
