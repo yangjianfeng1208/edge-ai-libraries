@@ -9,7 +9,6 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
-import type { Node } from "@/api/api.generated.ts";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useState } from "react";
 import { nodeTypes } from "@/features/pipeline-editor/nodes";
@@ -66,158 +65,9 @@ const PipelineEditor = ({
   }, [edges, onEdgesChangeCallback]);
 
   useEffect(() => {
-    if (pipelineData?.launch_config) {
-      // const nodes = pipelineData.launch_config.nodes || [];
-      // const edges = pipelineData.launch_config.edges || [];
-
-      // Get the raw nodes and edges from API (using hardcoded data for now)
-      const nodes: Node[] = [
-        {
-          id: "0",
-          type: "filesrc",
-          data: {
-            location: "${VIDEO}",
-          },
-        },
-        {
-          id: "1",
-          type: "qtdemux",
-          data: {},
-        },
-        {
-          id: "2",
-          type: "h264parse",
-          data: {},
-        },
-        {
-          id: "3",
-          type: "vah264dec",
-          data: {},
-        },
-        {
-          id: "4",
-          type: "video/x-raw(memory:VAMemory)",
-          data: {},
-        },
-        {
-          id: "5",
-          type: "gvafpscounter",
-          data: {
-            "starting-frame": "500",
-          },
-        },
-        {
-          id: "6",
-          type: "gvadetect",
-          data: {
-            model: "${YOLO11n_POST_MODEL}",
-            device: "GPU",
-            "pre-process-backend": "va-surface-sharing",
-            "model-instance-id": "yolo11-pose",
-          },
-        },
-        {
-          id: "7",
-          type: "queue2",
-          data: {},
-        },
-        {
-          id: "8",
-          type: "gvatrack",
-          data: {
-            "tracking-type": "short-term-imageless",
-          },
-        },
-        {
-          id: "9",
-          type: "gvawatermark",
-          data: {},
-        },
-        {
-          id: "10",
-          type: "gvametaconvert",
-          data: {
-            format: "json",
-            "json-indent": "4",
-          },
-        },
-        {
-          id: "11",
-          type: "gvametapublish",
-          data: {
-            method: "file",
-            "file-path": "/dev/null",
-          },
-        },
-        {
-          id: "12",
-          type: "fakesink",
-          data: {},
-        },
-      ];
-
-      const edges: ReactFlowEdge[] = [
-        {
-          id: "0",
-          source: "0",
-          target: "1",
-        },
-        {
-          id: "1",
-          source: "1",
-          target: "2",
-        },
-        {
-          id: "2",
-          source: "2",
-          target: "3",
-        },
-        {
-          id: "3",
-          source: "3",
-          target: "4",
-        },
-        {
-          id: "4",
-          source: "4",
-          target: "5",
-        },
-        {
-          id: "5",
-          source: "5",
-          target: "6",
-        },
-        {
-          id: "6",
-          source: "6",
-          target: "7",
-        },
-        {
-          id: "7",
-          source: "7",
-          target: "8",
-        },
-        {
-          id: "8",
-          source: "8",
-          target: "9",
-        },
-        {
-          id: "9",
-          source: "9",
-          target: "10",
-        },
-        {
-          id: "10",
-          source: "10",
-          target: "11",
-        },
-        {
-          id: "11",
-          source: "11",
-          target: "12",
-        },
-      ];
+    if (pipelineData?.pipeline_graph) {
+      const nodes = pipelineData.pipeline_graph.nodes || [];
+      const edges = pipelineData.pipeline_graph.edges || [];
 
       const transformedNodes = nodes.map(
         (node) =>
