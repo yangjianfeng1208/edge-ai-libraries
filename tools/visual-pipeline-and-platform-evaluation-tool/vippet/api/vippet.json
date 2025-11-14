@@ -461,7 +461,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PipelineRequestRun-Input"
+                "$ref": "#/components/schemas/PipelineRequestRun"
               }
             }
           }
@@ -582,7 +582,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PipelineRequestBenchmark-Input"
+                "$ref": "#/components/schemas/PipelineRequestBenchmark"
               }
             }
           }
@@ -923,6 +923,29 @@
         ],
         "title": "Pipeline"
       },
+      "PipelineBenchmarkSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "stream_rate": {
+            "type": "integer",
+            "title": "Stream Rate",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "PipelineBenchmarkSpec"
+      },
       "PipelineDefinition": {
         "properties": {
           "name": {
@@ -1028,7 +1051,7 @@
             ],
             "title": "Per Stream Fps"
           },
-          "ai_streams": {
+          "total_streams": {
             "anyOf": [
               {
                 "type": "integer"
@@ -1037,18 +1060,24 @@
                 "type": "null"
               }
             ],
-            "title": "Ai Streams"
+            "title": "Total Streams"
           },
-          "non_ai_streams": {
+          "streams_per_pipeline": {
             "anyOf": [
               {
-                "type": "integer"
+                "items": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object"
+                },
+                "type": "array"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Non Ai Streams"
+            "title": "Streams Per Pipeline"
           },
           "error_message": {
             "anyOf": [
@@ -1070,8 +1099,8 @@
           "state",
           "total_fps",
           "per_stream_fps",
-          "ai_streams",
-          "non_ai_streams",
+          "total_streams",
+          "streams_per_pipeline",
           "error_message"
         ],
         "title": "PipelineInstanceStatus"
@@ -1085,10 +1114,10 @@
           "request": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PipelineRequestRun-Output"
+                "$ref": "#/components/schemas/PipelineRequestRun"
               },
               {
-                "$ref": "#/components/schemas/PipelineRequestBenchmark-Output"
+                "$ref": "#/components/schemas/PipelineRequestBenchmark"
               }
             ],
             "title": "Request"
@@ -1127,135 +1156,24 @@
         ],
         "title": "PipelineParameters"
       },
-      "PipelineParametersBenchmark": {
+      "PipelineRequestBenchmark": {
         "properties": {
           "fps_floor": {
             "type": "integer",
             "title": "Fps Floor",
             "default": 30
           },
-          "ai_stream_rate": {
-            "type": "integer",
-            "title": "Ai Stream Rate",
-            "default": 100
-          },
-          "pipeline_graph": {
-            "type": "string",
-            "title": "Pipeline Graph"
+          "pipeline_specs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineBenchmarkSpec"
+            },
+            "type": "array",
+            "title": "Pipeline Specs"
           }
         },
         "type": "object",
         "required": [
-          "pipeline_graph"
-        ],
-        "title": "PipelineParametersBenchmark"
-      },
-      "PipelineParametersRun": {
-        "properties": {
-          "inferencing_channels": {
-            "type": "integer",
-            "title": "Inferencing Channels",
-            "default": 1
-          },
-          "recording_channels": {
-            "type": "integer",
-            "title": "Recording Channels",
-            "default": 0
-          },
-          "pipeline_graph": {
-            "type": "string",
-            "title": "Pipeline Graph"
-          }
-        },
-        "type": "object",
-        "required": [
-          "pipeline_graph"
-        ],
-        "title": "PipelineParametersRun"
-      },
-      "PipelineRequestBenchmark-Input": {
-        "properties": {
-          "async_": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Async",
-            "default": true
-          },
-          "source": {
-            "$ref": "#/components/schemas/Source"
-          },
-          "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersBenchmark"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
-          }
-        },
-        "type": "object",
-        "required": [
-          "source",
-          "parameters",
-          "tags"
-        ],
-        "title": "PipelineRequestBenchmark"
-      },
-      "PipelineRequestBenchmark-Output": {
-        "properties": {
-          "async_": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Async",
-            "default": true
-          },
-          "source": {
-            "$ref": "#/components/schemas/Source"
-          },
-          "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersBenchmark"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
-          }
-        },
-        "type": "object",
-        "required": [
-          "source",
-          "parameters",
-          "tags"
+          "pipeline_specs"
         ],
         "title": "PipelineRequestBenchmark"
       },
@@ -1311,91 +1229,44 @@
         ],
         "title": "PipelineRequestOptimize"
       },
-      "PipelineRequestRun-Input": {
+      "PipelineRequestRun": {
         "properties": {
-          "async_": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Async",
-            "default": true
-          },
-          "source": {
-            "$ref": "#/components/schemas/Source"
-          },
-          "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersRun"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
+          "pipeline_run_specs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRunSpec"
+            },
+            "type": "array",
+            "title": "Pipeline Run Specs"
           }
         },
         "type": "object",
         "required": [
-          "source",
-          "parameters",
-          "tags"
+          "pipeline_run_specs"
         ],
         "title": "PipelineRequestRun"
       },
-      "PipelineRequestRun-Output": {
+      "PipelineRunSpec": {
         "properties": {
-          "async_": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Async",
-            "default": true
+          "name": {
+            "type": "string",
+            "title": "Name"
           },
-          "source": {
-            "$ref": "#/components/schemas/Source"
+          "version": {
+            "type": "string",
+            "title": "Version"
           },
-          "parameters": {
-            "$ref": "#/components/schemas/PipelineParametersRun"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
+          "streams": {
+            "type": "integer",
+            "title": "Streams",
+            "default": 1
           }
         },
         "type": "object",
         "required": [
-          "source",
-          "parameters",
-          "tags"
+          "name",
+          "version"
         ],
-        "title": "PipelineRequestRun"
+        "title": "PipelineRunSpec"
       },
       "PipelineType": {
         "type": "string",

@@ -12,8 +12,6 @@ import psutil as ps
 from dataclasses import dataclass
 from subprocess import PIPE, Popen
 
-from gstpipeline import GstPipeline
-
 
 @dataclass
 class PipelineRunResult:
@@ -58,19 +56,13 @@ class PipelineRunner:
         self.logger = logging.getLogger("PipelineRunner")
         self.cancelled = False
 
-    def run(
-        self,
-        pipeline_description: GstPipeline,
-        regular_channels: int = 0,
-        inference_channels: int = 1,
-    ) -> PipelineRunResult:
+    def run(self, pipeline_command: str, total_streams: int) -> PipelineRunResult:
         """
         Run a GStreamer pipeline and extract FPS metrics.
 
         Args:
-            pipeline_description (GstPipeline): The GStreamer pipeline description to execute.
-            regular_channels: Number of regular (non-AI) channels.
-            inference_channels: Number of inference (AI) channels.
+            pipeline_command: The complete GStreamer pipeline command string.
+            total_streams: Total number of streams to expect in metrics.
 
         Returns:
             PipelineRunResult containing total_fps, per_stream_fps, and num_streams.
@@ -79,11 +71,7 @@ class PipelineRunner:
             RuntimeError: If pipeline execution fails.
         """
         # Construct the pipeline command
-        pipeline_cmd = "gst-launch-1.0 -q " + pipeline_description.evaluate(
-            regular_channels, inference_channels
-        )
-
-        total_channels = inference_channels + regular_channels
+        pipeline_cmd = "gst-launch-1.0 -q " + pipeline_command
 
         # Log the command
         self.logger.info(f"Pipeline Command: {pipeline_cmd}")
@@ -144,7 +132,7 @@ class PipelineRunner:
                             )
 
                             # Skip the result if the number of streams does not match
-                            if result["number_streams"] != total_channels:
+                            if result["number_streams"] != total_streams:
                                 continue
 
                             latest_fps = result["per_stream_fps"]
@@ -183,7 +171,7 @@ class PipelineRunner:
                         "number_streams": int(match.group(3)),
                         "per_stream_fps": float(match.group(4)),
                     }
-                    if result["number_streams"] == total_channels:
+                    if result["number_streams"] == total_streams:
                         total_fps = result["total_fps"]
                         num_streams = result["number_streams"]
                         per_stream_fps = result["per_stream_fps"]
@@ -209,15 +197,15 @@ class PipelineRunner:
 
             # Fallback to average FPS if overall not found
             if total_fps is None and avg_fps_dict.keys():
-                if total_channels in avg_fps_dict.keys():
-                    total_fps = avg_fps_dict[total_channels]["total_fps"]
-                    num_streams = avg_fps_dict[total_channels]["number_streams"]
-                    per_stream_fps = avg_fps_dict[total_channels]["per_stream_fps"]
+                if total_streams in avg_fps_dict.keys():
+                    total_fps = avg_fps_dict[total_streams]["total_fps"]
+                    num_streams = avg_fps_dict[total_streams]["number_streams"]
+                    per_stream_fps = avg_fps_dict[total_streams]["per_stream_fps"]
                 else:
                     # Find closest match
                     closest_match = min(
                         avg_fps_dict.keys(),
-                        key=lambda x: abs(x - total_channels),
+                        key=lambda x: abs(x - total_streams),
                         default=None,
                     )
                     if closest_match is not None:

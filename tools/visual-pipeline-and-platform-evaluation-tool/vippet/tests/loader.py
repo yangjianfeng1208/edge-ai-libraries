@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from gstpipeline import GstPipeline, PipelineLoader
+from pipelines.loader import GstPipeline, PipelineLoader
 
 
 class TestGstPipeline(unittest.TestCase):

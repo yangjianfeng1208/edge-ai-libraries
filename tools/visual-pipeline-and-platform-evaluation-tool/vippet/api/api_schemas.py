@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from fastapi import Body
 from pydantic import BaseModel
 from enum import Enum
@@ -55,13 +55,13 @@ class PipelineParameters(BaseModel):
 class PipelineRunSpec(BaseModel):
     name: str
     version: str
-    channels: int = 1
+    streams: int = 1
 
 
 class PipelineBenchmarkSpec(BaseModel):
     name: str
     version: str
-    ai_stream_rate: int = 100
+    stream_rate: int = 100
 
 
 class Pipeline(BaseModel):
@@ -89,12 +89,12 @@ class PipelineValidation(BaseModel):
 
 
 class PipelineRequestRun(BaseModel):
-    run_configs: list[PipelineRunSpec]
+    pipeline_run_specs: list[PipelineRunSpec]
 
 
 class PipelineRequestBenchmark(BaseModel):
     fps_floor: int = 30
-    benchmark_configs: list[PipelineBenchmarkSpec]
+    pipeline_specs: list[PipelineBenchmarkSpec]
 
 
 class PipelineRequestOptimize(BaseModel):
@@ -115,8 +115,8 @@ class PipelineInstanceStatus(BaseModel):
     state: PipelineInstanceState
     total_fps: Optional[float]
     per_stream_fps: Optional[float]
-    ai_streams: Optional[int]
-    non_ai_streams: Optional[int]
+    total_streams: Optional[int]
+    streams_per_pipeline: Optional[List[Dict[str, int]]]
     error_message: Optional[str]
 
 

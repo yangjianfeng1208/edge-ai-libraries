@@ -7,24 +7,26 @@ based on configurable parameters and stream counts.
 import logging
 from dataclasses import dataclass
 import math
+from typing import Dict, List
 
 from pipeline_runner import PipelineRunner, PipelineRunResult
-from gstpipeline import GstPipeline
+from api.api_schemas import PipelineBenchmarkSpec, PipelineRunSpec
+from managers.pipeline_manager import get_pipeline_manager
+
+pipeline_manager = get_pipeline_manager()
 
 
 @dataclass
 class BenchmarkResult:
     n_streams: int
-    ai_streams: int
-    non_ai_streams: int
+    streams_per_pipeline: List[Dict]
     per_stream_fps: float
 
     def __repr__(self):
         return (
             f"BenchmarkResult("
             f"n_streams={self.n_streams}, "
-            f"ai_streams={self.ai_streams}, "
-            f"non_ai_streams={self.non_ai_streams}, "
+            f"streams_per_pipeline={self.streams_per_pipeline}, "
             f"per_stream_fps={self.per_stream_fps}"
             f")"
         )
@@ -38,23 +40,96 @@ class Benchmark:
         self.runner = PipelineRunner()
         self.logger = logging.getLogger(__name__)
 
+    def _calculate_streams_per_pipeline(
+        self, pipeline_specs: list[PipelineBenchmarkSpec], total_streams: int
+    ) -> list[int]:
+        """
+        Calculate the number of streams for each pipeline based on their stream_rate ratios.
+
+        Args:
+            pipeline_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
+            total_streams: Total number of streams to distribute.
+
+        Returns:
+            List of stream counts per pipeline.
+
+        Raises:
+            ValueError: If stream_rate ratios don't sum to 100.
+        """
+        # Validate that ratios sum to 100
+        total_ratio = sum(spec.stream_rate for spec in pipeline_specs)
+        if total_ratio != 100:
+            raise ValueError(
+                f"Pipeline stream_rate ratios must sum to 100%, got {total_ratio}%"
+            )
+
+        # Calculate streams per pipeline
+        streams_per_pipeline = []
+        remaining_streams = total_streams
+
+        for i, spec in enumerate(pipeline_specs):
+            if i == len(pipeline_specs) - 1:
+                # Last pipeline gets all remaining streams to handle rounding
+                streams_per_pipeline.append(remaining_streams)
+            else:
+                # Calculate proportional streams and round
+                streams = round(total_streams * spec.stream_rate / 100)
+                streams_per_pipeline.append(streams)
+                remaining_streams -= streams
+
+        return streams_per_pipeline
+
     def run(
-        self, pipeline_description: GstPipeline, fps_floor: float, rate: int
+        self, pipeline_specs: list[PipelineBenchmarkSpec], fps_floor: float
     ) -> BenchmarkResult:
-        """Run the benchmark and return the best configuration."""
+        """
+        Run the benchmark and return the best configuration.
+
+        Args:
+            pipeline_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
+            fps_floor: Minimum FPS threshold per stream.
+
+        Returns:
+            BenchmarkResult with optimal stream configuration.
+        """
+        # Validate ratios sum to 100%
+        self._calculate_streams_per_pipeline(pipeline_specs, 1)  # Validate only
+
         n_streams = 1
         per_stream_fps = 0.0
         exponential = True
         lower_bound = 1
         # We'll set this once we fall below the fps_floor
         higher_bound = -1
-        best_config = (0, 0, 0, 0.0)
+        best_config: tuple[int, list[PipelineRunSpec], float] = (
+            0,
+            [],
+            0.0,
+        )  # (total_streams, run_specs, fps)
 
         while True:
-            ai_streams = math.ceil(n_streams * (rate / 100))
-            non_ai_streams = n_streams - ai_streams
+            # Calculate streams per pipeline based on ratios
+            streams_per_pipeline = self._calculate_streams_per_pipeline(
+                pipeline_specs, n_streams
+            )
 
-            results = self.runner.run(pipeline_description, non_ai_streams, ai_streams)
+            # Build run specs with calculated channel counts
+            run_specs = [
+                PipelineRunSpec(name=spec.name, version=spec.version, streams=streams)
+                for spec, streams in zip(pipeline_specs, streams_per_pipeline)
+            ]
+
+            self.logger.info(
+                "Running benchmark with n_streams=%d, streams_per_pipeline=%s",
+                n_streams,
+                streams_per_pipeline,
+            )
+
+            # Build pipeline command
+            pipeline_command = pipeline_manager.build_pipeline_command(run_specs)
+
+            # Run the pipeline
+            results = self.runner.run(pipeline_command, n_streams)
 
             # Check for cancellation
             if self.runner.is_cancelled():
@@ -87,8 +162,7 @@ class Benchmark:
                 if per_stream_fps >= fps_floor:
                     best_config = (
                         n_streams,
-                        ai_streams,
-                        non_ai_streams,
+                        run_specs.copy(),
                         per_stream_fps,
                     )
                     n_streams *= 2
@@ -102,8 +176,7 @@ class Benchmark:
                 if per_stream_fps >= fps_floor:
                     best_config = (
                         n_streams,
-                        ai_streams,
-                        non_ai_streams,
+                        run_specs.copy(),
                         per_stream_fps,
                     )
                     lower_bound = n_streams + 1
@@ -119,17 +192,29 @@ class Benchmark:
                 n_streams = 1  # Prevent N from going below 1
 
         if best_config[0] > 0:
+            # Use best configuration found
+            total_streams = best_config[0]
+            best_run_specs = best_config[1]
+
+            # Build streams_per_pipeline dict from best_run_specs
+            streams_per_pipeline = [
+                {f"{spec.version}": spec.streams} for spec in best_run_specs
+            ]
+
             bm_result = BenchmarkResult(
-                n_streams=best_config[0],
-                ai_streams=best_config[1],
-                non_ai_streams=best_config[2],
-                per_stream_fps=best_config[3],
+                n_streams=total_streams,
+                streams_per_pipeline=streams_per_pipeline,
+                per_stream_fps=best_config[2],
             )
         else:
+            # Fallback to last attempt - build streams_per_pipeline from last run_specs
+            streams_per_pipeline = [
+                {f"{spec.version}": spec.streams} for spec in run_specs
+            ]
+
             bm_result = BenchmarkResult(
                 n_streams=n_streams,
-                ai_streams=ai_streams,
-                non_ai_streams=non_ai_streams,
+                streams_per_pipeline=streams_per_pipeline,
                 per_stream_fps=per_stream_fps,
             )
 

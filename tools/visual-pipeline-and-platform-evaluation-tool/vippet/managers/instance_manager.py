@@ -1,9 +1,8 @@
-import os
 import time
 import uuid
 import threading
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from dataclasses import dataclass
 
 from api.api_schemas import (
@@ -14,10 +13,11 @@ from api.api_schemas import (
     PipelineInstanceSummary,
     PipelineType,
 )
-from gstpipeline import PipelineLoader
 from pipeline_runner import PipelineRunner
 from benchmark import Benchmark
-from utils import download_file, replace_file_path
+from managers.pipeline_manager import get_pipeline_manager
+
+pipeline_manager = get_pipeline_manager()
 
 
 @dataclass
@@ -31,9 +31,16 @@ class PipelineInstance:
     end_time: Optional[int] = None
     total_fps: Optional[float] = None
     per_stream_fps: Optional[float] = None
-    ai_streams: Optional[int] = None
-    non_ai_streams: Optional[int] = None
+    total_streams: Optional[int] = None
+    streams_per_pipeline: Optional[List[Dict[str, int]]] = None
     error_message: Optional[str] = None
+
+
+@dataclass
+class PipelineRunSpec:
+    name: str
+    version: str
+    streams: int
 
 
 class InstanceManager:
@@ -118,8 +125,8 @@ class InstanceManager:
             state=instance.state,
             total_fps=instance.total_fps,
             per_stream_fps=instance.per_stream_fps,
-            ai_streams=instance.ai_streams,
-            non_ai_streams=instance.non_ai_streams,
+            total_streams=instance.total_streams,
+            streams_per_pipeline=instance.streams_per_pipeline,
             error_message=instance.error_message,
         )
 
@@ -208,7 +215,6 @@ class InstanceManager:
                 instance.error_message = error_message
         self.logger.error(f"Pipeline instance {instance_id} error: {error_message}")
 
-    # TODO: Refactor the temporary pipeline execution method
     def _execute_pipeline(
         self,
         instance_id: str,
@@ -218,29 +224,20 @@ class InstanceManager:
     ):
         """Execute the pipeline in a background thread."""
         try:
-            # Download the pipeline recording file
-            file_name = os.path.basename(str(pipeline_request.source.uri))
-            file_path = download_file(
-                pipeline_request.source.uri,
-                file_name,
+            # Build pipeline command from specs
+            pipeline_command = pipeline_manager.build_pipeline_command(
+                pipeline_request.pipeline_run_specs
             )
 
-            pipeline_description = (
-                pipeline_request.parameters.pipeline_graph
-            )  # TODO: Convert pipeline_graph in JSON format to pipeline_description
+            # Calculate total streams
+            total_streams = sum(
+                spec.streams for spec in pipeline_request.pipeline_run_specs
+            )
 
-            # Replace file path in launch string if needed
-            pipeline_description = replace_file_path(pipeline_description, file_path)
-
-            # Initialize pipeline object from launch string
-            gst_pipeline = PipelineLoader.load(pipeline_request.run_configs)
-
-            inferencing_channels = pipeline_request.parameters.inferencing_channels
-            recording_channels = pipeline_request.parameters.recording_channels
-
-            if recording_channels + inferencing_channels == 0:
+            if total_streams == 0:
                 self._update_instance_error(
-                    instance_id, "At least one channel must be enabled"
+                    instance_id,
+                    "At least one stream must be specified to run the pipeline.",
                 )
                 return
 
@@ -253,9 +250,8 @@ class InstanceManager:
 
             # Run the pipeline
             results = runner.run(
-                pipeline_description=gst_pipeline,
-                regular_channels=recording_channels,
-                inference_channels=inferencing_channels,
+                pipeline_command=pipeline_command,
+                total_streams=total_streams,
             )
 
             # Update instance with results
@@ -277,10 +273,17 @@ class InstanceManager:
                         instance.end_time = int(time.time() * 1000)
 
                         if results is not None:
+                            # Build streams distribution per pipeline
+                            streams_per_pipeline = [
+                                {f"{spec.version}": spec.streams}
+                                for spec in pipeline_request.pipeline_run_specs
+                            ]
+
+                            # Update performance metrics
                             instance.total_fps = results.total_fps
                             instance.per_stream_fps = results.per_stream_fps
-                            instance.ai_streams = inferencing_channels
-                            instance.non_ai_streams = recording_channels
+                            instance.total_streams = results.num_streams
+                            instance.streams_per_pipeline = streams_per_pipeline
 
                 # Clean up runner after completion
                 self.runners.pop(instance_id, None)
@@ -291,7 +294,6 @@ class InstanceManager:
                 self.runners.pop(instance_id, None)
             self._update_instance_error(instance_id, str(e))
 
-    # TODO: Refactor the temporary pipeline benchmark execution method
     def _execute_benchmark(
         self,
         instance_id: str,
@@ -301,23 +303,6 @@ class InstanceManager:
     ):
         """Execute the benchmark in a background thread."""
         try:
-            # Download the pipeline recording file
-            file_name = os.path.basename(str(pipeline_request.source.uri))
-            file_path = download_file(
-                pipeline_request.source.uri,
-                file_name,
-            )
-
-            pipeline_description = (
-                pipeline_request.parameters.pipeline_graph
-            )  # TODO: Convert pipeline_graph in JSON format to pipeline_description
-
-            # Replace file path in launch string if needed
-            pipeline_description = replace_file_path(pipeline_description, file_path)
-
-            # Initialize pipeline object from launch string
-            gst_pipeline = PipelineLoader.load(pipeline_description)
-
             # Initialize Benchmark
             benchmark = Benchmark()
 
@@ -327,9 +312,8 @@ class InstanceManager:
 
             # Run the benchmark
             results = benchmark.run(
-                pipeline_description=gst_pipeline,
-                fps_floor=pipeline_request.parameters.fps_floor,
-                rate=pipeline_request.parameters.ai_stream_rate,
+                pipeline_specs=pipeline_request.pipeline_specs,
+                fps_floor=pipeline_request.fps_floor,
             )
 
             # Update instance with results
@@ -352,11 +336,10 @@ class InstanceManager:
 
                         instance.total_fps = None
                         instance.per_stream_fps = results.per_stream_fps
-                        instance.ai_streams = results.ai_streams
-                        instance.non_ai_streams = results.non_ai_streams
+                        instance.streams_per_pipeline = results.streams_per_pipeline
 
                         self.logger.info(
-                            f"Benchmark completed for instance {instance_id}: streams={results.n_streams}, ai={results.ai_streams}, non_ai={results.non_ai_streams}, fps={results.per_stream_fps}"
+                            f"Benchmark completed for instance {instance_id}: streams={results.n_streams}, streams_per_pipeline={results.streams_per_pipeline}, fps={results.per_stream_fps}"
                         )
 
                 # Clean up benchmark after completion

@@ -1,12 +1,34 @@
 import logging
+import sys
+from typing import Optional
 
-from gstpipeline import PipelineLoader
-from api.api_schemas import PipelineType, Pipeline, PipelineDefinition
+from pipelines.loader import PipelineLoader
+from utils import make_tee_names_unique
+from api.api_schemas import PipelineType, Pipeline, PipelineDefinition, PipelineRunSpec
+
+logger = logging.getLogger("pipeline_manager")
+
+# Singleton instance for PipelineManager
+_pipeline_manager_instance: Optional["PipelineManager"] = None
+
+
+def get_pipeline_manager() -> "PipelineManager":
+    """
+    Returns the singleton instance of PipelineManager.
+    If it cannot be created, logs an error and exits the application.
+    """
+    global _pipeline_manager_instance
+    if _pipeline_manager_instance is None:
+        try:
+            _pipeline_manager_instance = PipelineManager()
+        except Exception as e:
+            logger.error(f"Failed to initialize PipelineManager: {e}")
+            sys.exit(1)
+    return _pipeline_manager_instance
 
 
 class PipelineManager:
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
         self.pipelines = self.load_predefined_pipelines()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
@@ -29,7 +51,7 @@ class PipelineManager:
         )
 
         self.pipelines.append(pipeline)
-        self.logger.debug(f"Pipeline added: {pipeline}")
+        logger.debug(f"Pipeline added: {pipeline}")
 
     def get_pipelines(self) -> list[Pipeline]:
         return self.pipelines
@@ -71,5 +93,41 @@ class PipelineManager:
                     parameters=None,
                 )
             )
-        self.logger.debug("Loaded predefined pipelines: %s", predefined_pipelines)
+        logger.debug("Loaded predefined pipelines: %s", predefined_pipelines)
         return predefined_pipelines
+
+    def build_pipeline_command(self, pipeline_run_specs: list[PipelineRunSpec]) -> str:
+        """
+        Build a complete GStreamer pipeline command from run specifications.
+
+        Args:
+            pipeline_run_specs: List of PipelineRunSpec defining pipelines and streams.
+
+        Returns:
+            str: Complete GStreamer pipeline command string.
+
+        Raises:
+            ValueError: If any pipeline in specs is not found.
+        """
+        pipeline_parts = []
+
+        for pipeline_index, run_spec in enumerate(pipeline_run_specs):
+            # Retrieve the pipeline definition
+            pipeline = self.get_pipeline_by_name_and_version(
+                run_spec.name, run_spec.version
+            )
+
+            # Extract the pipeline description string
+            # TODO: Convert pipeline_graph from JSON to string if needed
+            base_pipeline_str = str(
+                pipeline.pipeline_graph["converted_pipeline_description"]
+            )
+
+            # Create one pipeline instance per stream with unique tee names
+            for stream_index in range(run_spec.streams):
+                unique_pipeline_str = make_tee_names_unique(
+                    base_pipeline_str, pipeline_index, stream_index
+                )
+                pipeline_parts.append(unique_pipeline_str)
+
+        return " ".join(pipeline_parts)

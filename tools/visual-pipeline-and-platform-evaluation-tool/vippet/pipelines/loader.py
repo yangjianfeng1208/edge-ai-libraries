@@ -3,26 +3,6 @@ from pathlib import Path
 from typing import List
 import yaml
 
-from api.api_schemas import Pipeline, PipelineRunSpec
-
-
-class GstPipeline:
-    def __init__(self, pipeline_description):
-        self._pipeline_description = pipeline_description
-
-    def evaluate(
-        self,
-        run_configs: list[PipelineRunSpec],
-    ) -> str:
-        descriptions = [
-            " ".join(
-                [self._pipeline_description[f"{run_config.name}-{run_config.version}"]]
-                * run_config.channels
-            )
-            for run_config in run_configs
-        ]
-        return " ".join(descriptions)
-
 
 class PipelineLoader:
     @staticmethod
@@ -74,26 +54,3 @@ class PipelineLoader:
         # At this point, config_path_real is guaranteed to exist and be within pipelines_dir
         with open(config_path_real, "r", encoding="utf-8") as f:
             return yaml.safe_load(f.read())
-
-    @staticmethod
-    def load(
-        pipelines: list[Pipeline], run_configs: list[PipelineRunSpec]
-    ) -> GstPipeline:
-        """
-        Load a custom pipeline from a launch string.
-
-        Args:
-            pipeline_description: The launch command string.
-
-        Returns:
-            GstPipeline: An instance of GstPipeline initialized with the launch string.
-        """
-        pipeline_descriptions = {
-            f"{run_config.name}-{run_config.version}": pipeline.pipeline_graph
-            for run_config in run_configs
-            for pipeline in pipelines
-            if pipeline.name == run_config.name
-            and pipeline.version == run_config.version
-        }
-
-        return GstPipeline(pipeline_descriptions)
