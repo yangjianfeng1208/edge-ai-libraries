@@ -6,19 +6,11 @@
 
 #include "deep_sort_tracker.h"
 #include "mapped_mat.h"
-#include "vas/components/ot/kalman_filter/kalman_filter_no_opencv.h"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 
-// Temporary flag to disable feature extraction and use only IoU-based tracking
-// Set to 1 to disable features (IoU-only), set to 0 to enable full Deep SORT features
-#define DISABLE_FEATURE_EXTRACTION 0
 #define DISABLE_DBG_LOGS 1
-
-// Alternative implementation flag - use VAS Kalman filter instead of OpenCV-based implementation
-// Set to 1 to use VAS Kalman filter, set to 0 to use original OpenCV implementation
-#define USE_VAS_KALMAN_FILTER 0
 
 namespace DeepSortWrapper {
 
@@ -29,19 +21,8 @@ namespace DeepSortWrapper {
  */
 Track::Track(const cv::Rect_<float> &bbox, int track_id, int n_init, int max_age, const std::vector<float> &feature)
     : track_id_(track_id), hits_(1), age_(1), time_since_update_(0), state_(TrackState::Tentative), n_init_(n_init),
-      max_age_(max_age), nn_budget_(DEFAULT_NN_BUDGET)
-#if USE_VAS_KALMAN_FILTER
-      ,
-      kalman_filter_(std::make_unique<vas::KalmanFilterNoOpencv>(bbox))
-#endif
-{
-#if USE_VAS_KALMAN_FILTER
-    // VAS Kalman filter is already initialized in the initializer list
-    // Store the initial bbox for prediction/correction cycle
-    last_bbox_ = bbox;
-#else
+      max_age_(max_age), nn_budget_(DEFAULT_NN_BUDGET) {
     initiate(bbox);
-#endif
     add_feature(feature);
 }
 
@@ -75,14 +56,6 @@ void Track::initiate(const cv::Rect_<float> &bbox) {
  * @brief Predict next state using Kalman filter motion model (constant velocity)
  */
 void Track::predict() {
-#if USE_VAS_KALMAN_FILTER
-    // Use VAS Kalman filter for prediction
-    if (kalman_filter_) {
-        // Predict with default delta_t (33ms for 30fps)
-        predicted_bbox_ = kalman_filter_->Predict(0.033f);
-        last_bbox_ = predicted_bbox_;
-    }
-#else
     // Original OpenCV-based implementation
     // State transition matrix
     cv::Mat F = cv::Mat::eye(8, 8, CV_32F);
@@ -111,7 +84,6 @@ void Track::predict() {
 
     // Update covariance
     covariance_ = F * covariance_ * F.t() + Q;
-#endif
 }
 
 /**
@@ -120,13 +92,6 @@ void Track::predict() {
 void Track::update(const Detection &detection) {
     predict();
 
-#if USE_VAS_KALMAN_FILTER
-    // Use VAS Kalman filter for correction
-    if (kalman_filter_) {
-        corrected_bbox_ = kalman_filter_->Correct(detection.bbox);
-        last_bbox_ = corrected_bbox_;
-    }
-#else
     // Original OpenCV-based implementation
     // Measurement model (we observe x, y, aspect_ratio, height)
     cv::Mat H = cv::Mat::zeros(4, 8, CV_32F);
@@ -159,7 +124,6 @@ void Track::update(const Detection &detection) {
 
     mean_ = mean_ + K * y;
     covariance_ = covariance_ - K * H * covariance_;
-#endif
 
     add_feature(detection.feature);
 
@@ -191,10 +155,6 @@ void Track::mark_missed() {
  * @brief Convert Kalman filter state back to bounding box coordinates
  */
 cv::Rect_<float> Track::to_bbox() const {
-#if USE_VAS_KALMAN_FILTER
-    // Return the last predicted/corrected bbox from VAS Kalman filter
-    return last_bbox_;
-#else
     // Original OpenCV-based implementation
     float center_x = mean_.at<float>(0);
     float center_y = mean_.at<float>(1);
@@ -203,7 +163,6 @@ cv::Rect_<float> Track::to_bbox() const {
     float width = aspect_ratio * height;
 
     return cv::Rect_<float>(center_x - width / 2.0f, center_y - height / 2.0f, width, height);
-#endif
 }
 
 /**
@@ -462,33 +421,14 @@ std::vector<float> FeatureExtractor::postprocess(const ov::Tensor &output) {
 DeepSortTracker::DeepSortTracker(const std::string &feature_model_path, const std::string &device,
                                  float max_iou_distance, float max_age, int n_init, float max_cosine_distance,
                                  int nn_budget, dlstreamer::MemoryMapperPtr mapper)
-#if DISABLE_FEATURE_EXTRACTION
-    : feature_extractor_(nullptr), next_id_(1),
-#else
     : feature_extractor_(std::make_unique<FeatureExtractor>(feature_model_path, device)), next_id_(1),
-#endif
       max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
       max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
 
-#if DISABLE_FEATURE_EXTRACTION
-    // Suppress unused parameter warnings when feature extraction is disabled
-    (void)feature_model_path;
-    (void)device;
-    g_print("DeepSortTracker initialized with FEATURE EXTRACTION DISABLED: max_iou_distance=%.3f, max_age=%.3f, "
-            "n_init=%d\n",
-            max_iou_distance_, max_age_, n_init_);
-#else
 #if !DISABLE_DBG_LOGS
-#if USE_VAS_KALMAN_FILTER
-    g_print("DeepSortTracker initialized with VAS KALMAN FILTER: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, "
-            "max_cosine_distance=%.3f\n",
-            max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
-#else
     g_print("DeepSortTracker initialized with OpenCV KALMAN FILTER: max_iou_distance=%.3f, max_age=%.3f, n_init=%d, "
             "max_cosine_distance=%.3f\n",
             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
-#endif
-#endif
 #endif
 }
 
@@ -547,15 +487,8 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
 
     // Create new tracks for unmatched detections
     for (int det_idx : unmatched_dets) {
-#if DISABLE_FEATURE_EXTRACTION
-        // Create track with dummy feature when feature extraction is disabled
-        std::vector<float> dummy_feature(128, 0.0f);
-        auto new_track =
-            std::make_unique<Track>(detections[det_idx].bbox, next_id_++, n_init_, max_age_, dummy_feature);
-#else
         auto new_track = std::make_unique<Track>(detections[det_idx].bbox, next_id_++, n_init_, max_age_,
                                                  detections[det_idx].feature);
-#endif
         tracks_.push_back(std::move(new_track));
 #if !DISABLE_DBG_LOGS
         int new_track_id = new_track->track_id();
@@ -564,12 +497,6 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
                 detections[det_idx].bbox.x, detections[det_idx].bbox.y, detections[det_idx].bbox.width,
                 detections[det_idx].bbox.height, track_state.c_str());
 #endif
-        // Note: For Deep SORT, we typically don't assign IDs to new tracks immediately
-        // They need to be confirmed first (survive for n_init frames)
-        // Testing immediate ID assignment:
-        // if (det_idx < static_cast<int>(regions.size())) {
-        // regions[det_idx].set_object_id(new_track_id);
-        //}
     }
 
     // Remove deleted tracks
@@ -626,21 +553,11 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
     }
 
     // Extract features for all detections
-#if DISABLE_FEATURE_EXTRACTION
-    // Feature extraction disabled - create dummy zero features
-    // Suppress unused parameter warning
-    (void)image;
-#if !DISABLE_DBG_LOGS
-    g_print("=== FEATURE EXTRACTION DISABLED - Using IoU-only tracking ===\n");
-#endif
-    std::vector<std::vector<float>> features(regions.size(), std::vector<float>(128, 0.0f));
-#else
     // Normal feature extraction
     if (!feature_extractor_) {
         throw std::runtime_error("Feature extractor not initialized but features are enabled");
     }
     auto features = feature_extractor_->extract_batch(image, bboxes);
-#endif
 
     for (size_t i = 0; i < regions.size(); ++i) {
         const auto &region = regions[i];
@@ -648,13 +565,8 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
         float confidence = region.confidence();
 
 #if !DISABLE_DBG_LOGS
-#if DISABLE_FEATURE_EXTRACTION
-        g_print("{%s} Detection %zu: bbox[%.1f, %.1f, %.1f x %.1f], confidence=%.3f, feature_extraction=DISABLED\n",
-                __FUNCTION__, i, bbox.x, bbox.y, bbox.width, bbox.height, confidence);
-#else
         g_print("{%s} Detection %zu: bbox[%d,%d,%d,%d], confidence=%.3f, feature_size=%zu\n", __FUNCTION__, i,
                 (int)bbox.x, (int)bbox.y, (int)bbox.width, (int)bbox.height, confidence, features[i].size());
-#endif
 #endif
         detections.emplace_back(bbox, confidence, features[i], -1);
     }
@@ -706,10 +618,6 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
                 continue;
             }
 
-#if DISABLE_FEATURE_EXTRACTION
-            // Feature extraction disabled - use only IoU for matching
-            cost_matrix[det_idx][trk_idx] = 1.0f - iou; // Convert IoU to cost (higher IoU = lower cost)
-#else
             // Calculate minimum cosine distance to track features
             float min_cosine_dist = 1.0f;
             const auto &track_features = tracks_[trk_idx]->features();
@@ -725,7 +633,6 @@ void DeepSortTracker::associate_detections_to_tracks(const std::vector<Detection
                 // Combine IoU and cosine distance
                 cost_matrix[det_idx][trk_idx] = 0.5f * (1.0f - iou) + 0.5f * min_cosine_dist;
             }
-#endif
         }
     }
 
@@ -1012,7 +919,7 @@ void DeepSortTracker::hungarian_assignment(const std::vector<std::vector<float>>
 }
 
 /**
- * @brief Simple greedy assignment algorithm to solve detection-to-track matching problem
+ * @brief Simple greedy assignment algorithm
  */
 void DeepSortTracker::hungarian_assignment_greedy(const std::vector<std::vector<float>> &cost_matrix,
                                                   std::vector<std::pair<int, int>> &assignments) {
