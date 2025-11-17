@@ -1816,7 +1816,6 @@ size_t OpenVINOImageInference::GetNireq() const {
 void OpenVINOImageInference::UseNonContiguousTensors() {
     if ((_impl->_device.find("NPU") != std::string::npos) && (_impl->_memory_type == MemoryType::SYSTEM) &&
         (pre_processor == nullptr)) {
-    {
         GVA_WARNING("Force OPENCV preprocessor to convert non-contiguous tensors into contigous memory location");
         pre_processor.reset(
             InferenceBackend::ImagePreprocessor::Create(InferenceBackend::ImagePreprocessorType::OPENCV, ""));
