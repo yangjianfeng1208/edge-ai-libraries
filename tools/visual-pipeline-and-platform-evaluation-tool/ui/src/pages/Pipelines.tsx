@@ -7,6 +7,7 @@ import {
 import {
   type Edge as ReactFlowEdge,
   type Node as ReactFlowNode,
+  type Viewport,
 } from "@xyflow/react";
 import { useState } from "react";
 import PipelineEditor from "@/features/pipeline-editor/PipelineEditor.tsx";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 import RunPipelineButton from "@/features/pipeline-editor/RunPipelineButton.tsx";
 import StopPipelineButton from "@/features/pipeline-editor/StopPipelineButton.tsx";
 import StatePreviewButton from "@/features/pipeline-editor/StatePreviewButton.tsx";
+import DownloadPipelineButton from "@/features/pipeline-editor/DownloadPipelineButton.tsx";
 
 type UrlParams = {
   id: string;
@@ -27,6 +29,11 @@ const Pipelines = () => {
   );
   const [currentNodes, setCurrentNodes] = useState<ReactFlowNode[]>([]);
   const [currentEdges, setCurrentEdges] = useState<ReactFlowEdge[]>([]);
+  const [currentViewport, setCurrentViewport] = useState<Viewport>({
+    x: 0,
+    y: 0,
+    zoom: 1,
+  });
 
   const { data, isSuccess } = useGetPipelineQuery(
     {
@@ -48,6 +55,10 @@ const Pipelines = () => {
 
   const handleEdgesChange = (edges: ReactFlowEdge[]) => {
     setCurrentEdges(edges);
+  };
+
+  const handleViewportChange = (viewport: Viewport) => {
+    setCurrentViewport(viewport);
   };
 
   const handleRunPipeline = async () => {
@@ -128,13 +139,14 @@ const Pipelines = () => {
     }
   };
 
-  if (isSuccess) {
+  if (isSuccess && data) {
     return (
       <div style={{ width: "100%", height: "100vh", position: "relative" }}>
         <PipelineEditor
           pipelineData={data}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
+          onViewportChange={handleViewportChange}
         />
 
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
@@ -152,6 +164,13 @@ const Pipelines = () => {
                 onRunPipeline={handleRunPipeline}
               />
             )}
+
+            <DownloadPipelineButton
+              edges={currentEdges}
+              nodes={currentNodes}
+              viewport={currentViewport}
+              pipelineName={data.version}
+            />
 
             <StatePreviewButton edges={currentEdges} nodes={currentNodes} />
           </div>

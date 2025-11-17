@@ -6,8 +6,11 @@ import {
   type Node as ReactFlowNode,
   type NodeMouseHandler,
   ReactFlow,
+  ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
+  type Viewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useState } from "react";
@@ -23,16 +26,19 @@ interface PipelineEditorProps {
   pipelineData?: Pipeline;
   onNodesChange?: (nodes: ReactFlowNode[]) => void;
   onEdgesChange?: (edges: ReactFlowEdge[]) => void;
+  onViewportChange?: (viewport: Viewport) => void;
 }
 
-const PipelineEditor = ({
+const PipelineEditorContent = ({
   pipelineData,
   onNodesChange: onNodesChangeCallback,
   onEdgesChange: onEdgesChangeCallback,
+  onViewportChange: onViewportChangeCallback,
 }: PipelineEditorProps) => {
   const [selectedNode, setSelectedNode] = useState<ReactFlowNode | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<ReactFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<ReactFlowEdge>([]);
+  const { getViewport } = useReactFlow();
 
   const onNodeClick: NodeMouseHandler = (event, node) => {
     event.stopPropagation();
@@ -98,6 +104,10 @@ const PipelineEditor = ({
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
+        onMoveEnd={() => {
+          const viewport = getViewport();
+          onViewportChangeCallback?.(viewport);
+        }}
         nodesDraggable={true}
         fitView
       >
@@ -112,5 +122,11 @@ const PipelineEditor = ({
     </div>
   );
 };
+
+const PipelineEditor = (props: PipelineEditorProps) => (
+  <ReactFlowProvider>
+    <PipelineEditorContent {...props} />
+  </ReactFlowProvider>
+);
 
 export default PipelineEditor;
