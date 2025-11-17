@@ -32,7 +32,7 @@ RUN apt-get update && \
 # Switch to dlstreamer user
 USER dlstreamer
 
-# Set GStreamer plugin path (orignal GST_PLUGIN_PATH ends with a colon, so there is no need to add one here)
+# Set GStreamer plugin path (original GST_PLUGIN_PATH ends with a colon, so there is no need to add one here)
 ENV GST_PLUGIN_PATH=$GST_PLUGIN_PATH/usr/lib/x86_64-linux-gnu/gstreamer-1.0/
 
 # Add DLSOptimizer scripts to PYTHONPATH
