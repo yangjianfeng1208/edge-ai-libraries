@@ -33,7 +33,7 @@ class PipelineInstance:
     total_fps: Optional[float] = None
     per_stream_fps: Optional[float] = None
     total_streams: Optional[int] = None
-    streams_per_pipeline: Optional[List[Dict[str, int]]] = None
+    streams_per_pipeline: Optional[List[PipelineRunSpec]] = None
     error_message: Optional[str] = None
 
 

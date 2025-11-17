@@ -7,7 +7,7 @@ based on configurable parameters and stream counts.
 import logging
 from dataclasses import dataclass
 import math
-from typing import Dict, List
+from typing import List
 
 from pipeline_runner import PipelineRunner, PipelineRunResult
 from api.api_schemas import PipelineBenchmarkSpec, PipelineRunSpec

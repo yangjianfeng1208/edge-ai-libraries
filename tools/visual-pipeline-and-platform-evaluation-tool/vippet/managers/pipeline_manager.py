@@ -5,7 +5,13 @@ from typing import Optional
 from pipelines.loader import PipelineLoader
 from utils import make_tee_names_unique
 from graph import Graph
-from api.api_schemas import PipelineType, Pipeline, PipelineDefinition, PipelineRunSpec, PipelineGraph
+from api.api_schemas import (
+    PipelineType,
+    Pipeline,
+    PipelineDefinition,
+    PipelineRunSpec,
+    PipelineGraph,
+)
 
 logger = logging.getLogger("pipeline_manager")
 

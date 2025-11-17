@@ -7,6 +7,7 @@ from api.api_schemas import PipelineType, PipelineDefinition
 class TestPipelineManager(unittest.TestCase):
     def test_add_pipeline_valid(self):
         manager = PipelineManager()
+        manager.pipelines = []  # Reset pipelines for isolated test
         initial_count = len(manager.get_pipelines())
 
         new_pipeline = PipelineDefinition(
@@ -31,6 +32,7 @@ class TestPipelineManager(unittest.TestCase):
 
     def test_add_pipeline_duplicate(self):
         manager = PipelineManager()
+        manager.pipelines = []  # Reset pipelines for isolated test
 
         new_pipeline = PipelineDefinition(
             name="user-defined-pipelines",
@@ -69,19 +71,35 @@ class TestPipelineManager(unittest.TestCase):
         manager = PipelineManager()
         pipelines = manager.get_pipelines()
         self.assertIsInstance(pipelines, list)
-        self.assertEqual(len(pipelines), 2)
+        self.assertGreaterEqual(len(pipelines), 3)
 
-        self.assertEqual(pipelines[0].name, "predefined_pipelines")
-        self.assertEqual(pipelines[0].version, "SimpleVideoStructurizationPipeline")
-        self.assertEqual(
-            pipelines[0].description, "Simple Video Structurization (D-T-C)"
-        )
-        self.assertIsNotNone(pipelines[0].pipeline_graph)
+        # Define expected pipelines (name, version, description)
+        expected = [
+            (
+                "predefined_pipelines",
+                "simplevs",
+                "Simple Video Structurization (D-T-C)",
+            ),
+            (
+                "predefined_pipelines",
+                "smartnvr-analytics",
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Analytics Branch",
+            ),
+            (
+                "predefined_pipelines",
+                "smartnvr-mediaonly",
+                "Smart Network Video Recorder (NVR) Proxy Pipeline - Media Only Branch",
+            ),
+        ]
 
-        self.assertEqual(pipelines[1].name, "predefined_pipelines")
-        self.assertEqual(pipelines[1].version, "SmartNVRPipeline")
-        self.assertEqual(
-            pipelines[1].description,
-            "Smart Network Video Recorder (NVR) Proxy Pipeline",
-        )
-        self.assertIsNotNone(pipelines[1].pipeline_graph)
+        # Check that each expected pipeline is present in the loaded pipelines
+        for exp_name, exp_version, exp_desc in expected:
+            found = [
+                p
+                for p in pipelines
+                if p.name == exp_name
+                and p.version == exp_version
+                and p.description == exp_desc
+            ]
+            self.assertTrue(found, f"Pipeline {exp_name} {exp_version} not found")
+            self.assertIsNotNone(found[0].pipeline_graph)

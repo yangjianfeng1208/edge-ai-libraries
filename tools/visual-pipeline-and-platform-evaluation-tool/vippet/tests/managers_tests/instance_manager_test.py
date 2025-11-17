@@ -3,15 +3,12 @@ import unittest
 from unittest.mock import patch
 
 from api.api_schemas import (
-    PipelineGraph,
     PipelineRequestRun,
-    PipelineParametersRun,
+    PipelineRunSpec,
+    PipelineBenchmarkSpec,
     PipelineRequestBenchmark,
-    PipelineParametersBenchmark,
     PipelineInstanceState,
     PipelineType,
-    Source,
-    SourceType,
 )
 from managers.instance_manager import InstanceManager, PipelineInstance
 
@@ -58,16 +55,13 @@ class TestInstanceManager(unittest.TestCase):
         initial_count = len(manager.instances)
 
         pipeline_request = PipelineRequestRun(
-            source=Source(
-                type=SourceType.URI,
-                uri="test-recording-uri",
-            ),
-            parameters=PipelineParametersRun(
-                inferencing_channels=1,
-                recording_channels=0,
-                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
-            ),
-            tags=None,
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    streams=1,
+                )
+            ]
         )
 
         with patch.object(manager, "_execute_pipeline") as mock_execute:
@@ -84,16 +78,13 @@ class TestInstanceManager(unittest.TestCase):
     def test_run_pipeline_creates_instance_with_running_state(self):
         manager = InstanceManager()
         pipeline_request = PipelineRequestRun(
-            source=Source(
-                type=SourceType.URI,
-                uri="test-recording-uri",
-            ),
-            parameters=PipelineParametersRun(
-                inferencing_channels=1,
-                recording_channels=0,
-                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
-            ),
-            tags=None,
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    streams=1,
+                )
+            ]
         )
 
         with patch.object(manager, "_execute_pipeline"):
@@ -115,16 +106,14 @@ class TestInstanceManager(unittest.TestCase):
         initial_count = len(manager.instances)
 
         pipeline_request = PipelineRequestBenchmark(
-            source=Source(
-                type=SourceType.URI,
-                uri="test-recording-uri",
-            ),
-            parameters=PipelineParametersBenchmark(
-                fps_floor=30,
-                ai_stream_rate=100,
-                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
-            ),
-            tags=None,
+            fps_floor=30,
+            pipeline_specs=[
+                PipelineBenchmarkSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    stream_rate=100,
+                )
+            ],
         )
 
         with patch.object(manager, "_execute_benchmark") as mock_execute:
@@ -151,29 +140,24 @@ class TestInstanceManager(unittest.TestCase):
 
         # Create two instances
         pipeline_request_run = PipelineRequestRun(
-            source=Source(
-                type=SourceType.URI,
-                uri="test-recording-uri",
-            ),
-            parameters=PipelineParametersRun(
-                inferencing_channels=1,
-                recording_channels=0,
-                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
-            ),
-            tags=None,
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    streams=1,
+                )
+            ]
         )
 
         pipeline_request_benchmark = PipelineRequestBenchmark(
-            source=Source(
-                type=SourceType.URI,
-                uri="test-recording-uri",
-            ),
-            parameters=PipelineParametersBenchmark(
-                fps_floor=30,
-                ai_stream_rate=100,
-                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
-            ),
-            tags=None,
+            fps_floor=30,
+            pipeline_specs=[
+                PipelineBenchmarkSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    stream_rate=100,
+                )
+            ],
         )
 
         with (
@@ -212,16 +196,13 @@ class TestInstanceManager(unittest.TestCase):
 
         # Create an instance manually and add it to the manager
         pipeline_request_run = PipelineRequestRun(
-            source=Source(
-                type=SourceType.URI,
-                uri="test-recording-uri",
-            ),
-            parameters=PipelineParametersRun(
-                inferencing_channels=1,
-                recording_channels=0,
-                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
-            ),
-            tags=None,
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    streams=1,
+                )
+            ]
         )
         instance = PipelineInstance(
             id="test-instance-id",
@@ -232,8 +213,8 @@ class TestInstanceManager(unittest.TestCase):
             state=PipelineInstanceState.RUNNING,
             total_fps=120,
             per_stream_fps=30,
-            ai_streams=3,
-            non_ai_streams=0,
+            total_streams=1,
+            streams_per_pipeline=pipeline_request_run.pipeline_run_specs,
         )
         manager.instances[instance.id] = instance
 
@@ -244,8 +225,8 @@ class TestInstanceManager(unittest.TestCase):
         self.assertEqual(status.state, instance.state)
         self.assertEqual(status.total_fps, instance.total_fps)
         self.assertEqual(status.per_stream_fps, instance.per_stream_fps)
-        self.assertEqual(status.ai_streams, instance.ai_streams)
-        self.assertEqual(status.non_ai_streams, instance.non_ai_streams)
+        self.assertEqual(status.total_streams, instance.total_streams)
+        self.assertEqual(status.streams_per_pipeline, instance.streams_per_pipeline)
 
     def test_get_instance_summary_returns_none_for_nonexistent_instance(self):
         manager = InstanceManager()
@@ -257,16 +238,13 @@ class TestInstanceManager(unittest.TestCase):
 
         # Create an instance manually and add it to the manager
         pipeline_request = PipelineRequestRun(
-            source=Source(
-                type=SourceType.URI,
-                uri="test-recording-uri",
-            ),
-            parameters=PipelineParametersRun(
-                inferencing_channels=1,
-                recording_channels=0,
-                pipeline_graph=PipelineGraph.model_validate_json(self.test_graph),
-            ),
-            tags=None,
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    streams=1,
+                )
+            ]
         )
 
         instance = PipelineInstance(
