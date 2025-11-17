@@ -10,18 +10,18 @@
 #                     |
 #                     |
 #                     V
-#                  builder --------------------------
-#                     |                             |
-#                     |                             |
-#                     V                             |
-#                ffmpeg-builder                     V
-#                /           \                 kafka-builder
-#               V             V                     |
-#      gstreamer-builder  opencv-builder            |
-#                \            /                     |
-#      (copy libs)\          /(copy libs)           |
-#                  V        V        (copy libs)    |
-#                dlstreamer-dev <-------------------|
+#                  builder ---------------------------------------------------
+#                     |                             |                        |
+#                     |                             |                        |
+#                     V                             |                        |
+#                ffmpeg-builder                     V                        |
+#                /           \                 kafka-builder           realsense-builder
+#               V             V                     |                        |
+#      gstreamer-builder  opencv-builder            |                        |
+#                \            /                     |                        |
+#      (copy libs)\          /(copy libs)           |                        |
+#                  V        V        (copy libs)    |                        |
+#                dlstreamer-dev <-------------------|------------------------|
 #                      |
 #                      |
 #                      V
@@ -312,6 +312,33 @@ WORKDIR /copy_libs
 RUN cp -a /usr/local/lib/librdkafka* ./
 # ==============================================================================
 
+FROM builder AS realsense-builder
+# Build rdkafka
+SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
+
+# Build librealsense
+WORKDIR /home/dlstreamer
+
+RUN dnf install -y systemd-devel gtk3-devel && \
+    dnf clean all
+
+RUN git clone https://github.com/IntelRealSense/librealsense.git librealsense
+
+WORKDIR /home/dlstreamer/librealsense
+
+RUN mkdir build
+
+WORKDIR /home/dlstreamer/librealsense/build
+
+RUN \
+    cmake ../ -DCMAKE_BUILD_TYPE="${BUILD_ARG}" -DBUILD_EXAMPLES=false -DBUILD_GRAPHICAL_EXAMPLES=false && \
+    make -j "$(nproc)" && \
+    make install
+WORKDIR /copy_libs
+RUN cp -a /usr/local/lib64/librealsense* ./
+
+# ==============================================================================
+
 FROM builder AS dlstreamer-dev
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
@@ -327,6 +354,8 @@ COPY --from=opencv-builder /copy_libs/ /usr/local/lib64/
 COPY --from=opencv-builder /usr/local/lib64/cmake/opencv4 /usr/local/lib64/cmake/opencv4
 COPY --from=kafka-builder /copy_libs/ /usr/local/lib/
 COPY --from=kafka-builder /usr/local/include/librdkafka /usr/local/include/librdkafka
+COPY --from=realsense-builder /copy_libs/ /usr/local/lib64/
+COPY --from=realsense-builder /usr/local/include/librealsense2 /usr/local/include/librealsense2
 
 # Intel® Distribution of OpenVINO™ Toolkit
 RUN \
@@ -383,6 +412,7 @@ RUN \
         -DENABLE_RDKAFKA_INSTALLATION=ON \
         -DENABLE_VAAPI=ON \
         -DENABLE_SAMPLES=ON \
+        -DENABLE_REALSENSE=ON \
         .. && \
     make -j "$(nproc)" && \
     usermod -a -G video dlstreamer && \
@@ -412,6 +442,7 @@ RUN \
     mkdir -p /${RPM_PKG_NAME}/opt/rdkafka && \
     mkdir -p /${RPM_PKG_NAME}/opt/ffmpeg && \
     mkdir -p /${RPM_PKG_NAME}/opt/dlstreamer && \
+    mkdir -p /${RPM_PKG_NAME}/opt/realsense && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /${RPM_PKG_NAME}/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /${RPM_PKG_NAME}/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /${RPM_PKG_NAME}/opt/intel/dlstreamer/ && \
@@ -421,6 +452,7 @@ RUN \
     cp -rT "${GSTREAMER_DIR}" /${RPM_PKG_NAME}/opt/intel/dlstreamer/gstreamer && \
     cp -a /usr/local/lib64/libopencv* /${RPM_PKG_NAME}/opt/opencv/ && \
     cp -a /usr/local/lib/librdkafka* /${RPM_PKG_NAME}/opt/rdkafka/ && \
+    cp -a /usr/local/lib64/librealsense* /${RPM_PKG_NAME}/opt/realsense/ && \
     find /usr/local/lib -regextype grep -regex ".*libav.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \
     find /usr/local/lib -regextype grep -regex ".*libswscale.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \
     find /usr/local/lib -regextype grep -regex ".*libswresample.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \

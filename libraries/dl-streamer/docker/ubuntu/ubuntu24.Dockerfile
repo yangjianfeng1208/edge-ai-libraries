@@ -301,16 +301,9 @@ RUN \
     strip -g "${GSTREAMER_DIR}"/lib/gstreamer-1.0/libgstrs*.so
 
 # ==============================================================================
-FROM builder AS dlstreamer-dev
 
-# DL Streamer development image and build proccess
-
+FROM builder AS realsense-builder
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
-
-COPY --from=opencv-builder /usr/local/include/opencv4 /usr/local/include/opencv4
-COPY --from=opencv-builder /copy_libs/ /usr/local/lib/
-COPY --from=opencv-builder /usr/local/lib/cmake/opencv4 /usr/local/lib/cmake/opencv4
-COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 
 # Build librealsense
 WORKDIR /home/dlstreamer
@@ -331,6 +324,24 @@ RUN \
     cmake ../ -DCMAKE_BUILD_TYPE="${BUILD_ARG}" -DBUILD_EXAMPLES=false -DBUILD_GRAPHICAL_EXAMPLES=false && \
     make -j "$(nproc)" && \
     make install
+
+WORKDIR /copy_libs
+RUN cp -a /usr/local/lib/librealsense* ./
+
+# ==============================================================================
+
+FROM builder AS dlstreamer-dev
+
+# DL Streamer development image and build proccess
+
+SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
+
+COPY --from=opencv-builder /usr/local/include/opencv4 /usr/local/include/opencv4
+COPY --from=opencv-builder /copy_libs/ /usr/local/lib/
+COPY --from=opencv-builder /usr/local/lib/cmake/opencv4 /usr/local/lib/cmake/opencv4
+COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
+COPY --from=realsense-builder /copy_libs/ /usr/local/lib/
+COPY --from=realsense-builder /usr/local/include/librealsense2 /usr/local/include/librealsense2
 
 # Build DL Streamer
 WORKDIR /home/dlstreamer
@@ -417,6 +428,7 @@ RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
     mkdir -p /deb-pkg/opt/opencv/include && \
+    mkdir -p /deb-pkg/opt/realsense/ && \
     find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -427,6 +439,7 @@ RUN \
     cp -rT "${GSTREAMER_DIR}" /deb-pkg/opt/intel/dlstreamer/gstreamer && \
     cp -a /usr/local/lib/libopencv*.so* /deb-pkg/opt/opencv/ && \
     cp -r /usr/local/include/opencv4/* /deb-pkg/opt/opencv/include && \
+    cp -a /usr/local/lib/librealsense* /deb-pkg/opt/realsense/ && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docs && \
@@ -514,8 +527,8 @@ RUN \
 
 # DL Streamer environment variables
 ENV LIBVA_DRIVER_NAME=iHD
-ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/opt/opencv:/usr/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
+ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/opt/opencv:/opt/librealsense:/usr/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
 ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc
