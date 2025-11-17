@@ -91,7 +91,7 @@ bool VaApiImage::IsContiguous() {
     bool contiguous = true;
     auto dpy = VaDpyWrapper::fromHandle(image.va_display);
     VAImage va_image;
-    
+
     VA_CALL(dpy.drvVtable().vaDeriveImage(dpy.drvCtx(), image.va_surface_id, &va_image));
     for (uint32_t plane = 0; plane < va_image.num_planes; plane++) {
         if (va_image.pitches[plane] != image.width) {
