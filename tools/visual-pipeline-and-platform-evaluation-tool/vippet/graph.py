@@ -133,7 +133,7 @@ class Graph:
                 )
 
         pipeline_description = " ".join(result_parts)
-        logger.info(f"Generated pipeline description: {pipeline_description}")
+        logger.debug(f"Generated pipeline description: {pipeline_description}")
 
         return pipeline_description
 

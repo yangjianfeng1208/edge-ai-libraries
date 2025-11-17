@@ -6,12 +6,14 @@ from fastapi.responses import JSONResponse
 import api.api_schemas as schemas
 from managers.pipeline_manager import PipelineManager
 from managers.instance_manager import InstanceManager
+from managers.optimization_manager import get_optimization_manager
 
 TEMP_DIR = tempfile.gettempdir()
 
 router = APIRouter()
 pipeline_manager = PipelineManager()
 instance_manager = InstanceManager()
+optimization_manager = get_optimization_manager()
 
 
 @router.get("", operation_id="get_pipelines", response_model=List[schemas.Pipeline])
@@ -188,11 +190,55 @@ def benchmark_pipeline(name: str, version: str, body: schemas.PipelineRequestBen
     return schemas.PipelineInstanceResponse(instance_id=instance_id)
 
 
-@router.post("/{name}/{version}/optimize", operation_id="optimize_pipeline")
-def optimize_pipeline(
-    name: str, version: str, request: schemas.PipelineRequestOptimize
-):
-    return {"message": "Optimization started"}
+@router.post(
+    "/{name}/{version}/optimize",
+    operation_id="optimize_pipeline",
+    responses={
+        202: {
+            "description": "Pipeline optimization started",
+            "model": schemas.OptimizationJobResponse,
+        },
+        404: {"description": "Pipeline not found", "model": schemas.MessageResponse},
+        500: {"description": "Unexpected error", "model": schemas.MessageResponse},
+    },
+)
+def optimize_pipeline(name: str, version: str, body: schemas.PipelineRequestOptimize):
+    """
+    Start an asynchronous optimization job for a given pipeline.
+
+    The handler performs the following steps:
+
+    * look up the pipeline identified by ``name`` and ``version`` using
+      :data:`pipeline_manager`,
+    * delegate the optimization request to :data:`optimization_manager`,
+      which creates a background job and returns its ``job_id``,
+    * wrap the ``job_id`` into :class:`schemas.OptimizationJobResponse`
+      and return it with HTTP 202 (Accepted).
+
+    Error handling
+    --------------
+    * If the pipeline does not exist, a 404 response with
+      :class:`schemas.MessageResponse` is returned.
+    * Any unexpected exception results in a 500 response with a generic
+      error message, while the original exception string is preserved
+      for easier debugging.
+    """
+    try:
+        pipeline = pipeline_manager.get_pipeline_by_name_and_version(name, version)
+        job_id = optimization_manager.run_optimization(pipeline, body)
+        return schemas.OptimizationJobResponse(job_id=job_id)
+    except ValueError as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(message=str(e)).model_dump(),
+            status_code=404,
+        )
+    except Exception as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Unexpected error: {str(e)}"
+            ).model_dump(),
+            status_code=500,
+        )
 
 
 @router.delete(

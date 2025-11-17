@@ -17,6 +17,13 @@ class PipelineInstanceState(str, Enum):
     ABORTED = "ABORTED"
 
 
+class OptimizationJobState(str, Enum):
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    ERROR = "ERROR"
+    ABORTED = "ABORTED"
+
+
 class SourceType(str, Enum):
     URI = "uri"
     GST = "gst"
@@ -36,6 +43,11 @@ class DeviceFamily(str, Enum):
 class ModelCategory(str, Enum):
     CLASSIFICATION = "classification"
     DETECTION = "detection"
+
+
+class OptimizationType(str, Enum):
+    PREPROCESS = "preprocess"
+    OPTIMIZE = "optimize"
 
 
 # Define minimal models based on schema references
@@ -124,10 +136,8 @@ class PipelineRequestBenchmark(BaseModel):
 
 
 class PipelineRequestOptimize(BaseModel):
-    async_: Optional[bool] = Body(default=True, alias="async")
-    source: Source
+    type: OptimizationType
     parameters: Optional[Dict[str, Any]]
-    tags: Optional[Dict[str, str]]
 
 
 class PipelineInstanceResponse(BaseModel):
@@ -150,6 +160,29 @@ class PipelineInstanceSummary(BaseModel):
     id: str
     request: PipelineRequestRun | PipelineRequestBenchmark
     type: str
+
+
+class OptimizationJobResponse(BaseModel):
+    job_id: str
+
+
+class OptimizationJobStatus(BaseModel):
+    id: str
+    type: Optional[OptimizationType]
+    start_time: int
+    elapsed_time: int
+    state: OptimizationJobState
+    total_fps: Optional[float]
+    original_pipeline_graph: PipelineGraph
+    optimized_pipeline_graph: Optional[PipelineGraph]
+    original_pipeline_description: str
+    optimized_pipeline_description: Optional[str]
+    error_message: Optional[str]
+
+
+class OptimizationJobSummary(BaseModel):
+    id: str
+    request: PipelineRequestOptimize
 
 
 class Device(BaseModel):
