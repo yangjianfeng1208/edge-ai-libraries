@@ -82,6 +82,19 @@ class TestBenchmark(unittest.TestCase):
 
             self.assertEqual(result, expected_result)
 
+    def test_invalid_ratio_raises_value_error(self):
+        # Set stream rates to create an invalid ratio
+        self.pipeline_specs[0].stream_rate = 60
+        self.pipeline_specs[1].stream_rate = 50
+
+        total_ratio = sum(spec.stream_rate for spec in self.pipeline_specs)
+
+        with self.assertRaises(
+            ValueError,
+            msg=f"Pipeline stream_rate ratios must sum to 100%, got {total_ratio}%",
+        ):
+            self.benchmark.run(self.pipeline_specs, fps_floor=self.fps_floor)
+
     @patch("benchmark.pipeline_manager.build_pipeline_command")
     def test_zero_total_fps(self, mock_build_command):
         mock_build_command.return_value = ""  # No actual command needed for test
@@ -105,6 +118,33 @@ class TestBenchmark(unittest.TestCase):
                 RuntimeError, msg="Pipeline runner returned invalid results."
             ):
                 _ = self.benchmark.run(self.pipeline_specs, fps_floor=self.fps_floor)
+
+    def test_calculate_streams_per_pipeline(self):
+        pipeline_specs = [
+            PipelineBenchmarkSpec(name="pipeline-1", version="1.0", stream_rate=50),
+            PipelineBenchmarkSpec(name="pipeline-2", version="1.0", stream_rate=30),
+            PipelineBenchmarkSpec(name="pipeline-3", version="1.0", stream_rate=20),
+        ]
+
+        # Test with total_streams = 10
+        total_streams = 10
+        expected_streams = [5, 3, 2]  # 50%, 30%, 20% of 10
+        calculated_streams = self.benchmark._calculate_streams_per_pipeline(
+            pipeline_specs, total_streams
+        )
+        self.assertEqual(calculated_streams, expected_streams)
+
+        # Test with total_streams = 7
+        total_streams = 7
+        expected_streams = [4, 2, 1]  # Rounded distribution
+        calculated_streams = self.benchmark._calculate_streams_per_pipeline(
+            pipeline_specs, total_streams
+        )
+        self.assertEqual(calculated_streams, expected_streams)
+
+    def test_cancel_benchmark(self):
+        self.benchmark.cancel()
+        self.assertTrue(self.benchmark.runner.is_cancelled())
 
 
 if __name__ == "__main__":

@@ -10,46 +10,12 @@ from api.api_schemas import (
     PipelineInstanceState,
     PipelineType,
 )
+from pipeline_runner import PipelineRunner
+from benchmark import BenchmarkResult
 from managers.instance_manager import InstanceManager, PipelineInstance
 
 
 class TestInstanceManager(unittest.TestCase):
-    test_graph = """
-    {
-        "nodes": [
-            {
-                "id": "0",
-                "type": "filesrc",
-                "data": {
-                    "location": "/tmp/dummy-video.mp4"
-                }
-            },
-            {
-                "id": "1",
-                "type": "decodebin3",
-                "data": {}
-            },
-            {
-                "id": "2",
-                "type": "autovideosink",
-                "data": {}
-            }
-        ],
-        "edges": [
-            {
-                "id": "0",
-                "source": "0",
-                "target": "1"
-            },
-            {
-                "id": "1",
-                "source": "1",
-                "target": "2"
-            }
-        ]
-    }
-    """
-
     def test_run_pipeline_calls_execute_pipeline_and_returns_instance_id(self):
         manager = InstanceManager()
         initial_count = len(manager.instances)
@@ -263,3 +229,411 @@ class TestInstanceManager(unittest.TestCase):
         self.assertEqual(summary.id, instance.id)
         self.assertEqual(summary.request, instance.request)
         self.assertEqual(summary.type, PipelineType.GSTREAMER)
+
+    def test_stop_instance_stops_running_instance(self):
+        manager = InstanceManager()
+
+        # Create an instance and runner manually and add them to the manager
+        pipeline_request = PipelineRequestRun(
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-pipeline",
+                    streams=1,
+                )
+            ]
+        )
+
+        instance_id = "test-instance-id"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-tpipeline",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+        manager.runners[instance_id] = PipelineRunner()
+
+        success, message = manager.stop_instance(instance_id)
+        self.assertTrue(success)
+        self.assertIn(f"Instance {instance_id} stopped", message)
+
+    def test_stop_instance_returns_false_for_nonexistent_instance(self):
+        manager = InstanceManager()
+        success, message = manager.stop_instance("nonexistent-instance-id")
+        self.assertFalse(success)
+        self.assertIn("not found", message)
+
+    def test_stop_instance_returns_false_for_nonexistent_runner(self):
+        manager = InstanceManager()
+
+        # Create an instance without a runner
+        pipeline_request = PipelineRequestRun(
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-tpipeline",
+                    streams=1,
+                )
+            ]
+        )
+
+        instance_id = "test-instance-id"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-tpipeline",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        success, message = manager.stop_instance(instance_id)
+        self.assertFalse(success)
+        self.assertIn(
+            f"No active runner found for instance {instance_id}. It may have already completed or was never started.",
+            message,
+        )
+
+    def test_stop_instance_returns_false_for_not_running_instance(self):
+        manager = InstanceManager()
+
+        # Create an instance that is not running
+        pipeline_request = PipelineRequestRun(
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-tpipeline",
+                    streams=1,
+                )
+            ]
+        )
+
+        instance_id = "test-instance-id"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-tpipeline",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.COMPLETED,
+        )
+        manager.instances[instance_id] = instance
+        manager.runners[instance_id] = PipelineRunner()
+
+        success, message = manager.stop_instance(instance_id)
+        self.assertFalse(success)
+        self.assertIn(f"Instance {instance_id} is not running", message)
+
+    def test_execute_pipeline_starts_pipeline(self):
+        manager = InstanceManager()
+
+        pipeline_request = PipelineRequestRun(
+            pipeline_run_specs=[
+                PipelineRunSpec(
+                    name="user-defined-pipelines",
+                    version="test-tpipeline",
+                    streams=1,
+                )
+            ]
+        )
+
+        instance_id = "test-instance-start"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-tpipeline",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        with (
+            patch(
+                "managers.instance_manager.pipeline_manager.build_pipeline_command",
+                return_value="fakesrc ! fakesink",
+            ),
+            patch.object(PipelineRunner, "run", return_value=None) as mock_run,
+        ):
+            manager._execute_pipeline(
+                instance_id,
+                "user-defined-pipelines",
+                "test-tpipeline",
+                pipeline_request,
+            )
+            self.assertIn(instance_id, manager.instances)
+            mock_run.assert_called_once()
+
+    def test_execute_pipeline_updates_metrics_on_completion(self):
+        from pipeline_runner import PipelineRunResult
+
+        manager = InstanceManager()
+
+        pipeline_request = PipelineRequestRun(
+            pipeline_run_specs=[
+                PipelineRunSpec(name="pipeA", version="v1", streams=1),
+                PipelineRunSpec(name="pipeB", version="v2", streams=2),
+            ]
+        )
+
+        instance_id = "test-instance-metrics"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-tpipeline",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        with (
+            patch(
+                "managers.instance_manager.pipeline_manager.build_pipeline_command",
+                return_value="fakesrc ! fakesink",
+            ),
+            patch.object(
+                PipelineRunner,
+                "run",
+                return_value=PipelineRunResult(
+                    total_fps=300.0, per_stream_fps=100.0, num_streams=3
+                ),
+            ),
+            patch.object(PipelineRunner, "is_cancelled", return_value=False),
+        ):
+            manager._execute_pipeline(
+                instance_id,
+                "user-defined-pipelines",
+                "test-tpipeline",
+                pipeline_request,
+            )
+
+        updated = manager.instances[instance_id]
+        self.assertEqual(updated.state, PipelineInstanceState.COMPLETED)
+        self.assertEqual(updated.total_fps, 300.0)
+        self.assertEqual(updated.per_stream_fps, 100.0)
+        self.assertEqual(updated.total_streams, 3)
+        self.assertIsNotNone(updated.streams_per_pipeline)
+        self.assertEqual(len(updated.streams_per_pipeline or []), 2)
+        self.assertNotIn(instance_id, manager.runners)
+
+    def test_execute_pipeline_aborts_on_cancelled_runner(self):
+        from pipeline_runner import PipelineRunResult
+
+        manager = InstanceManager()
+        pipeline_request = PipelineRequestRun(
+            pipeline_run_specs=[
+                PipelineRunSpec(name="pipeA", version="v1", streams=1),
+            ]
+        )
+
+        instance_id = "test-instance-cancel"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-tpipeline",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        with (
+            patch(
+                "managers.instance_manager.pipeline_manager.build_pipeline_command",
+                return_value="fakesrc ! fakesink",
+            ),
+            patch.object(
+                PipelineRunner,
+                "run",
+                return_value=PipelineRunResult(
+                    total_fps=100.0, per_stream_fps=100.0, num_streams=1
+                ),
+            ),
+            patch.object(PipelineRunner, "is_cancelled", return_value=True),
+        ):
+            manager._execute_pipeline(
+                instance_id,
+                "user-defined-pipelines",
+                "test-tpipeline",
+                pipeline_request,
+            )
+
+        updated = manager.instances[instance_id]
+        self.assertEqual(updated.state, PipelineInstanceState.ABORTED)
+        self.assertEqual(updated.error_message, "Cancelled by user")
+        self.assertNotIn(instance_id, manager.runners)
+
+    def test_execute_pipeline_sets_error_on_exception(self):
+        manager = InstanceManager()
+        pipeline_request = PipelineRequestRun(
+            pipeline_run_specs=[
+                PipelineRunSpec(name="pipeA", version="v1", streams=1),
+            ]
+        )
+
+        instance_id = "test-instance-exception"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-tpipeline",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        with patch(
+            "managers.instance_manager.pipeline_manager.build_pipeline_command",
+            side_effect=ValueError("boom"),
+        ):
+            manager._execute_pipeline(
+                instance_id,
+                "user-defined-pipelines",
+                "test-tpipeline",
+                pipeline_request,
+            )
+
+        updated = manager.instances[instance_id]
+        self.assertEqual(updated.state, PipelineInstanceState.ERROR)
+        self.assertIn("boom", updated.error_message or "")
+        self.assertNotIn(instance_id, manager.runners)
+
+    @patch("managers.instance_manager.Benchmark.run")
+    def test_execute_benchmark_updates_metrics_on_completion(self, mock_benchmark_run):
+        mock_benchmark_run.return_value = BenchmarkResult(
+            n_streams=3,
+            streams_per_pipeline=[
+                PipelineRunSpec(name="pipeA", version="v1", streams=2),
+                PipelineRunSpec(name="pipeB", version="v2", streams=1),
+            ],
+            per_stream_fps=90.0,
+        )
+
+        manager = InstanceManager()
+        pipeline_request = PipelineRequestBenchmark(
+            fps_floor=30,
+            pipeline_specs=[
+                PipelineBenchmarkSpec(name="pipeA", version="v1", stream_rate=50),
+                PipelineBenchmarkSpec(name="pipeB", version="v2", stream_rate=50),
+            ],
+        )
+
+        instance_id = "test-benchmark-success"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-benchmark",
+            request=pipeline_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        mock_benchmark_run.return_value = BenchmarkResult(
+            n_streams=3,
+            streams_per_pipeline=[
+                PipelineRunSpec(name="pipeA", version="v1", streams=2),
+                PipelineRunSpec(name="pipeB", version="v2", streams=1),
+            ],
+            per_stream_fps=90.0,
+        )
+
+        manager._execute_benchmark(
+            instance_id, "user-defined-pipelines", "test-benchmark", pipeline_request
+        )
+
+        updated = manager.instances[instance_id]
+        self.assertEqual(updated.state, PipelineInstanceState.COMPLETED)
+        self.assertIsNone(updated.total_fps)  # benchmark does not set total_fps
+        self.assertEqual(updated.per_stream_fps, 90.0)
+        self.assertEqual(len(updated.streams_per_pipeline or []), 2)
+        self.assertNotIn(instance_id, manager.runners)
+
+    def test_execute_benchmark_aborts_on_cancelled_runner(self):
+        manager = InstanceManager()
+        benchmark_request = PipelineRequestBenchmark(
+            fps_floor=30,
+            pipeline_specs=[
+                PipelineBenchmarkSpec(name="pipeA", version="v1", stream_rate=100),
+            ],
+        )
+
+        instance_id = "test-benchmark-cancel"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-benchmark",
+            request=benchmark_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        # Patch the instance's runner.is_cancelled to return True
+        with patch("managers.instance_manager.Benchmark") as MockBenchmark:
+            mock_benchmark_instance = MockBenchmark.return_value
+            mock_benchmark_instance.run.return_value = BenchmarkResult(
+                n_streams=3,
+                streams_per_pipeline=[
+                    PipelineRunSpec(name="pipeA", version="v1", streams=2),
+                    PipelineRunSpec(name="pipeB", version="v2", streams=1),
+                ],
+                per_stream_fps=90.0,
+            )
+            mock_benchmark_instance.runner.is_cancelled.return_value = True
+
+            manager._execute_benchmark(
+                instance_id,
+                "user-defined-pipelines",
+                "test-benchmark",
+                benchmark_request,
+            )
+
+        updated = manager.instances[instance_id]
+        self.assertEqual(updated.state, PipelineInstanceState.ABORTED)
+        self.assertEqual(updated.error_message, "Cancelled by user")
+        self.assertIsNone(updated.per_stream_fps)
+        self.assertIsNone(updated.streams_per_pipeline)
+        self.assertNotIn(instance_id, manager.runners)
+
+    def test_execute_benchmark_sets_error_on_exception(self):
+        manager = InstanceManager()
+        benchmark_request = PipelineRequestBenchmark(
+            fps_floor=30,
+            pipeline_specs=[
+                PipelineBenchmarkSpec(name="pipeA", version="v1", stream_rate=100),
+            ],
+        )
+
+        instance_id = "test-benchmark-exception"
+        instance = PipelineInstance(
+            id=instance_id,
+            name="user-defined-pipelines",
+            version="test-benchmark",
+            request=benchmark_request,
+            start_time=int(time.time()),
+            state=PipelineInstanceState.RUNNING,
+        )
+        manager.instances[instance_id] = instance
+
+        with patch("managers.instance_manager.Benchmark") as MockBenchmark:
+            mock_benchmark_instance = MockBenchmark.return_value
+            # Use side_effect to make the mocked run() raise an exception
+            mock_benchmark_instance.run.side_effect = RuntimeError("benchmark failed")
+
+            manager._execute_benchmark(
+                instance_id,
+                "user-defined-pipelines",
+                "test-benchmark",
+                benchmark_request,
+            )
+
+        updated = manager.instances[instance_id]
+        self.assertEqual(updated.state, PipelineInstanceState.ERROR)
+        self.assertIn("benchmark failed", updated.error_message or "")
+        self.assertNotIn(instance_id, manager.runners)

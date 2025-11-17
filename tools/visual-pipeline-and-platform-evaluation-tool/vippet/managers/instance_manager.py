@@ -218,11 +218,6 @@ class InstanceManager:
     ):
         """Execute the pipeline in a background thread."""
         try:
-            # Build pipeline command from specs
-            pipeline_command = pipeline_manager.build_pipeline_command(
-                pipeline_request.pipeline_run_specs
-            )
-
             # Calculate total streams
             total_streams = sum(
                 spec.streams for spec in pipeline_request.pipeline_run_specs
@@ -234,6 +229,11 @@ class InstanceManager:
                     "At least one stream must be specified to run the pipeline.",
                 )
                 return
+
+            # Build pipeline command from specs
+            pipeline_command = pipeline_manager.build_pipeline_command(
+                pipeline_request.pipeline_run_specs
+            )
 
             # Initialize PipelineRunner
             runner = PipelineRunner()
