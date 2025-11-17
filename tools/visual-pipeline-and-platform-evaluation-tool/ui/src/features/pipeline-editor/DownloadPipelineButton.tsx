@@ -48,7 +48,9 @@ const DownloadPipelineButton = ({
         data: Object.fromEntries(
           Object.entries(node.data ?? {}).map(([key, value]) => [
             key,
-            String(value),
+            typeof value === "object" && value !== null
+              ? JSON.stringify(value)
+              : String(value),
           ]),
         ),
       }));
@@ -60,13 +62,10 @@ const DownloadPipelineButton = ({
         },
       }).unwrap();
 
-      const description =
-        typeof response === "object" && "pipeline_description" in response
-          ? response.pipeline_description
-          : JSON.stringify(response);
+      const description = response.pipeline_description;
 
       const filename = `${pipelineName}.txt`;
-      downloadFile(description as string, filename);
+      downloadFile(description, filename);
       toast.success("Pipeline description downloaded");
       setOpen(false);
     } catch (error) {
