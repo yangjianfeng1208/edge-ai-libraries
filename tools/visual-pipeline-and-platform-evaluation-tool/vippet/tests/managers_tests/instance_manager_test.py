@@ -551,7 +551,7 @@ class TestInstanceManager(unittest.TestCase):
         self.assertEqual(updated.state, PipelineInstanceState.COMPLETED)
         self.assertIsNone(updated.total_fps)  # benchmark does not set total_fps
         self.assertEqual(updated.per_stream_fps, 90.0)
-        self.assertEqual(len(updated.streams_per_pipeline), 2)
+        self.assertEqual(len(updated.streams_per_pipeline or []), 2)
         self.assertEqual(updated.total_streams, 3)
         self.assertNotIn(instance_id, manager.runners)
 

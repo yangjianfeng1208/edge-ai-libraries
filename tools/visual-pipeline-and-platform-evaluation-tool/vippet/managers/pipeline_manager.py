@@ -13,7 +13,7 @@ from api.api_schemas import (
     PipelineGraph,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pipeline_manager")
 
 # Singleton instance for PipelineManager
 _pipeline_manager_instance: Optional["PipelineManager"] = None
@@ -36,6 +36,7 @@ def get_pipeline_manager() -> "PipelineManager":
 
 class PipelineManager:
     def __init__(self):
+        self.logger = logging.getLogger("PipelineManager")
         self.pipelines = self.load_predefined_pipelines()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
@@ -58,7 +59,7 @@ class PipelineManager:
         )
 
         self.pipelines.append(pipeline)
-        logger.debug(f"Pipeline added: {pipeline}")
+        self.logger.debug(f"Pipeline added: {pipeline}")
 
     def get_pipelines(self) -> list[Pipeline]:
         return self.pipelines
@@ -100,7 +101,7 @@ class PipelineManager:
                     parameters=None,
                 )
             )
-        logger.debug("Loaded predefined pipelines: %s", predefined_pipelines)
+        self.logger.debug("Loaded predefined pipelines: %s", predefined_pipelines)
         return predefined_pipelines
 
     def build_pipeline_command(self, pipeline_run_specs: list[PipelineRunSpec]) -> str:
