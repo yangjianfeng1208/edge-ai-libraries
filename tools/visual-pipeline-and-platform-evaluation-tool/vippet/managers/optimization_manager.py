@@ -18,6 +18,9 @@ from api.api_schemas import (
     PipelineGraph,
 )
 
+DEFAULT_SEARCH_DURATION = 300  # seconds
+DEFAULT_SAMPLE_DURATION = 10  # seconds
+
 logger = logging.getLogger("optimization_manager")
 
 # Singleton instance for OptimizationManager
@@ -358,8 +361,12 @@ class OptimizationManager:
                 params = optimization_request.parameters or {}
                 results = runner.run_optimization(
                     pipeline_description=pipeline_description,
-                    search_duration=params.get("search_duration", 300),
-                    sample_duration=params.get("sample_duration", 10),
+                    search_duration=params.get(
+                        "search_duration", DEFAULT_SEARCH_DURATION
+                    ),
+                    sample_duration=params.get(
+                        "sample_duration", DEFAULT_SAMPLE_DURATION
+                    ),
                 )
 
             # Update job with results
