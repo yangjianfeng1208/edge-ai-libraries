@@ -3,8 +3,6 @@ import re
 
 logger = logging.getLogger("utils")
 
-TEMP_DIR = "/tmp/"
-
 
 def make_tee_names_unique(
     pipeline_str: str, pipeline_index: int, stream_index: int
@@ -49,11 +47,14 @@ def make_tee_names_unique(
         return pipeline_str
 
     # Replace each tee name with a unique identifier
-    for original_name in tee_names:
+    # Using an index in addition to digits from the original name prevents
+    # collisions when multiple tees have names without digits or share
+    # the same digit pattern.
+    for idx, original_name in enumerate(sorted(tee_names)):
         # Extract digits from original name (e.g., "t0" -> "0", "t1" -> "1")
         original_digits = "".join(filter(str.isdigit, original_name))
-        # Create unique name: t{pipeline_index}{stream_index}{original_digits}
-        new_name = f"t{pipeline_index}{stream_index}{original_digits}"
+        # Create unique name: t{pipeline_index}{stream_index}{idx}{original_digits}
+        new_name = f"t{pipeline_index}{stream_index}{idx}{original_digits}"
 
         # Replace "tee name=<original_name>" with "tee name=<new_name>"
         pipeline_str = re.sub(

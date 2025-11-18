@@ -40,14 +40,15 @@ class Benchmark:
         self.runner = PipelineRunner()
         self.logger = logging.getLogger(__name__)
 
+    @staticmethod
     def _calculate_streams_per_pipeline(
-        self, pipeline_specs: list[PipelineBenchmarkSpec], total_streams: int
+        pipeline_benchmark_specs: list[PipelineBenchmarkSpec], total_streams: int
     ) -> list[int]:
         """
         Calculate the number of streams for each pipeline based on their stream_rate ratios.
 
         Args:
-            pipeline_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
+            pipeline_benchmark_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
             total_streams: Total number of streams to distribute.
 
         Returns:
@@ -57,36 +58,36 @@ class Benchmark:
             ValueError: If stream_rate ratios don't sum to 100.
         """
         # Validate that ratios sum to 100
-        total_ratio = sum(spec.stream_rate for spec in pipeline_specs)
+        total_ratio = sum(spec.stream_rate for spec in pipeline_benchmark_specs)
         if total_ratio != 100:
             raise ValueError(
                 f"Pipeline stream_rate ratios must sum to 100%, got {total_ratio}%"
             )
 
         # Calculate streams per pipeline
-        streams_per_pipeline = []
+        streams_per_pipeline_counts = []
         remaining_streams = total_streams
 
-        for i, spec in enumerate(pipeline_specs):
-            if i == len(pipeline_specs) - 1:
+        for i, spec in enumerate(pipeline_benchmark_specs):
+            if i == len(pipeline_benchmark_specs) - 1:
                 # Last pipeline gets all remaining streams to handle rounding
-                streams_per_pipeline.append(remaining_streams)
+                streams_per_pipeline_counts.append(remaining_streams)
             else:
                 # Calculate proportional streams and round
                 streams = round(total_streams * spec.stream_rate / 100)
-                streams_per_pipeline.append(streams)
+                streams_per_pipeline_counts.append(streams)
                 remaining_streams -= streams
 
-        return streams_per_pipeline
+        return streams_per_pipeline_counts
 
     def run(
-        self, pipeline_specs: list[PipelineBenchmarkSpec], fps_floor: float
+        self, pipeline_benchmark_specs: list[PipelineBenchmarkSpec], fps_floor: float
     ) -> BenchmarkResult:
         """
         Run the benchmark and return the best configuration.
 
         Args:
-            pipeline_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
+            pipeline_benchmark_specs: List of PipelineBenchmarkSpec with stream_rate ratios.
             fps_floor: Minimum FPS threshold per stream.
 
         Returns:
@@ -107,20 +108,22 @@ class Benchmark:
 
         while True:
             # Calculate streams per pipeline based on ratios
-            streams_per_pipeline = self._calculate_streams_per_pipeline(
-                pipeline_specs, n_streams
+            streams_per_pipeline_counts = self._calculate_streams_per_pipeline(
+                pipeline_benchmark_specs, n_streams
             )
 
             # Build run specs with calculated stream counts
             run_specs = [
                 PipelineRunSpec(name=spec.name, version=spec.version, streams=streams)
-                for spec, streams in zip(pipeline_specs, streams_per_pipeline)
+                for spec, streams in zip(
+                    pipeline_benchmark_specs, streams_per_pipeline_counts
+                )
             ]
 
             self.logger.info(
                 "Running benchmark with n_streams=%d, streams_per_pipeline=%s",
                 n_streams,
-                streams_per_pipeline,
+                streams_per_pipeline_counts,
             )
 
             # Build pipeline command
@@ -190,7 +193,7 @@ class Benchmark:
                 n_streams = 1  # Prevent N from going below 1
 
         if best_config[0] > 0:
-            # Use best configuration found
+            # Use the best configuration found
             total_streams = best_config[0]
             best_run_specs = best_config[1]
 

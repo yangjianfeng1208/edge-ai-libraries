@@ -141,7 +141,7 @@ class InstanceManager:
                 return None
             instance = self.instances[instance_id]
             pipeline_instance_status = self._build_instance_status(instance)
-            self.logger.info(
+            self.logger.debug(
                 f"Pipeline instance status for {instance_id}: {pipeline_instance_status}"
             )
             return pipeline_instance_status
@@ -310,7 +310,7 @@ class InstanceManager:
 
             # Run the benchmark
             results = benchmark.run(
-                pipeline_specs=pipeline_request.pipeline_specs,
+                pipeline_benchmark_specs=pipeline_request.pipeline_benchmark_specs,
                 fps_floor=pipeline_request.fps_floor,
             )
 

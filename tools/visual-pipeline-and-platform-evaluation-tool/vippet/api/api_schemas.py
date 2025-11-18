@@ -115,7 +115,7 @@ class PipelineRequestRun(BaseModel):
 
 class PipelineRequestBenchmark(BaseModel):
     fps_floor: int = 30
-    pipeline_specs: list[PipelineBenchmarkSpec]
+    pipeline_benchmark_specs: list[PipelineBenchmarkSpec]
 
 
 class PipelineRequestOptimize(BaseModel):

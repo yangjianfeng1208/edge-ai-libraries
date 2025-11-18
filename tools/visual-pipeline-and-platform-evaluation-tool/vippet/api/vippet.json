@@ -1366,17 +1366,17 @@
             "title": "Fps Floor",
             "default": 30
           },
-          "pipeline_specs": {
+          "pipeline_benchmark_specs": {
             "items": {
               "$ref": "#/components/schemas/PipelineBenchmarkSpec"
             },
             "type": "array",
-            "title": "Pipeline Specs"
+            "title": "Pipeline Benchmark Specs"
           }
         },
         "type": "object",
         "required": [
-          "pipeline_specs"
+          "pipeline_benchmark_specs"
         ],
         "title": "PipelineRequestBenchmark"
       },

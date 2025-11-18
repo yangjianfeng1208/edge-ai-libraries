@@ -73,7 +73,7 @@ class TestInstanceManager(unittest.TestCase):
 
         pipeline_request = PipelineRequestBenchmark(
             fps_floor=30,
-            pipeline_specs=[
+            pipeline_benchmark_specs=[
                 PipelineBenchmarkSpec(
                     name="user-defined-pipelines",
                     version="test-pipeline",
@@ -117,7 +117,7 @@ class TestInstanceManager(unittest.TestCase):
 
         pipeline_request_benchmark = PipelineRequestBenchmark(
             fps_floor=30,
-            pipeline_specs=[
+            pipeline_benchmark_specs=[
                 PipelineBenchmarkSpec(
                     name="user-defined-pipelines",
                     version="test-pipeline",
@@ -517,7 +517,7 @@ class TestInstanceManager(unittest.TestCase):
         manager = InstanceManager()
         pipeline_request = PipelineRequestBenchmark(
             fps_floor=30,
-            pipeline_specs=[
+            pipeline_benchmark_specs=[
                 PipelineBenchmarkSpec(name="pipeA", version="v1", stream_rate=50),
                 PipelineBenchmarkSpec(name="pipeB", version="v2", stream_rate=50),
             ],
@@ -559,7 +559,7 @@ class TestInstanceManager(unittest.TestCase):
         manager = InstanceManager()
         benchmark_request = PipelineRequestBenchmark(
             fps_floor=30,
-            pipeline_specs=[
+            pipeline_benchmark_specs=[
                 PipelineBenchmarkSpec(name="pipeA", version="v1", stream_rate=100),
             ],
         )
@@ -606,7 +606,7 @@ class TestInstanceManager(unittest.TestCase):
         manager = InstanceManager()
         benchmark_request = PipelineRequestBenchmark(
             fps_floor=30,
-            pipeline_specs=[
+            pipeline_benchmark_specs=[
                 PipelineBenchmarkSpec(name="pipeA", version="v1", stream_rate=100),
             ],
         )

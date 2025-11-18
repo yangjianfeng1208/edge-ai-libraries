@@ -8,7 +8,7 @@ from pipeline_runner import PipelineRunResult
 class TestBenchmark(unittest.TestCase):
     def setUp(self):
         self.fps_floor = 30
-        self.pipeline_specs = [
+        self.pipeline_benchmark_specs = [
             PipelineBenchmarkSpec(
                 name="test-pipeline-1", version="1.0", stream_rate=50
             ),
@@ -78,22 +78,24 @@ class TestBenchmark(unittest.TestCase):
                 ),
             ]
 
-            result = self.benchmark.run(self.pipeline_specs, fps_floor=self.fps_floor)
+            result = self.benchmark.run(
+                self.pipeline_benchmark_specs, fps_floor=self.fps_floor
+            )
 
             self.assertEqual(result, expected_result)
 
     def test_invalid_ratio_raises_value_error(self):
         # Set stream rates to create an invalid ratio
-        self.pipeline_specs[0].stream_rate = 60
-        self.pipeline_specs[1].stream_rate = 50
+        self.pipeline_benchmark_specs[0].stream_rate = 60
+        self.pipeline_benchmark_specs[1].stream_rate = 50
 
-        total_ratio = sum(spec.stream_rate for spec in self.pipeline_specs)
+        total_ratio = sum(spec.stream_rate for spec in self.pipeline_benchmark_specs)
 
         with self.assertRaises(
             ValueError,
             msg=f"Pipeline stream_rate ratios must sum to 100%, got {total_ratio}%",
         ):
-            self.benchmark.run(self.pipeline_specs, fps_floor=self.fps_floor)
+            self.benchmark.run(self.pipeline_benchmark_specs, fps_floor=self.fps_floor)
 
     @patch("benchmark.pipeline_manager.build_pipeline_command")
     def test_zero_total_fps(self, mock_build_command):
@@ -106,7 +108,9 @@ class TestBenchmark(unittest.TestCase):
             with self.assertRaises(
                 RuntimeError, msg="Pipeline returned zero or invalid FPS metrics."
             ):
-                _ = self.benchmark.run(self.pipeline_specs, fps_floor=self.fps_floor)
+                _ = self.benchmark.run(
+                    self.pipeline_benchmark_specs, fps_floor=self.fps_floor
+                )
 
     @patch("benchmark.pipeline_manager.build_pipeline_command")
     def test_pipeline_returns_none(self, mock_build_command):
@@ -117,10 +121,12 @@ class TestBenchmark(unittest.TestCase):
             with self.assertRaises(
                 RuntimeError, msg="Pipeline runner returned invalid results."
             ):
-                _ = self.benchmark.run(self.pipeline_specs, fps_floor=self.fps_floor)
+                _ = self.benchmark.run(
+                    self.pipeline_benchmark_specs, fps_floor=self.fps_floor
+                )
 
     def test_calculate_streams_per_pipeline(self):
-        pipeline_specs = [
+        pipeline_benchmark_specs = [
             PipelineBenchmarkSpec(name="pipeline-1", version="1.0", stream_rate=50),
             PipelineBenchmarkSpec(name="pipeline-2", version="1.0", stream_rate=30),
             PipelineBenchmarkSpec(name="pipeline-3", version="1.0", stream_rate=20),
@@ -130,7 +136,7 @@ class TestBenchmark(unittest.TestCase):
         total_streams = 10
         expected_streams = [5, 3, 2]  # 50%, 30%, 20% of 10
         calculated_streams = self.benchmark._calculate_streams_per_pipeline(
-            pipeline_specs, total_streams
+            pipeline_benchmark_specs, total_streams
         )
         self.assertEqual(calculated_streams, expected_streams)
 
@@ -138,7 +144,7 @@ class TestBenchmark(unittest.TestCase):
         total_streams = 7
         expected_streams = [4, 2, 1]  # Rounded distribution
         calculated_streams = self.benchmark._calculate_streams_per_pipeline(
-            pipeline_specs, total_streams
+            pipeline_benchmark_specs, total_streams
         )
         self.assertEqual(calculated_streams, expected_streams)
 
