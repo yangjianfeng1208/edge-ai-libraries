@@ -1,11 +1,76 @@
 import logging
-import os
 import re
-import requests
 
 logger = logging.getLogger("utils")
 
-TEMP_DIR = "/tmp/"
+
+def make_tee_names_unique(
+    pipeline_str: str, pipeline_index: int, stream_index: int
+) -> str:
+    """
+    Replace all tee names in the pipeline string with unique names based on pipeline and stream indices.
+
+    GStreamer pipelines may contain multiple tees with different names (e.g., tee name=t0, tee name=t1).
+    Each tee is referenced later in the pipeline (e.g., t0., t1.).
+    This function ensures each tee gets a unique name to avoid conflicts when combining multiple pipelines.
+
+    Args:
+        pipeline_str: The GStreamer pipeline string containing tee elements.
+        pipeline_index: The index of the pipeline in the run specification list.
+        stream_index: The index of the stream within the pipeline.
+
+    Returns:
+        str: The pipeline string with all tee names replaced with unique identifiers.
+
+    Example:
+        Input:  "... tee name=t0 ! queue t0. ! ..."
+        Output: "... tee name=t100 ! queue t100. ! ..."
+    """
+    logger.debug(
+        f"Making tee names unique for pipeline_index={pipeline_index}, stream_index={stream_index}"
+    )
+
+    # Find all unique tee names in the pipeline using regex
+    # Pattern matches "tee name=<name>" where <name> is typically t0, t1, t2, etc.
+    tee_pattern = r"tee\s+name=(\w+)"
+    tee_matches = re.finditer(tee_pattern, pipeline_str)
+
+    # Collect all unique tee names
+    tee_names = set()
+    for match in tee_matches:
+        tee_names.add(match.group(1))
+
+    if tee_names:
+        logger.debug(f"Found {len(tee_names)} unique tee(s): {sorted(tee_names)}")
+    else:
+        logger.debug("No tee elements found in pipeline")
+        return pipeline_str
+
+    # Replace each tee name with a unique identifier
+    # Using an index in addition to digits from the original name prevents
+    # collisions when multiple tees have names without digits or share
+    # the same digit pattern.
+    for idx, original_name in enumerate(sorted(tee_names)):
+        # Extract digits from original name (e.g., "t0" -> "0", "t1" -> "1")
+        original_digits = "".join(filter(str.isdigit, original_name))
+        # Create unique name: t{pipeline_index}{stream_index}{idx}{original_digits}
+        new_name = f"t{pipeline_index}{stream_index}{idx}{original_digits}"
+
+        # Replace "tee name=<original_name>" with "tee name=<new_name>"
+        pipeline_str = re.sub(
+            rf"tee\s+name={re.escape(original_name)}(?=\s|!)",
+            f"tee name={new_name}",
+            pipeline_str,
+        )
+
+        # Replace references to the tee (e.g., "t0." becomes "t100.")
+        # The pattern matches the original name followed by a dot and optional space
+        pipeline_str = re.sub(
+            rf"\b{re.escape(original_name)}\.", f"{new_name}.", pipeline_str
+        )
+
+    logger.debug("Tee name replacement completed successfully")
+    return pipeline_str
 
 
 def is_yolov10_model(model_path: str) -> bool:
@@ -19,32 +84,3 @@ def is_yolov10_model(model_path: str) -> bool:
         bool: True if the model is a YOLO v10 model, False otherwise.
     """
     return "yolov10" in model_path.lower()
-
-
-def download_file(url, local_filename):
-    file_path = os.path.join(TEMP_DIR, local_filename)
-    if os.path.exists(file_path):
-        logger.info(f"File {file_path} already exists, skipping download.")
-        return file_path
-
-    # Send a GET request to the URL
-    with requests.get(url, stream=True) as response:
-        response.raise_for_status()  # Check if the request was successful
-        # Open a local file with write-binary mode
-        with open(os.path.join(TEMP_DIR, local_filename), "wb") as file:
-            # Iterate over the response content in chunks
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)  # Write each chunk to the local file
-    return file_path
-
-
-def replace_file_path(pipeline_description: str, file_path: str) -> str:
-    # Replace after 'filesrc location='
-    pipeline_description = re.sub(
-        r"(filesrc\s+location=)[^\s!]+", rf"\1{file_path}", pipeline_description
-    )
-    # Replace after 'source='
-    pipeline_description = re.sub(
-        r"(source=)[^\s!]+", rf"\1{file_path}", pipeline_description
-    )
-    return pipeline_description

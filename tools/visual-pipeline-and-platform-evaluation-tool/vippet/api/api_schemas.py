@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from fastapi import Body
 from pydantic import BaseModel
 from enum import Enum
@@ -73,16 +73,16 @@ class PipelineParameters(BaseModel):
     default: Optional[Dict[str, Any]]
 
 
-class PipelineParametersRun(BaseModel):
-    inferencing_channels: int = 1
-    recording_channels: int = 0
-    pipeline_graph: PipelineGraph
+class PipelineRunSpec(BaseModel):
+    name: str
+    version: str
+    streams: int = 1
 
 
-class PipelineParametersBenchmark(BaseModel):
-    fps_floor: int = 30
-    ai_stream_rate: int = 100
-    pipeline_graph: PipelineGraph
+class PipelineBenchmarkSpec(BaseModel):
+    name: str
+    version: str
+    stream_rate: int = 100
 
 
 class Pipeline(BaseModel):
@@ -110,17 +110,12 @@ class PipelineValidation(BaseModel):
 
 
 class PipelineRequestRun(BaseModel):
-    async_: Optional[bool] = Body(default=True, alias="async")
-    source: Source
-    parameters: PipelineParametersRun
-    tags: Optional[Dict[str, str]]
+    pipeline_run_specs: list[PipelineRunSpec]
 
 
 class PipelineRequestBenchmark(BaseModel):
-    async_: Optional[bool] = Body(default=True, alias="async")
-    source: Source
-    parameters: PipelineParametersBenchmark
-    tags: Optional[Dict[str, str]]
+    fps_floor: int = 30
+    pipeline_benchmark_specs: list[PipelineBenchmarkSpec]
 
 
 class PipelineRequestOptimize(BaseModel):
@@ -141,8 +136,8 @@ class PipelineInstanceStatus(BaseModel):
     state: PipelineInstanceState
     total_fps: Optional[float]
     per_stream_fps: Optional[float]
-    ai_streams: Optional[int]
-    non_ai_streams: Optional[int]
+    total_streams: Optional[int]
+    streams_per_pipeline: Optional[List[PipelineRunSpec]]
     error_message: Optional[str]
 
 
