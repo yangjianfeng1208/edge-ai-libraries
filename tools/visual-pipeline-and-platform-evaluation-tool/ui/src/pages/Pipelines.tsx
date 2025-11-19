@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import RunPipelineButton from "@/features/pipeline-editor/RunPipelineButton.tsx";
 import StopPipelineButton from "@/features/pipeline-editor/StopPipelineButton.tsx";
 import StatePreviewButton from "@/features/pipeline-editor/StatePreviewButton.tsx";
-import DownloadPipelineButton from "@/features/pipeline-editor/DownloadPipelineButton.tsx";
+import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
+import ImportPipelineButton from "@/features/pipeline-editor/ImportPipelineButton.tsx";
 
 type UrlParams = {
   id: string;
@@ -34,6 +35,8 @@ const Pipelines = () => {
     y: 0,
     zoom: 1,
   });
+  const [editorKey, setEditorKey] = useState(0);
+  const [shouldFitView, setShouldFitView] = useState(false);
 
   const { data, isSuccess } = useGetPipelineQuery(
     {
@@ -139,20 +142,44 @@ const Pipelines = () => {
     }
   };
 
+  const handleImport = (
+    nodes: ReactFlowNode[],
+    edges: ReactFlowEdge[],
+    viewport: Viewport,
+    shouldFitView: boolean,
+  ) => {
+    setCurrentNodes(nodes);
+    setCurrentEdges(edges);
+    setCurrentViewport(viewport);
+    setShouldFitView(shouldFitView);
+    setEditorKey((prev) => prev + 1); // Force PipelineEditor to re-initialize
+  };
+
   if (isSuccess && data) {
     return (
-      <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+      <div className="w-full h-screen relative">
         <PipelineEditor
+          key={editorKey}
           pipelineData={data}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onViewportChange={handleViewportChange}
+          initialNodes={currentNodes.length > 0 ? currentNodes : undefined}
+          initialEdges={currentEdges.length > 0 ? currentEdges : undefined}
+          initialViewport={
+            currentNodes.length > 0 ? currentViewport : undefined
+          }
+          shouldFitView={shouldFitView}
         />
 
-        <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+        <div className="absolute top-4 right-4">
           <FpsDisplay />
+        </div>
 
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 items-end">
           <div className="flex gap-2">
+            <ImportPipelineButton onImport={handleImport} />
+
             {pipelineInstanceId ? (
               <StopPipelineButton
                 isStopping={isStopping}
@@ -165,14 +192,18 @@ const Pipelines = () => {
               />
             )}
 
-            <DownloadPipelineButton
+            <ExportPipelineButton
               edges={currentEdges}
               nodes={currentNodes}
               viewport={currentViewport}
               pipelineName={data.version}
             />
 
-            <StatePreviewButton edges={currentEdges} nodes={currentNodes} />
+            <StatePreviewButton
+              edges={currentEdges}
+              nodes={currentNodes}
+              viewport={currentViewport}
+            />
           </div>
         </div>
       </div>

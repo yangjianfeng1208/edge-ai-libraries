@@ -18,7 +18,7 @@ type DownloadPipelineButtonProps = {
   pipelineName: string;
 };
 
-const DownloadPipelineButton = ({
+const ExportPipelineButton = ({
   nodes,
   edges,
   viewport,
@@ -126,4 +126,4 @@ const DownloadPipelineButton = ({
   );
 };
 
-export default DownloadPipelineButton;
+export default ExportPipelineButton;

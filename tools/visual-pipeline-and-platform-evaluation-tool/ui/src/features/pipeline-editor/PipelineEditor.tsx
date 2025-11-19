@@ -27,6 +27,10 @@ interface PipelineEditorProps {
   onNodesChange?: (nodes: ReactFlowNode[]) => void;
   onEdgesChange?: (edges: ReactFlowEdge[]) => void;
   onViewportChange?: (viewport: Viewport) => void;
+  initialNodes?: ReactFlowNode[];
+  initialEdges?: ReactFlowEdge[];
+  initialViewport?: Viewport;
+  shouldFitView?: boolean;
 }
 
 const PipelineEditorContent = ({
@@ -34,11 +38,16 @@ const PipelineEditorContent = ({
   onNodesChange: onNodesChangeCallback,
   onEdgesChange: onEdgesChangeCallback,
   onViewportChange: onViewportChangeCallback,
+  initialNodes,
+  initialEdges,
+  initialViewport,
+  shouldFitView,
 }: PipelineEditorProps) => {
   const [selectedNode, setSelectedNode] = useState<ReactFlowNode | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<ReactFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<ReactFlowEdge>([]);
-  const { getViewport } = useReactFlow();
+  const { getViewport, setViewport, fitView } = useReactFlow();
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const onNodeClick: NodeMouseHandler = (event, node) => {
     event.stopPropagation();
@@ -71,31 +80,57 @@ const PipelineEditorContent = ({
   }, [edges, onEdgesChangeCallback]);
 
   useEffect(() => {
-    if (pipelineData?.pipeline_graph) {
-      const nodes = pipelineData.pipeline_graph.nodes || [];
-      const edges = pipelineData.pipeline_graph.edges || [];
+    if (!hasInitialized) {
+      if (initialNodes && initialEdges) {
+        setNodes(initialNodes);
+        setEdges(initialEdges);
 
-      const transformedNodes = nodes.map(
-        (node) =>
-          ({
-            ...node,
-            type: node.type,
-          }) as ReactFlowNode,
-      );
+        setTimeout(() => {
+          if (shouldFitView) {
+            fitView();
+          } else if (initialViewport) {
+            setViewport(initialViewport);
+          }
+        }, 0);
+        setHasInitialized(true);
+      } else if (pipelineData?.pipeline_graph) {
+        const nodes = pipelineData.pipeline_graph.nodes ?? [];
+        const edges = pipelineData.pipeline_graph.edges ?? [];
 
-      const nodesWithPositions = createGraphLayout(
-        transformedNodes,
-        edges,
-        LayoutDirection.LeftToRight,
-      );
+        const transformedNodes = nodes.map(
+          (node) =>
+            ({
+              ...node,
+              type: node.type,
+            }) as ReactFlowNode,
+        );
 
-      setNodes(nodesWithPositions);
-      setEdges(edges);
+        const nodesWithPositions = createGraphLayout(
+          transformedNodes,
+          edges,
+          LayoutDirection.LeftToRight,
+        );
+
+        setNodes(nodesWithPositions);
+        setEdges(edges);
+        setHasInitialized(true);
+      }
     }
-  }, [pipelineData, setNodes, setEdges]);
+  }, [
+    pipelineData,
+    initialNodes,
+    initialEdges,
+    initialViewport,
+    shouldFitView,
+    hasInitialized,
+    setNodes,
+    setEdges,
+    setViewport,
+    fitView,
+  ]);
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+    <>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -119,7 +154,7 @@ const PipelineEditorContent = ({
         selectedNode={selectedNode}
         onNodeDataUpdate={handleNodeDataUpdate}
       />
-    </div>
+    </>
   );
 };
 
