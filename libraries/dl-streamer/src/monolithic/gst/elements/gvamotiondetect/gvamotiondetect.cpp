@@ -8,6 +8,7 @@
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
+#include <glib.h>
 
 // Platform‑specific includes: VA path only for non-MSVC builds
 #ifndef _MSC_VER
@@ -16,27 +17,23 @@
 #include <gst/va/gstvautils.h>
 #include <opencv2/core/va_intel.hpp>
 #include <va/va.h>
-#include <va/va_fei.h>
-#include <va/va_fei_h264.h>
+#include <va/va.h>
 #endif
 
 #include <gst/video/video.h>
 #include <opencv2/core.hpp>
-#include <opencv2/core/ocl.hpp>
 #include <opencv2/imgproc.hpp>
+// Explicit OpenCL headers removed: element now uses only generic OpenCV UMat (which may internally use OpenCL).
+#include <cmath> // for std::lround
+#include <vector>
+#include <algorithm>
 
-#include "../../inference_elements/common/post_processor/meta_attacher.h" // ROIToFrameAttacher
+#include <string>
+#include <dlstreamer/gst/videoanalytics/video_frame.h> // analytics meta types (GstAnalyticsRelationMeta, GstAnalyticsODMtd)
 
-namespace {
-class DummyBlobToMetaConverter : public post_processing::BlobToMetaConverter {
-  public:
-    DummyBlobToMetaConverter() : BlobToMetaConverter(Initializer{}) {
-    }
-    post_processing::TensorsTable convert(const post_processing::OutputBlobs &) override {
-        return {}; // never used; we already build TensorsTable manually
-    }
-};
-} // namespace
+// Removed legacy meta_attacher include: not needed for manual motion metadata attachment.
+
+// (No dummy converter needed; motion ROIs attached directly as analytics relation + ROI metas.)
 
 // Removed G_BEGIN_DECLS / G_END_DECLS to avoid forcing C linkage on C++ helper functions
 
@@ -48,6 +45,13 @@ struct MotionRect {
     gint y;
     gint w;
     gint h;
+};
+
+/* Property identifiers */
+enum {
+    PROP_0,
+    PROP_BLOCK_SIZE,
+    PROP_MOTION_THRESHOLD
 };
 
 struct _GstGvaMotionDetect {
@@ -66,45 +70,37 @@ struct _GstGvaMotionDetect {
     cv::UMat scratch;
     cv::Mat overlay_cpu;  // host-side drawing buffer (BGRA)
     cv::UMat overlay_gpu; // device-side buffer used for blending
-    bool overlay_ready = false;
+    bool overlay_ready;
     std::string last_text;
-    VAConfigID stats_cfg = 0;
-    VAContextID stats_ctx = 0;
-    VASurfaceID prev_sid = VA_INVALID_SURFACE; // simple 1‑frame history
-    gboolean stats_ready = FALSE;
+    VASurfaceID prev_sid; // simple 1‑frame history
 #else
     // Windows (MSVC) build: no VAAPI. Provide stubs to satisfy logic.
-    void *va_dpy = nullptr;
-    void *va_display = nullptr;
-    int prev_sid = -1;
+    void *va_dpy;
+    void *va_display;
+    int prev_sid;
 #endif
 
-    // Software motion detection state
-    cv::UMat prev_luma;       // previous full-res grayscale (legacy path)
-    cv::UMat prev_small_gray; // previous downscaled grayscale for coarse motion
+    /* Motion detection previous frame state */
+    cv::UMat prev_small_gray;
+    cv::UMat prev_luma;
 
-    // Block-based motion detection parameters (coarse grid)
-    int block_size;          // size in pixels at full resolution for grid blocks
-    double motion_threshold; // ratio of changed pixels per block (0..1)
+    /* Grid detection parameters (properties) */
+    int block_size;
+    double motion_threshold;
+
+    /* Debug controls */
+    gboolean debug_enabled;
+    guint debug_interval;
+    guint64 last_debug_frame;
+    gboolean tried_va_query;
+
+    /* Concurrency guard for metadata operations */
+    GMutex meta_mutex;
 };
 
-// Property identifiers
-enum { PROP_0, PROP_BLOCK_SIZE, PROP_MOTION_THRESHOLD };
-
-// GObject property handlers
-static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
-    GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(object);
-    switch (prop_id) {
-    case PROP_BLOCK_SIZE:
-        self->block_size = g_value_get_int(value);
-        break;
-    case PROP_MOTION_THRESHOLD:
-        self->motion_threshold = g_value_get_double(value);
-        break;
-    default:
-        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
-    }
-}
+/* Forward declarations of property handlers */
+static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
+static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
 
 static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(object);
@@ -120,6 +116,25 @@ static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, G
     }
 }
 
+static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
+    GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(object);
+    switch (prop_id) {
+    case PROP_BLOCK_SIZE:
+        self->block_size = g_value_get_int(value);
+        break;
+    case PROP_MOTION_THRESHOLD:
+        self->motion_threshold = g_value_get_double(value);
+        break;
+    default:
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+    }
+}
+
+/* Define class struct prior to G_DEFINE_TYPE so sizeof works */
+struct _GstGvaMotionDetectClass {
+    GstBaseTransformClass parent_class;
+};
+
 G_DEFINE_TYPE(GstGvaMotionDetect, gst_gva_motion_detect, GST_TYPE_BASE_TRANSFORM)
 
 #ifndef _MSC_VER
@@ -133,28 +148,6 @@ static GstStaticPadTemplate sink_templ =
     GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
 static GstStaticPadTemplate src_templ =
     GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
-#endif
-
-#if defined(_MSC_VER)
-// Minimal tensor builder stub for Windows build (no analytics meta attachment)
-static inline void attach_motion_meta(GstBuffer * /*buf*/, const std::vector<MotionRect> & /*rois*/) {
-}
-#else
-static post_processing::TensorsTable build_motion_tensors(const std::vector<MotionRect> &rois) {
-    post_processing::TensorsTable table(1); // one frame
-    auto &frame_vec = table[0];
-    frame_vec.reserve(rois.size());
-    for (auto &r : rois) {
-        GstStructure *s = gst_structure_new("motion", "x_abs", G_TYPE_UINT, (guint)r.x, "y_abs", G_TYPE_UINT,
-                                            (guint)r.y, "w_abs", G_TYPE_UINT, (guint)r.w, "h_abs", G_TYPE_UINT,
-                                            (guint)r.h, "label", G_TYPE_STRING, "motion", "confidence", G_TYPE_DOUBLE,
-                                            1.0, "label_id", G_TYPE_INT, -1, "rotation", G_TYPE_DOUBLE, 0.0, NULL);
-        std::vector<GstStructure *> tensor_slot(std::max((int)post_processing::DETECTION_TENSOR_ID + 1, 1), nullptr);
-        tensor_slot[post_processing::DETECTION_TENSOR_ID] = s;
-        frame_vec.push_back(std::move(tensor_slot));
-    }
-    return table;
-}
 #endif
 
 static void gst_gva_motion_detect_set_context(GstElement *elem, GstContext *context) {
@@ -266,6 +259,7 @@ static gboolean gst_gva_motion_detect_start(GstBaseTransform *trans) {
     gst_video_info_init(&self->vinfo);
     self->caps_is_va = FALSE;
     self->frame_index = 0;
+    self->tried_va_query = FALSE;
 #ifndef _MSC_VER
     self->va_dpy = nullptr;
     self->va_display = nullptr;
@@ -279,149 +273,132 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *trans, GstCaps 
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
     if (!gst_video_info_from_caps(&self->vinfo, incaps))
         return FALSE;
-#ifdef _MSC_VER
-    // On Windows we skip VA stats initialization entirely
+    // Stats probing removed: retain simple success path.
     return TRUE;
+}
+
+#ifndef _MSC_VER
+// Helper to attach motion ROIs and associated analytics metadata (aggregated in a single relation meta)
+static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffer *buf,
+                                              const std::vector<MotionRect> &rois, int width, int height) {
+    if (rois.empty())
+        return;
+    if (!gst_buffer_is_writable(buf)) {
+        GstBuffer *writable = gst_buffer_make_writable(buf);
+        if (writable != buf)
+            buf = writable;
+    }
+    if (!gst_buffer_is_writable(buf)) {
+        GST_WARNING_OBJECT(self, "Buffer not writable; skipping motion ROI attachment");
+        return;
+    }
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf);
+    if (!relation_meta) {
+        relation_meta = gst_buffer_add_analytics_relation_meta(buf);
+        GST_LOG_OBJECT(self, "Added new GstAnalyticsRelationMeta %p", relation_meta);
+    } else {
+        GST_LOG_OBJECT(self, "Reusing existing GstAnalyticsRelationMeta %p", relation_meta);
+    }
+    if (!relation_meta) {
+        GST_WARNING_OBJECT(self, "Failed to add/get GstAnalyticsRelationMeta; skipping ROIs");
+        return;
+    }
+    size_t attached = 0;
+    for (const auto &r : rois) {
+        double x = (double)r.x / (double)width;
+        double y = (double)r.y / (double)height;
+        double w = (double)r.w / (double)width;
+        double h = (double)r.h / (double)height;
+        if (!(x >= 0 && y >= 0 && w >= 0 && h >= 0 && x + w <= 1 && y + h <= 1)) {
+            x = (x < 0) ? 0 : (x > 1 ? 1 : x);
+            y = (y < 0) ? 0 : (y > 1 ? 1 : y);
+            w = (w < 0) ? 0 : (w > 1 - x ? 1 - x : w);
+            h = (h < 0) ? 0 : (h > 1 - y ? 1 - y : h);
+        }
+        double _x = x * width + 0.5;
+        double _y = y * height + 0.5;
+        double _w = w * width + 0.5;
+        double _h = h * height + 0.5;
+        GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x, "x_max", G_TYPE_DOUBLE,
+                                                  x + w, "y_min", G_TYPE_DOUBLE, y, "y_max", G_TYPE_DOUBLE, y + h,
+                                                  "confidence", G_TYPE_DOUBLE, 1.0, NULL);
+        GstAnalyticsODMtd od_mtd;
+        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"),
+                                                    (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w),
+                                                    (int)std::lround(_h), 1.0, &od_mtd)) {
+            GST_WARNING_OBJECT(self, "Failed to add OD metadata for motion ROI");
+            gst_structure_free(detection);
+            continue;
+        }
+        GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_add_video_region_of_interest_meta(
+            buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y), (guint)std::lround(_w),
+            (guint)std::lround(_h));
+        if (!roi_meta) {
+            GST_WARNING_OBJECT(self, "Failed to add ROI meta for motion ROI");
+            gst_structure_free(detection);
+            continue;
+        }
+        roi_meta->id = od_mtd.id;
+        gst_video_region_of_interest_meta_add_param(roi_meta, detection);
+        GST_LOG_OBJECT(self, "Attached motion ROI id=%d rect=[%d,%d %dx%d]", od_mtd.id, (int)std::lround(_x),
+                       (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h));
+        attached++;
+    }
+    // Enumerate OD metadata for debug correlation
+    gpointer state_iter = nullptr;
+    GstAnalyticsODMtd od_iter;
+    size_t od_count = 0;
+    while (gst_analytics_relation_meta_iterate(relation_meta, &state_iter, gst_analytics_od_mtd_get_mtd_type(),
+                                               &od_iter)) {
+        ++od_count;
+    }
+    GST_LOG_OBJECT(self, "Total OD metadata after attachment: %zu", od_count);
+    GST_INFO_OBJECT(self, "Motion ROIs attached: %zu", attached);
+    if (self->debug_enabled) {
+        g_print("[gvamotiondetect] frame=%" G_GUINT64_FORMAT " ROIs=%zu (relation-meta aggregate)\n", self->frame_index,
+                attached);
+        fflush(stdout);
+    }
+}
 #endif
 
 #ifndef _MSC_VER
-    if (!self->va_dpy)
-        return TRUE;
-
-    if (!self->stats_ready) {
-        VAProfile profiles[32];
-        int nprof = 0;
-
-        VAStatus query_status = vaQueryConfigProfiles(self->va_dpy, profiles, &nprof);
-        if (query_status != VA_STATUS_SUCCESS) {
-            GST_WARNING_OBJECT(self, "Failed to query profiles: %s", vaErrorStr(query_status));
-            return TRUE;
-        }
-
-        GST_DEBUG_OBJECT(self, "Found %d profiles total", nprof);
-        GST_DEBUG_OBJECT(self, "VAEntrypointStats constant value: %d", (int)VAEntrypointStats);
-        GST_DEBUG_OBJECT(self, "VAProfileNone constant value: %d", (int)VAProfileNone);
-
-        VAProfile selected_profile = VAProfileNone;
-        gboolean found_stats_profile = FALSE;
-
-        for (int i = 0; i < nprof && !found_stats_profile; ++i) {
-            VAEntrypoint eps[32];
-            int neps = 0;
-
-            GST_DEBUG_OBJECT(self, "Checking profile index %d, profile value %d", i, (int)profiles[i]);
-
-            // Skip VAProfileNone - it's not a real profile for creating contexts
-            if (profiles[i] == VAProfileNone) {
-                GST_DEBUG_OBJECT(self, "Skipping VAProfileNone");
+// Helper to merge overlapping motion rectangles in-place (simple O(n^2))
+static void gst_gva_motion_detect_merge_rois(std::vector<MotionRect> &rois) {
+    if (rois.empty())
+        return;
+    bool merged_any = true;
+    while (merged_any) {
+        merged_any = false;
+        std::vector<MotionRect> out;
+        std::vector<bool> used(rois.size(), false);
+        for (size_t i = 0; i < rois.size(); ++i) {
+            if (used[i])
                 continue;
-            }
-
-            VAStatus ep_status = vaQueryConfigEntrypoints(self->va_dpy, profiles[i], eps, &neps);
-            if (ep_status != VA_STATUS_SUCCESS) {
-                GST_DEBUG_OBJECT(self, "Failed to query entrypoints for profile %d: %s", (int)profiles[i],
-                                 vaErrorStr(ep_status));
-                continue;
-            }
-
-            GST_DEBUG_OBJECT(self, "Profile %d has %d entrypoints", (int)profiles[i], neps);
-
-            for (int j = 0; j < neps; ++j) {
-                GST_DEBUG_OBJECT(self, "  Entrypoint %d: %d", j, (int)eps[j]);
-                if (eps[j] == VAEntrypointStats) {
-                    selected_profile = profiles[i];
-                    found_stats_profile = TRUE;
-                    GST_INFO_OBJECT(self, "Found VAEntrypointStats in profile %d", (int)selected_profile);
-                    break;
+            MotionRect a = rois[i];
+            for (size_t j = i + 1; j < rois.size(); ++j) {
+                if (used[j])
+                    continue;
+                MotionRect b = rois[j];
+                int ax2 = a.x + a.w, ay2 = a.y + a.h;
+                int bx2 = b.x + b.w, by2 = b.y + b.h;
+                bool overlap = !(bx2 < a.x || ax2 < b.x || by2 < a.y || ay2 < b.y);
+                if (overlap) {
+                    int nx = std::min(a.x, b.x);
+                    int ny = std::min(a.y, b.y);
+                    int nw = std::max(ax2, bx2) - nx;
+                    int nh = std::max(ay2, by2) - ny;
+                    a = MotionRect{nx, ny, nw, nh};
+                    used[j] = true;
+                    merged_any = true;
                 }
             }
-
-            GST_DEBUG_OBJECT(self, "Profile %d (value=%d) stats_supported=%d", i, (int)profiles[i],
-                             (found_stats_profile && selected_profile == profiles[i]));
+            out.push_back(a);
         }
-
-        // Alternative approach: If no specific profile supports stats, try VAProfileNone
-        if (!found_stats_profile) {
-            GST_INFO_OBJECT(self, "No specific profile supports stats, trying VAProfileNone");
-
-            VAEntrypoint eps[32];
-            int neps = 0;
-            VAStatus ep_status = vaQueryConfigEntrypoints(self->va_dpy, VAProfileNone, eps, &neps);
-            if (ep_status == VA_STATUS_SUCCESS) {
-                for (int j = 0; j < neps; ++j) {
-                    if (eps[j] == VAEntrypointStats) {
-                        selected_profile = VAProfileNone;
-                        found_stats_profile = TRUE;
-                        GST_INFO_OBJECT(self, "VAProfileNone supports VAEntrypointStats");
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (found_stats_profile) {
-            GST_INFO_OBJECT(self, "Attempting to create config with profile %d", (int)selected_profile);
-
-            VAConfigAttrib attribs[2];
-            attribs[0].type = VAConfigAttribRTFormat;
-            attribs[0].value = VA_RT_FORMAT_YUV420; // Set a default value
-            attribs[1].type = VAConfigAttribStats;
-            attribs[1].value = 0; // Let VA-API set this
-
-            // For VAProfileNone, we might need different handling
-            VAConfigAttrib *config_attribs = attribs;
-            int num_attribs = 2;
-
-            if (selected_profile == VAProfileNone) {
-                // For VAProfileNone, try with minimal attributes
-                config_attribs = &attribs[0]; // Only RT format
-                num_attribs = 1;
-                GST_INFO_OBJECT(self, "Using minimal config for VAProfileNone");
-            }
-
-            VAStatus st_cfg = vaCreateConfig(self->va_dpy, selected_profile, VAEntrypointStats, config_attribs,
-                                             num_attribs, &self->stats_cfg);
-            if (st_cfg == VA_STATUS_SUCCESS) {
-                GST_INFO_OBJECT(self, "Successfully created config with profile %d", (int)selected_profile);
-
-                VAStatus st_ctx =
-                    vaCreateContext(self->va_dpy, self->stats_cfg, GST_VIDEO_INFO_WIDTH(&self->vinfo),
-                                    GST_VIDEO_INFO_HEIGHT(&self->vinfo), VA_PROGRESSIVE, NULL, 0, &self->stats_ctx);
-
-                if (st_ctx == VA_STATUS_SUCCESS) {
-                    self->stats_ready = TRUE;
-                    GST_INFO_OBJECT(self, "Stats context ready (profile=%d)", (int)selected_profile);
-                } else {
-                    GST_WARNING_OBJECT(self, "Stats context creation failed: %s", vaErrorStr(st_ctx));
-                    self->stats_ready = FALSE;
-                }
-            } else {
-                GST_WARNING_OBJECT(self, "Stats config failed (%s) for profile %d", vaErrorStr(st_cfg),
-                                   (int)selected_profile);
-
-                // Try with no attributes for VAProfileNone
-                if (selected_profile == VAProfileNone) {
-                    GST_INFO_OBJECT(self, "Trying VAProfileNone with no attributes");
-                    VAStatus st_cfg2 =
-                        vaCreateConfig(self->va_dpy, selected_profile, VAEntrypointStats, NULL, 0, &self->stats_cfg);
-                    if (st_cfg2 == VA_STATUS_SUCCESS) {
-                        VAStatus st_ctx = vaCreateContext(
-                            self->va_dpy, self->stats_cfg, GST_VIDEO_INFO_WIDTH(&self->vinfo),
-                            GST_VIDEO_INFO_HEIGHT(&self->vinfo), VA_PROGRESSIVE, NULL, 0, &self->stats_ctx);
-
-                        self->stats_ready = (st_ctx == VA_STATUS_SUCCESS);
-                        GST_INFO_OBJECT(self, "Stats context %s (VAProfileNone, no attrs)",
-                                        self->stats_ready ? "ready" : "failed");
-                    }
-                }
-            }
-        } else {
-            GST_INFO_OBJECT(self, "No profile exposes VAEntrypointStats");
-        }
+        rois.swap(out);
     }
-    return TRUE;
-#endif
 }
+#endif
 
 // In-place processing: get VASurfaceID via mapper
 static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
@@ -475,116 +452,100 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
 #endif
 
 #ifndef _MSC_VER
+    // Acquire VA display via peer query if not yet set.
     if (!self->va_dpy) {
-        GST_DEBUG_OBJECT(self, "No VADisplay; pass-through frame=%" G_GUINT64_FORMAT, self->frame_index);
-        ++self->frame_index;
-        return GST_FLOW_OK;
+        if (!self->tried_va_query) {
+            self->tried_va_query = TRUE;
+            GstQuery *q = gst_query_new_context("gst.va.display.handle");
+            if (gst_pad_peer_query(GST_BASE_TRANSFORM_SINK_PAD(trans), q)) {
+                GstContext *ctx = nullptr;
+                gst_query_parse_context(q, &ctx);
+                if (ctx) {
+                    GST_LOG_OBJECT(self, "Obtained VA context via peer query");
+                    gst_gva_motion_detect_set_context(GST_ELEMENT(self), ctx);
+                }
+            }
+            gst_query_unref(q);
+        }
+        if (!self->va_dpy) {
+            GST_DEBUG_OBJECT(self, "No VADisplay (after peer query); pass-through frame=%" G_GUINT64_FORMAT,
+                              self->frame_index);
+            ++self->frame_index;
+            return GST_FLOW_OK;
+        }
     }
 
+    // Map buffer to VA surface
     VASurfaceID sid = gva_motion_detect_get_surface(self, buf);
     if (sid == VA_INVALID_SURFACE) {
-        GST_DEBUG_OBJECT(self, "No valid VA surface; pass-through frame=%" G_GUINT64_FORMAT, self->frame_index);
+        GST_DEBUG_OBJECT(self, "Invalid VA surface; pass-through frame=%" G_GUINT64_FORMAT, self->frame_index);
         ++self->frame_index;
         return GST_FLOW_OK;
     }
 
-    // Lazy initialization (your existing code)
-    if (!self->stats_ready && self->va_dpy && self->vinfo.width) {
-        VAProfile profiles[32];
-        int nprof = 0;
-        vaQueryConfigProfiles(self->va_dpy, profiles, &nprof);
-        VAProfile prof = VAProfileNone;
-        for (int i = 0; i < nprof && prof == VAProfileNone; ++i) {
-            VAEntrypoint eps[32];
-            int neps = 0;
-            vaQueryConfigEntrypoints(self->va_dpy, profiles[i], eps, &neps);
-            for (int j = 0; j < neps; ++j)
-                if (eps[j] == VAEntrypointStats) {
-                    prof = profiles[i];
-                    break;
-                }
-        }
-        if (vaCreateConfig(self->va_dpy, prof, VAEntrypointStats, NULL, 0, &self->stats_cfg) == VA_STATUS_SUCCESS) {
-            VAStatus st =
-                vaCreateContext(self->va_dpy, self->stats_cfg, GST_VIDEO_INFO_WIDTH(&self->vinfo),
-                                GST_VIDEO_INFO_HEIGHT(&self->vinfo), VA_PROGRESSIVE, NULL, 0, &self->stats_ctx);
-            self->stats_ready = (st == VA_STATUS_SUCCESS);
-            GST_INFO_OBJECT(self, "Lazy stats init: %s", self->stats_ready ? "ready" : "failed");
-        }
-    }
-
-    // ----------------------------------------------------------------------
-    // SOFTWARE MOTION DETECTION (OpenCV) replacing disabled HW stats path
-    // ----------------------------------------------------------------------
-    // Convert VA surface to UMat (convertFromVASurface currently delivers BGR/BGRA).
-    cv::UMat current_bgr;
-    if (!gva_motion_detect_convert_from_surface(self, sid, GST_VIDEO_INFO_WIDTH(&self->vinfo),
-                                                GST_VIDEO_INFO_HEIGHT(&self->vinfo), current_bgr)) {
-        GST_DEBUG_OBJECT(self, "convertFromVASurface failed; pass-through");
+    // Ensure surface ready
+    VAStatus sync_st = vaSyncSurface(self->va_dpy, sid);
+    if (sync_st != VA_STATUS_SUCCESS) {
+        GST_WARNING_OBJECT(self, "vaSyncSurface failed sid=%u status=%d (%s)", sid, (int)sync_st, vaErrorStr(sync_st));
+        ++self->frame_index;
         self->prev_sid = sid;
-        ++self->frame_index;
-        return GST_FLOW_OK;
+        return GST_FLOW_OK; // skip detection this frame
     }
 
     int width = GST_VIDEO_INFO_WIDTH(&self->vinfo);
     int height = GST_VIDEO_INFO_HEIGHT(&self->vinfo);
-    if (current_bgr.empty()) {
-        self->prev_sid = sid;
+    if (!width || !height) {
         ++self->frame_index;
+        self->prev_sid = sid;
         return GST_FLOW_OK;
     }
 
-    // Ensure single-channel grayscale for motion diff (full resolution)
+    // Convert VA surface to UMat
+    cv::UMat frame_gpu;
+    if (!gva_motion_detect_convert_from_surface(self, sid, width, height, frame_gpu)) {
+        ++self->frame_index;
+        self->prev_sid = sid;
+        return GST_FLOW_OK;
+    }
+
+    // Extract grayscale (assume BGR)
     cv::UMat curr_gray;
-    int chs = current_bgr.channels();
-    if (chs == 1) {
-        curr_gray = current_bgr;
-    } else if (chs == 3) {
-        cv::cvtColor(current_bgr, curr_gray, cv::COLOR_BGR2GRAY);
-    } else if (chs == 4) {
-        cv::cvtColor(current_bgr, curr_gray, cv::COLOR_BGRA2GRAY);
-    } else {
-        GST_WARNING_OBJECT(self, "Unexpected channel count %d; skipping frame", chs);
-        self->prev_sid = sid;
+    try {
+        cv::cvtColor(frame_gpu, curr_gray, cv::COLOR_BGR2GRAY);
+    } catch (const cv::Exception &e) {
+        GST_WARNING_OBJECT(self, "cvtColor failed: %s", e.what());
         ++self->frame_index;
+        self->prev_sid = sid;
         return GST_FLOW_OK;
     }
 
-    // ---------------- Coarse motion path (downscale + block grid) -----------------
-    const int TARGET_SMALL_W = 320; // coarse resolution target (could be property later)
-    int small_w = std::min(TARGET_SMALL_W, width);
-    int small_h = (int)std::round((double)height * small_w / (double)width);
+    // Downscale to small working resolution (keep aspect ratio). Target width ~320.
+    int target_w = std::min(320, width);
+    double scale = (double)target_w / (double)width;
+    int small_w = target_w;
+    int small_h = std::max(1, (int)std::lround(height * scale));
+    cv::UMat curr_small;
+    cv::resize(curr_gray, curr_small, cv::Size(small_w, small_h), 0, 0, cv::INTER_LINEAR);
 
-    cv::UMat curr_small; // downscaled grayscale
-    if (small_w != width) {
-        cv::resize(curr_gray, curr_small, cv::Size(small_w, small_h), 0, 0, cv::INTER_AREA);
-    } else {
-        curr_small = curr_gray; // already small
-    }
-
+    // If first frame, store and exit
     if (self->prev_small_gray.empty()) {
         curr_small.copyTo(self->prev_small_gray);
-        curr_gray.copyTo(self->prev_luma); // keep legacy for potential future use
+        curr_gray.copyTo(self->prev_luma);
         self->prev_sid = sid;
         ++self->frame_index;
         return GST_FLOW_OK;
     }
 
-    cv::UMat diff_small;
-    cv::absdiff(curr_small, self->prev_small_gray, diff_small);
-
-    cv::UMat blurred_small;
-    cv::GaussianBlur(diff_small, blurred_small, cv::Size(3, 3), 0);
-
-    cv::UMat thresh_small;
-    const int PIXEL_DIFF_THR = 15; // same threshold (on 0..255 grayscale)
-    cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
-
-    // Light morphology to reduce noise
-    cv::UMat morph_small;
-    cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-    cv::morphologyEx(thresh_small, morph_small, cv::MORPH_OPEN, ksmall);
-    cv::dilate(morph_small, morph_small, ksmall, cv::Point(-1, -1), 1);
+    // Motion mask generation (absdiff -> blur -> threshold -> morphology)
+    const int PIXEL_DIFF_THR = 15; // absolute difference threshold
+    cv::UMat diff_small; cv::absdiff(curr_small, self->prev_small_gray, diff_small);
+    cv::UMat blurred_small; cv::GaussianBlur(diff_small, blurred_small, cv::Size(3,3), 0);
+    cv::UMat thresh_small; cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
+    cv::UMat morph_small; {
+        cv::UMat tmp; cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
+        cv::morphologyEx(thresh_small, tmp, cv::MORPH_OPEN, ksmall);
+        cv::dilate(tmp, morph_small, ksmall, cv::Point(-1,-1), 1);
+    }
 
     // Block-based scan instead of contours
     std::vector<MotionRect> rois;
@@ -642,69 +603,26 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         }
     }
 
-    // Merge overlapping ROIs (simple O(n^2) since counts expected low)
-    if (!rois.empty()) {
-        bool merged_any = true;
-        while (merged_any) {
-            merged_any = false;
-            std::vector<MotionRect> out;
-            std::vector<bool> used(rois.size(), false);
-            for (size_t i = 0; i < rois.size(); ++i) {
-                if (used[i])
-                    continue;
-                MotionRect a = rois[i];
-                for (size_t j = i + 1; j < rois.size(); ++j) {
-                    if (used[j])
-                        continue;
-                    MotionRect b = rois[j];
-                    int ax2 = a.x + a.w, ay2 = a.y + a.h;
-                    int bx2 = b.x + b.w, by2 = b.y + b.h;
-                    bool overlap = !(bx2 < a.x || ax2 < b.x || by2 < a.y || ay2 < b.y);
-                    if (overlap) {
-                        int nx = std::min(a.x, b.x);
-                        int ny = std::min(a.y, b.y);
-                        int nw = std::max(ax2, bx2) - nx;
-                        int nh = std::max(ay2, by2) - ny;
-                        a = MotionRect{nx, ny, nw, nh};
-                        used[j] = true;
-                        merged_any = true;
-                    }
-                }
-                out.push_back(a);
-            }
-            rois.swap(out);
-        }
-    }
 
     if (!rois.empty()) {
-        post_processing::TensorsTable tensors = build_motion_tensors(rois);
-        post_processing::FramesWrapper frames(buf, "gvamotiondetect", nullptr);
-        post_processing::ROIToFrameAttacher attacher;
-        DummyBlobToMetaConverter dummy;
-        attacher.attach(tensors, frames, dummy);
-        GST_INFO_OBJECT(self, "Coarse motion ROIs attached: %zu", rois.size());
+        // Merge overlapping ROIs via helper
+        gst_gva_motion_detect_merge_rois(rois);
+        gst_gva_motion_detect_attach_rois(self, buf, rois, width, height);
     }
 
     // Update previous frames
+    // Update previous frames
     curr_small.copyTo(self->prev_small_gray);
     curr_gray.copyTo(self->prev_luma);
-
-frame_done:
-
     self->prev_sid = sid;
     ++self->frame_index;
     return GST_FLOW_OK;
-#endif
+#endif // !_MSC_VER
 }
 
 static void gst_gva_motion_detect_finalize(GObject *obj) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(obj);
-#ifndef _MSC_VER
-    if (self->stats_ctx)
-        vaDestroyContext(self->va_dpy, self->stats_ctx);
-    if (self->stats_cfg)
-        vaDestroyConfig(self->va_dpy, self->stats_cfg);
-#endif
+    g_mutex_clear(&self->meta_mutex);
     G_OBJECT_CLASS(gst_gva_motion_detect_parent_class)->finalize(obj);
 }
 
@@ -752,6 +670,8 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
                                                         "Per-block changed pixel ratio required to flag motion (0..1)",
                                                         0.0, 1.0, 0.05,
                                                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    /* OpenCL kernel property removed. */
 }
 
 static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
@@ -762,6 +682,29 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->frame_index = 0;
     self->block_size = 64;         // default
     self->motion_threshold = 0.05; // default changed pixel ratio
+#ifndef _MSC_VER
+    self->va_dpy = nullptr;
+    self->va_display = nullptr;
+    self->prev_sid = VA_INVALID_SURFACE;
+#else
+    self->va_dpy = nullptr;
+    self->va_display = nullptr;
+    self->prev_sid = -1;
+#endif
+    // Debug environment parsing (simple, no logging here to avoid early flood)
+    const gchar *env_dbg = g_getenv("GVA_MD_PRINT");
+    self->debug_enabled = (env_dbg && env_dbg[0] != '\0' && g_strcmp0(env_dbg, "0") != 0);
+    const gchar *env_int = g_getenv("GVA_MD_PRINT_INTERVAL");
+    self->debug_interval = 30;
+    if (env_int && env_int[0] != '\0') {
+        gchar *endp = nullptr;
+        unsigned long long v = g_ascii_strtoull(env_int, &endp, 10);
+        if (endp && *endp == '\0' && v > 0 && v < 1000000UL)
+            self->debug_interval = (guint)v;
+    }
+    self->last_debug_frame = (guint64)-1;
+    self->tried_va_query = FALSE;
+    g_mutex_init(&self->meta_mutex);
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {
