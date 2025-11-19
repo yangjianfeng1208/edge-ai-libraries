@@ -100,22 +100,6 @@ gvatrack tracking-type=deep-sort
 
 **Advantages**: Device flexibility (CPU/GPU/NPU), potentially higher throughput
 
-### Configuration Parameters
-
-Deep SORT supports additional configuration via the `config` property:
-
-- **max_iou_distance**: Maximum IoU distance threshold for matching (default: 0.7)
-- **max_cosine_distance**: Maximum cosine distance for appearance matching (default: 0.2)
-- **n_init**: Number of consecutive detections before track is confirmed (default: 3)
-- **max_age**: Maximum number of missed frames before track is deleted (default: 30)
-- **nn_budget**: Maximum size of feature history per track (default: 100)
-
-Example:
-
-```bash
-gvatrack tracking-type=deep-sort feature-model=mars-small128.xml \
-         config="max_cosine_distance=0.3,n_init=2,max_age=40"
-```
 
 
 ## How to read object unique id
