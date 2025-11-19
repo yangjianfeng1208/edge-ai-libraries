@@ -1,0 +1,28 @@
+diff --git a/subprojects/gst-plugins-bad/sys/va/gstvah264dec.c b/subprojects/gst-plugins-bad/sys/va/gstvah264dec.c
+index e7ec3766d7d5..dbe2657df482 100644
+--- a/subprojects/gst-plugins-bad/sys/va/gstvah264dec.c
++++ b/subprojects/gst-plugins-bad/sys/va/gstvah264dec.c
+@@ -574,8 +574,8 @@ static const struct
+   P (MAIN, Main),
+   /* P (EXTENDED, ), */
+   P (HIGH, High),
+-  /* P (HIGH10, ), */
+-  /* P (HIGH_422, ), */
++  P (HIGH10, High10),
++  P (HIGH_422, High422),
+   /* P (HIGH_444, ), */
+   P (MULTIVIEW_HIGH, MultiviewHigh),
+   P (STEREO_HIGH, StereoHigh),
+diff --git a/subprojects/gst-plugins-bad/sys/va/gstvaprofile.c b/subprojects/gst-plugins-bad/sys/va/gstvaprofile.c
+index 9e2f21533540..ad02328c046b 100644
+--- a/subprojects/gst-plugins-bad/sys/va/gstvaprofile.c
++++ b/subprojects/gst-plugins-bad/sys/va/gstvaprofile.c
+@@ -55,6 +55,8 @@ static const struct ProfileMap
+       "mpegversion = (int) 4, profile = (string) main, "),
+   P (H264, Main, "main", "video/x-h264", "profile = (string) main"),
+   P (H264, High, "high", "video/x-h264", "profile = (string) high"),
++  P (H264, High10, "high-10", "video/x-h264", "profile = (string) high-10"),
++  P (H264, High422, "high-4:2:2", "video/x-h264", "profile = (string) high-4:2:2"),
+   P (VC1, Simple, "simple", "video/x-wmv",
+       "wmvversion = (int) 3, profile = (string) simple"),
+   P (VC1, Main, "main", "video/x-wmv",
