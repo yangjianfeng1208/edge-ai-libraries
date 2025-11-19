@@ -17,6 +17,7 @@ import RunPipelineButton from "@/features/pipeline-editor/RunPipelineButton.tsx"
 import StopPipelineButton from "@/features/pipeline-editor/StopPipelineButton.tsx";
 import StatePreviewButton from "@/features/pipeline-editor/StatePreviewButton.tsx";
 import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
+import OpenPipelineButton from "@/features/pipeline-editor/OpenPipelineButton.tsx";
 import ImportPipelineButton from "@/features/pipeline-editor/ImportPipelineButton.tsx";
 
 type UrlParams = {
@@ -178,6 +179,8 @@ const Pipelines = () => {
 
         <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 items-end">
           <div className="flex gap-2">
+            <OpenPipelineButton onImport={handleImport} />
+
             <ImportPipelineButton onImport={handleImport} />
 
             {pipelineInstanceId ? (
