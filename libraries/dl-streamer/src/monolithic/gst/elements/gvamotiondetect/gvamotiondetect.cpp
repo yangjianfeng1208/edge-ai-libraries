@@ -5,32 +5,29 @@
  ******************************************************************************/
 
 #include "gvamotiondetect.h"
+#include <glib.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
-#include <glib.h>
 
-// Platform‑specific includes: VA path only for non-MSVC builds
-#ifndef _MSC_VER
+// VAAPI + OpenCV includes (Windows implementation resides in separate file)
+#include <dlfcn.h>
 #include <gst/va/gstvadisplay.h>
 #include <gst/va/gstvautils.h>
 #include <opencv2/core/va_intel.hpp>
 #include <va/va.h>
-#include <va/va.h>
 #include <va/va_vpp.h>
-#include <dlfcn.h>
-#endif
 
 #include <gst/video/video.h>
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 // Explicit OpenCL headers removed: element now uses only generic OpenCV UMat (which may internally use OpenCL).
+#include <algorithm>
 #include <cmath> // for std::lround
 #include <vector>
-#include <algorithm>
 
-#include <string>
 #include <dlstreamer/gst/videoanalytics/video_frame.h> // analytics meta types (GstAnalyticsRelationMeta, GstAnalyticsODMtd)
+#include <string>
 
 // Removed G_BEGIN_DECLS / G_END_DECLS to avoid forcing C linkage on C++ helper functions
 
@@ -54,7 +51,11 @@ static inline double md_round_coord(double v) {
 enum {
     PROP_0,
     PROP_BLOCK_SIZE,
-    PROP_MOTION_THRESHOLD
+    PROP_MOTION_THRESHOLD,
+    PROP_MIN_PERSISTENCE,
+    PROP_MAX_MISS,
+    PROP_IOU_THRESHOLD,
+    PROP_SMOOTH_ALPHA
 };
 
 struct _GstGvaMotionDetect {
@@ -67,7 +68,6 @@ struct _GstGvaMotionDetect {
     double blur_sigma;    // gaussian sigma
     uint64_t frame_index; // running frame counter
 
-#ifndef _MSC_VER
     VADisplay va_dpy;
     GstVaDisplay *va_display;
     cv::UMat scratch;
@@ -80,12 +80,6 @@ struct _GstGvaMotionDetect {
     VASurfaceID scaled_sid;
     int scaled_w;
     int scaled_h;
-#else
-    // Windows (MSVC) build: no VAAPI. Provide stubs to satisfy logic.
-    void *va_dpy;
-    void *va_display;
-    int prev_sid;
-#endif
 
     /* Motion detection previous frame state */
     cv::UMat prev_small_gray;
@@ -94,6 +88,26 @@ struct _GstGvaMotionDetect {
     /* Grid detection parameters (properties) */
     int block_size;
     double motion_threshold;
+
+    // Stability (temporal smoothing) configuration
+    int min_persistence;  // frames required before ROI published
+    int max_miss;         // grace frames allowed after disappearance
+    double iou_threshold; // ROI tracking match threshold
+    double smooth_alpha;  // EMA smoothing factor for coordinates
+
+    // Block agreement state (grid of counters 0..2 for consecutive active frames)
+    cv::Mat block_state; // CV_8U
+    int block_state_w;   // columns (blocks)
+    int block_state_h;   // rows (blocks)
+
+    // Tracked ROI list for temporal persistence and smoothing
+    struct TrackedROI {
+        int x, y, w, h;        // last raw box
+        double sx, sy, sw, sh; // smoothed coords
+        int age;               // consecutive frames seen
+        int misses;            // consecutive frames not matched
+    };
+    std::vector<TrackedROI> tracked_rois;
 
     /* Debug controls */
     gboolean debug_enabled;
@@ -108,6 +122,9 @@ struct _GstGvaMotionDetect {
 /* Forward declarations of property handlers */
 static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
 static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
+// Forward declaration for tracking attach helper used in transform_ip
+static void gst_gva_motion_detect_process_and_attach(GstGvaMotionDetect *self, GstBuffer *buf,
+                                                     const std::vector<MotionRect> &raw_rois, int width, int height);
 
 static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(object);
@@ -117,6 +134,18 @@ static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, G
         break;
     case PROP_MOTION_THRESHOLD:
         g_value_set_double(value, self->motion_threshold);
+        break;
+    case PROP_MIN_PERSISTENCE:
+        g_value_set_int(value, self->min_persistence);
+        break;
+    case PROP_MAX_MISS:
+        g_value_set_int(value, self->max_miss);
+        break;
+    case PROP_IOU_THRESHOLD:
+        g_value_set_double(value, self->iou_threshold);
+        break;
+    case PROP_SMOOTH_ALPHA:
+        g_value_set_double(value, self->smooth_alpha);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -132,6 +161,20 @@ static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, c
     case PROP_MOTION_THRESHOLD:
         self->motion_threshold = g_value_get_double(value);
         break;
+    case PROP_MIN_PERSISTENCE:
+        self->min_persistence = std::max(1, g_value_get_int(value));
+        break;
+    case PROP_MAX_MISS:
+        self->max_miss = std::max(0, g_value_get_int(value));
+        break;
+    case PROP_IOU_THRESHOLD:
+        self->iou_threshold = std::clamp(g_value_get_double(value), 0.0, 1.0);
+        break;
+    case PROP_SMOOTH_ALPHA: {
+        double a = g_value_get_double(value);
+        self->smooth_alpha = (a < 0.0) ? 0.0 : (a > 1.0 ? 1.0 : a);
+        break;
+    }
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
     }
@@ -144,31 +187,20 @@ struct _GstGvaMotionDetectClass {
 
 G_DEFINE_TYPE(GstGvaMotionDetect, gst_gva_motion_detect, GST_TYPE_BASE_TRANSFORM)
 
-#ifndef _MSC_VER
 // Support both VA GPU memory and system memory; runtime property enforces restriction.
-static GstStaticPadTemplate sink_templ = GST_STATIC_PAD_TEMPLATE(
-    "sink", GST_PAD_SINK, GST_PAD_ALWAYS,
-    GST_STATIC_CAPS(
-        "video/x-raw(memory:VAMemory), format=NV12; "
-        "video/x-raw, format=NV12"));
-static GstStaticPadTemplate src_templ = GST_STATIC_PAD_TEMPLATE(
-    "src", GST_PAD_SRC, GST_PAD_ALWAYS,
-    GST_STATIC_CAPS(
-        "video/x-raw(memory:VAMemory), format=NV12; "
-        "video/x-raw, format=NV12"));
-#else
-// Windows build: system memory only
 static GstStaticPadTemplate sink_templ =
-    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
+    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
+                            GST_STATIC_CAPS("video/x-raw(memory:VAMemory), format=NV12; "
+                                            "video/x-raw, format=NV12"));
 static GstStaticPadTemplate src_templ =
-    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("video/x-raw"));
-#endif
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS,
+                            GST_STATIC_CAPS("video/x-raw(memory:VAMemory), format=NV12; "
+                                            "video/x-raw, format=NV12"));
 
 static void gst_gva_motion_detect_set_context(GstElement *elem, GstContext *context) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(elem);
     const gchar *ctype = gst_context_get_context_type(context);
     const GstStructure *st = gst_context_get_structure(context);
-#ifndef _MSC_VER
     if (g_strcmp0(ctype, "gst.va.display.handle") == 0 && !self->va_dpy) {
         if (gst_structure_has_field(st, "va-display")) {
             self->va_dpy = (VADisplay)g_value_get_pointer(gst_structure_get_value(st, "va-display"));
@@ -180,19 +212,14 @@ static void gst_gva_motion_detect_set_context(GstElement *elem, GstContext *cont
             }
         }
     }
-#endif
     GST_ELEMENT_CLASS(gst_gva_motion_detect_parent_class)->set_context(elem, context);
 }
 
 static gboolean gst_gva_motion_detect_query(GstElement *elem, GstQuery *query) {
-#ifndef _MSC_VER
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(elem);
     if (gst_va_handle_context_query(elem, query, self->va_display))
         return TRUE;
     return GST_ELEMENT_CLASS(gst_gva_motion_detect_parent_class)->query(elem, query);
-#else
-    return GST_ELEMENT_CLASS(gst_gva_motion_detect_parent_class)->query(elem, query);
-#endif
 }
 
 static GstCaps *gst_gva_motion_detect_transform_caps(GstBaseTransform *, GstPadDirection /*direction*/, GstCaps *caps,
@@ -207,7 +234,6 @@ static GstCaps *gst_gva_motion_detect_transform_caps(GstBaseTransform *, GstPadD
 }
 
 // -----------------------------------------------------------------------------
-#ifndef _MSC_VER
 // VA API helper functions (extracted from transform_ip for clarity)
 // Map GST buffer to VA surface (using mapper + fallback) and return VASurfaceID
 static VASurfaceID gva_motion_detect_get_surface(GstGvaMotionDetect *self, GstBuffer *buf) {
@@ -262,7 +288,8 @@ static bool gva_motion_detect_map_luma(GstGvaMotionDetect *self, VASurfaceID sid
                                        cv::UMat &out_luma) {
     if (sid == VA_INVALID_SURFACE || !self->va_dpy || width <= 0 || height <= 0)
         return false;
-    VAImage image; memset(&image, 0, sizeof(image));
+    VAImage image;
+    memset(&image, 0, sizeof(image));
     VAStatus st = vaDeriveImage(self->va_dpy, sid, &image);
     if (st != VA_STATUS_SUCCESS) {
         GST_DEBUG_OBJECT(self, "vaDeriveImage failed status=%d (%s)", (int)st, vaErrorStr(st));
@@ -274,7 +301,8 @@ static bool gva_motion_detect_map_luma(GstGvaMotionDetect *self, VASurfaceID sid
         return false;
     }
     // Supported formats where plane 0 is luma
-    if (image.format.fourcc != VA_FOURCC_NV12 && image.format.fourcc != VA_FOURCC_I420 && image.format.fourcc != VA_FOURCC_YV12) {
+    if (image.format.fourcc != VA_FOURCC_NV12 && image.format.fourcc != VA_FOURCC_I420 &&
+        image.format.fourcc != VA_FOURCC_YV12) {
         vaUnmapBuffer(self->va_dpy, image.buf);
         vaDestroyImage(self->va_dpy, image.image_id);
         GST_DEBUG_OBJECT(self, "Unsupported fourcc %4.4s for luma mapping", (char *)&image.format.fourcc);
@@ -324,7 +352,7 @@ static VASurfaceID gva_motion_detect_ensure_scaled_surface(GstGvaMotionDetect *s
 
 // Hardware downscale via vaBlitSurface into cached scaled surface. Returns true on success and outputs sid.
 static bool gst_gva_motion_detect_va_downscale(GstGvaMotionDetect *self, VASurfaceID src_sid, int src_w, int src_h,
-                                              int dst_w, int dst_h, VASurfaceID &out_sid) {
+                                               int dst_w, int dst_h, VASurfaceID &out_sid) {
     out_sid = VA_INVALID_SURFACE;
     if (!self->va_dpy || src_sid == VA_INVALID_SURFACE)
         return false;
@@ -335,7 +363,8 @@ static bool gst_gva_motion_detect_va_downscale(GstGvaMotionDetect *self, VASurfa
         return false;
 
     // Try to locate vaBlitSurface dynamically (may be absent in older libva versions).
-    typedef VAStatus (*PFN_vaBlitSurface)(VADisplay, VASurfaceID, VASurfaceID, const VARectangle *, const VARectangle *, const VARectangle *, uint32_t);
+    typedef VAStatus (*PFN_vaBlitSurface)(VADisplay, VASurfaceID, VASurfaceID, const VARectangle *, const VARectangle *,
+                                          const VARectangle *, uint32_t);
     static PFN_vaBlitSurface p_vaBlitSurface = nullptr;
     if (!p_vaBlitSurface) {
         void *sym = dlsym(RTLD_DEFAULT, "vaBlitSurface");
@@ -351,11 +380,20 @@ static bool gst_gva_motion_detect_va_downscale(GstGvaMotionDetect *self, VASurfa
     }
 
     // Prepare rectangles safely (avoid narrowing warnings by explicit assignment & clamping)
-    VARectangle src_rect; src_rect.x = 0; src_rect.y = 0; src_rect.width = (uint16_t)std::min(src_w, 0xFFFF); src_rect.height = (uint16_t)std::min(src_h, 0xFFFF);
-    VARectangle dst_rect; dst_rect.x = 0; dst_rect.y = 0; dst_rect.width = (uint16_t)std::min(dst_w, 0xFFFF); dst_rect.height = (uint16_t)std::min(dst_h, 0xFFFF);
+    VARectangle src_rect;
+    src_rect.x = 0;
+    src_rect.y = 0;
+    src_rect.width = (uint16_t)std::min(src_w, 0xFFFF);
+    src_rect.height = (uint16_t)std::min(src_h, 0xFFFF);
+    VARectangle dst_rect;
+    dst_rect.x = 0;
+    dst_rect.y = 0;
+    dst_rect.width = (uint16_t)std::min(dst_w, 0xFFFF);
+    dst_rect.height = (uint16_t)std::min(dst_h, 0xFFFF);
     VAStatus st = p_vaBlitSurface(self->va_dpy, dst_sid, src_sid, &src_rect, &dst_rect, nullptr, 0);
     if (st != VA_STATUS_SUCCESS) {
-        GST_DEBUG_OBJECT(self, "vaBlitSurface unavailable/failed -> software resize path (status=%d %s)", (int)st, vaErrorStr(st));
+        GST_DEBUG_OBJECT(self, "vaBlitSurface unavailable/failed -> software resize path (status=%d %s)", (int)st,
+                         vaErrorStr(st));
         return false;
     }
     st = vaSyncSurface(self->va_dpy, dst_sid);
@@ -366,18 +404,6 @@ static bool gst_gva_motion_detect_va_downscale(GstGvaMotionDetect *self, VASurfa
     out_sid = dst_sid;
     return true;
 }
-#else
-// Stubs for MSVC build (no VA available)
-static inline int gva_motion_detect_get_surface(GstGvaMotionDetect *, GstBuffer *) {
-    return -1;
-}
-static inline bool gva_motion_detect_convert_from_surface(GstGvaMotionDetect *, int, int, int, cv::UMat &) {
-    return false;
-}
-static inline bool gva_motion_detect_write_to_surface(GstGvaMotionDetect *, const cv::UMat &, int, int, int) {
-    return false;
-}
-#endif
 
 static gboolean gst_gva_motion_detect_start(GstBaseTransform *trans) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
@@ -385,12 +411,10 @@ static gboolean gst_gva_motion_detect_start(GstBaseTransform *trans) {
     self->caps_is_va = FALSE;
     self->frame_index = 0;
     self->tried_va_query = FALSE;
-#ifndef _MSC_VER
     self->va_dpy = nullptr;
     self->va_display = nullptr;
     gst_element_post_message(GST_ELEMENT(self),
                              gst_message_new_need_context(GST_OBJECT(self), "gst.va.display.handle"));
-#endif
     return TRUE;
 }
 
@@ -402,10 +426,11 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *trans, GstCaps 
     gboolean is_va = (caps_str && strstr(caps_str, "memory:VAMemory"));
     g_free(caps_str);
     self->caps_is_va = is_va ? TRUE : FALSE; // record negotiated memory type
+    // Reset tracking state on caps change (resolution may differ)
+    self->tracked_rois.clear();
+    self->block_state.release();
     return TRUE;
 }
-
-#ifndef _MSC_VER
 // Helper to attach motion ROIs and associated analytics metadata (aggregated in a single relation meta)
 static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffer *buf,
                                               const std::vector<MotionRect> &rois, int width, int height) {
@@ -447,25 +472,25 @@ static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffe
         double _y = y * height + 0.5;
         double _w = w * width + 0.5;
         double _h = h * height + 0.5;
-    // Apply precision reduction to normalized coordinates
-    double x_min_r = md_round_coord(x);
-    double x_max_r = md_round_coord(x + w);
-    double y_min_r = md_round_coord(y);
-    double y_max_r = md_round_coord(y + h);
-    GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max", G_TYPE_DOUBLE,
-                          x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max", G_TYPE_DOUBLE, y_max_r,
-                          "confidence", G_TYPE_DOUBLE, 1.0, NULL);
+        // Apply precision reduction to normalized coordinates
+        double x_min_r = md_round_coord(x);
+        double x_max_r = md_round_coord(x + w);
+        double y_min_r = md_round_coord(y);
+        double y_max_r = md_round_coord(y + h);
+        GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max",
+                                                    G_TYPE_DOUBLE, x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max",
+                                                    G_TYPE_DOUBLE, y_max_r, "confidence", G_TYPE_DOUBLE, 1.0, NULL);
         GstAnalyticsODMtd od_mtd;
-        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"),
-                                                    (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w),
-                                                    (int)std::lround(_h), 1.0, &od_mtd)) {
+        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"), (int)std::lround(_x),
+                                                    (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h),
+                                                    1.0, &od_mtd)) {
             GST_WARNING_OBJECT(self, "Failed to add OD metadata for motion ROI");
             gst_structure_free(detection);
             continue;
         }
-        GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_add_video_region_of_interest_meta(
-            buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y), (guint)std::lround(_w),
-            (guint)std::lround(_h));
+        GstVideoRegionOfInterestMeta *roi_meta =
+            gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
+                                                         (guint)std::lround(_w), (guint)std::lround(_h));
         if (!roi_meta) {
             GST_WARNING_OBJECT(self, "Failed to add ROI meta for motion ROI");
             gst_structure_free(detection);
@@ -493,9 +518,7 @@ static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffe
         fflush(stdout);
     }
 }
-#endif
 
-#ifndef _MSC_VER
 // Helper to merge overlapping motion rectangles in-place (simple O(n^2))
 static void gst_gva_motion_detect_merge_rois(std::vector<MotionRect> &rois) {
     if (rois.empty())
@@ -531,60 +554,10 @@ static void gst_gva_motion_detect_merge_rois(std::vector<MotionRect> &rois) {
         rois.swap(out);
     }
 }
-#endif
 
 // In-place processing: get VASurfaceID via mapper
 static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
-#ifdef _MSC_VER
-    // Windows software-only path: map buffer, build cv::Mat and run motion detection directly.
-    ++self->frame_index;
-    int width = GST_VIDEO_INFO_WIDTH(&self->vinfo);
-    int height = GST_VIDEO_INFO_HEIGHT(&self->vinfo);
-    if (!width || !height)
-        return GST_FLOW_OK;
-    GstMapInfo map;
-    if (!gst_buffer_map(buf, &map, GST_MAP_READ))
-        return GST_FLOW_OK;
-    // Assume packed RGB or BGR; fallback to gray if single channel
-    cv::Mat frame_mat(height, width, CV_8UC3, (void *)map.data);
-    cv::Mat gray;
-    cv::cvtColor(frame_mat, gray, cv::COLOR_BGR2GRAY);
-    cv::Mat prev;
-    if (!self->prev_luma.empty())
-        self->prev_luma.copyTo(prev);
-    gray.copyTo(self->prev_luma);
-    if (prev.empty()) {
-        gst_buffer_unmap(buf, &map);
-        return GST_FLOW_OK;
-    }
-    cv::Mat diff;
-    cv::absdiff(gray, prev, diff);
-    cv::GaussianBlur(diff, diff, cv::Size(3, 3), 0);
-    cv::threshold(diff, diff, 15, 255, cv::THRESH_BINARY);
-    cv::Mat k = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-    cv::morphologyEx(diff, diff, cv::MORPH_OPEN, k);
-    cv::dilate(diff, diff, k);
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(diff, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    std::vector<MotionRect> rois;
-    for (auto &c : contours) {
-        if (c.size() < 3)
-            continue;
-        cv::Rect r = cv::boundingRect(c);
-        if (r.area() < width * height * 0.0005)
-            continue;
-        rois.push_back(MotionRect{r.x, r.y, r.width, r.height});
-    }
-    // For Windows build stripped of analytics meta system, just log ROI count.
-    if (!rois.empty()) {
-        GST_INFO_OBJECT(self, "Motion blocks detected: %zu (metadata attachment disabled)", rois.size());
-    }
-    gst_buffer_unmap(buf, &map);
-    return GST_FLOW_OK;
-#endif
-
-#ifndef _MSC_VER
     // CPU path when system memory negotiated
     if (!self->caps_is_va) {
         ++self->frame_index;
@@ -600,7 +573,12 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
             guint8 *y_data = (guint8 *)GST_VIDEO_FRAME_PLANE_DATA(&vframe, 0);
             int y_stride = GST_VIDEO_FRAME_PLANE_STRIDE(&vframe, 0);
             cv::Mat y_mat(height, width, CV_8UC1, y_data, y_stride);
-            try { y_mat.copyTo(curr_luma); } catch (...) { gst_video_frame_unmap(&vframe); return GST_FLOW_OK; }
+            try {
+                y_mat.copyTo(curr_luma);
+            } catch (...) {
+                gst_video_frame_unmap(&vframe);
+                return GST_FLOW_OK;
+            }
             gst_video_frame_unmap(&vframe);
         } else {
             VASurfaceID sid_cpu = gva_motion_detect_get_surface(self, buf);
@@ -614,20 +592,26 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         double scale = (double)target_w / (double)width;
         int small_w = target_w;
         int small_h = std::max(1, (int)std::lround(height * scale));
-        cv::UMat curr_small; cv::resize(curr_luma, curr_small, cv::Size(small_w, small_h), 0, 0, cv::INTER_LINEAR);
+        cv::UMat curr_small;
+        cv::resize(curr_luma, curr_small, cv::Size(small_w, small_h), 0, 0, cv::INTER_LINEAR);
         if (self->prev_small_gray.empty()) {
             curr_small.copyTo(self->prev_small_gray);
             curr_luma.copyTo(self->prev_luma);
             return GST_FLOW_OK;
         }
         const int PIXEL_DIFF_THR = 15;
-        cv::UMat diff_small; cv::absdiff(curr_small, self->prev_small_gray, diff_small);
-        cv::UMat blurred_small; cv::GaussianBlur(diff_small, blurred_small, cv::Size(3,3), 0);
-        cv::UMat thresh_small; cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
-        cv::UMat morph_small; {
-            cv::UMat tmp; cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
+        cv::UMat diff_small;
+        cv::absdiff(curr_small, self->prev_small_gray, diff_small);
+        cv::UMat blurred_small;
+        cv::GaussianBlur(diff_small, blurred_small, cv::Size(3, 3), 0);
+        cv::UMat thresh_small;
+        cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
+        cv::UMat morph_small;
+        {
+            cv::UMat tmp;
+            cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
             cv::morphologyEx(thresh_small, tmp, cv::MORPH_OPEN, ksmall);
-            cv::dilate(tmp, morph_small, ksmall, cv::Point(-1,-1), 1);
+            cv::dilate(tmp, morph_small, ksmall, cv::Point(-1, -1), 1);
         }
         std::vector<MotionRect> rois;
         const double MIN_REL_AREA = 0.0005;
@@ -639,30 +623,56 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         int block_small_h = std::max(4, (int)std::round(block_full / scale_y));
         double CHANGE_RATIO_THR = std::max(0.0, std::min(1.0, self->motion_threshold));
         cv::Mat morph_cpu = morph_small.getMat(cv::ACCESS_READ);
-        for (int by = 0; by < small_h; by += block_small_h) {
-            int h_small = std::min(block_small_h, small_h - by); if (h_small < 4) break;
-            for (int bx = 0; bx < small_w; bx += block_small_w) {
-                int w_small = std::min(block_small_w, small_w - bx); if (w_small < 4) break;
+        // Block agreement counters (state 0..2) persisted in self->block_state
+        int grid_rows = (small_h + block_small_h - 1) / block_small_h;
+        int grid_cols = (small_w + block_small_w - 1) / block_small_w;
+        if (self->block_state.empty() || self->block_state.rows != grid_rows || self->block_state.cols != grid_cols) {
+            self->block_state = cv::Mat(grid_rows, grid_cols, CV_8U, cv::Scalar(0));
+        }
+        for (int by = 0, gy = 0; by < small_h; by += block_small_h, ++gy) {
+            int h_small = std::min(block_small_h, small_h - by);
+            if (h_small < 4)
+                break;
+            for (int bx = 0, gx = 0; bx < small_w; bx += block_small_w, ++gx) {
+                int w_small = std::min(block_small_w, small_w - bx);
+                if (w_small < 4)
+                    break;
                 cv::Rect r_small(bx, by, w_small, h_small);
                 cv::Mat sub = morph_cpu(r_small);
                 int changed = cv::countNonZero(sub);
                 double ratio = (double)changed / (double)(r_small.width * r_small.height);
-                if (ratio < CHANGE_RATIO_THR) continue;
+                unsigned char &state = self->block_state.at<unsigned char>(gy, gx);
+                if (ratio >= CHANGE_RATIO_THR) {
+                    if (state < 2)
+                        state++;
+                } else {
+                    if (state > 0)
+                        state--;
+                }
+                if (state < 2)
+                    continue; // need 2 consecutive active frames
                 int fx = (int)std::round(r_small.x * scale_x);
                 int fy = (int)std::round(r_small.y * scale_y);
                 int fw = (int)std::round(r_small.width * scale_x);
                 int fh = (int)std::round(r_small.height * scale_y);
                 double area_full = (double)fw * (double)fh;
-                if (area_full / full_area < MIN_REL_AREA) continue;
-                const int PAD = 4; fx = std::max(0, fx - PAD); fy = std::max(0, fy - PAD);
-                fw = std::min(width - fx, fw + 2*PAD); fh = std::min(height - fy, fh + 2*PAD);
-                if (fx + fw > width) fw = width - fx; if (fy + fh > height) fh = height - fy;
+                if (area_full / full_area < MIN_REL_AREA)
+                    continue;
+                const int PAD = 4;
+                fx = std::max(0, fx - PAD);
+                fy = std::max(0, fy - PAD);
+                fw = std::min(width - fx, fw + 2 * PAD);
+                fh = std::min(height - fy, fh + 2 * PAD);
+                if (fx + fw > width)
+                    fw = width - fx;
+                if (fy + fh > height)
+                    fh = height - fy;
                 rois.push_back(MotionRect{fx, fy, fw, fh});
             }
         }
         if (!rois.empty()) {
             gst_gva_motion_detect_merge_rois(rois);
-            gst_gva_motion_detect_attach_rois(self, buf, rois, width, height);
+            gst_gva_motion_detect_process_and_attach(self, buf, rois, width, height);
         }
         curr_small.copyTo(self->prev_small_gray);
         curr_luma.copyTo(self->prev_luma);
@@ -685,7 +695,7 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         }
         if (!self->va_dpy) {
             GST_DEBUG_OBJECT(self, "No VADisplay (after peer query); pass-through frame=%" G_GUINT64_FORMAT,
-                              self->frame_index);
+                             self->frame_index);
             ++self->frame_index;
             return GST_FLOW_OK;
         }
@@ -770,13 +780,18 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
 
     // Motion mask generation (absdiff -> blur -> threshold -> morphology)
     const int PIXEL_DIFF_THR = 15; // absolute difference threshold
-    cv::UMat diff_small; cv::absdiff(curr_small, self->prev_small_gray, diff_small);
-    cv::UMat blurred_small; cv::GaussianBlur(diff_small, blurred_small, cv::Size(3,3), 0);
-    cv::UMat thresh_small; cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
-    cv::UMat morph_small; {
-        cv::UMat tmp; cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3));
+    cv::UMat diff_small;
+    cv::absdiff(curr_small, self->prev_small_gray, diff_small);
+    cv::UMat blurred_small;
+    cv::GaussianBlur(diff_small, blurred_small, cv::Size(3, 3), 0);
+    cv::UMat thresh_small;
+    cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
+    cv::UMat morph_small;
+    {
+        cv::UMat tmp;
+        cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
         cv::morphologyEx(thresh_small, tmp, cv::MORPH_OPEN, ksmall);
-        cv::dilate(tmp, morph_small, ksmall, cv::Point(-1,-1), 1);
+        cv::dilate(tmp, morph_small, ksmall, cv::Point(-1, -1), 1);
     }
 
     // Block-based scan instead of contours
@@ -835,11 +850,9 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         }
     }
 
-
     if (!rois.empty()) {
-        // Merge overlapping ROIs via helper
         gst_gva_motion_detect_merge_rois(rois);
-        gst_gva_motion_detect_attach_rois(self, buf, rois, width, height);
+        gst_gva_motion_detect_process_and_attach(self, buf, rois, width, height);
     }
 
     // Update previous frames
@@ -849,17 +862,14 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
     self->prev_sid = sid;
     ++self->frame_index;
     return GST_FLOW_OK;
-#endif // !_MSC_VER
 }
 
 static void gst_gva_motion_detect_finalize(GObject *obj) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(obj);
-#ifndef _MSC_VER
     if (self->scaled_sid != VA_INVALID_SURFACE) {
         vaDestroySurfaces(self->va_dpy, &self->scaled_sid, 1);
         self->scaled_sid = VA_INVALID_SURFACE;
     }
-#endif
     g_mutex_clear(&self->meta_mutex);
     G_OBJECT_CLASS(gst_gva_motion_detect_parent_class)->finalize(obj);
 }
@@ -872,14 +882,8 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
     GST_DEBUG_CATEGORY_INIT(gst_gva_motion_detect_debug, "gvamotiondetect", 0, "GVA motion detect filter");
 
     gst_element_class_set_static_metadata(
-#ifndef _MSC_VER
-    eclass, "Motion detect (auto GPU/CPU)", "Filter/Video",
-    "Automatically uses VA surface path when VAMemory caps negotiated; otherwise system memory path", "dlstreamer"
-#else
-        eclass, "Motion detect (software)", "Filter/Video",
-        "Software motion detection (system memory frames) - VA skipped under MSVC", "dlstreamer"
-#endif
-    );
+        eclass, "Motion detect (auto GPU/CPU)", "Filter/Video",
+        "Automatically uses VA surface path when VAMemory caps negotiated; otherwise system memory path", "dlstreamer");
 
     gst_element_class_add_static_pad_template(eclass, &sink_templ);
     gst_element_class_add_static_pad_template(eclass, &src_templ);
@@ -909,6 +913,22 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
                                                         0.0, 1.0, 0.05,
                                                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property(oclass, PROP_MIN_PERSISTENCE,
+                                    g_param_spec_int("min-persistence", "Min Persistence",
+                                                     "Frames an ROI must persist before being emitted", 1, 30, 2,
+                                                     (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(oclass, PROP_MAX_MISS,
+                                    g_param_spec_int("max-miss", "Max Miss",
+                                                     "Grace frames after last match before ROI is dropped", 0, 30, 1,
+                                                     (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(
+        oclass, PROP_IOU_THRESHOLD,
+        g_param_spec_double("iou-threshold", "IoU Threshold", "IoU threshold for matching ROIs frame-to-frame (0..1)",
+                            0.0, 1.0, 0.3, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(
+        oclass, PROP_SMOOTH_ALPHA,
+        g_param_spec_double("smooth-alpha", "Smooth Alpha", "EMA smoothing factor for ROI coordinates (0..1)", 0.0, 1.0,
+                            0.5, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     /* OpenCL kernel property removed. */
 }
@@ -921,14 +941,18 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->frame_index = 0;
     self->block_size = 64;         // default
     self->motion_threshold = 0.05; // default changed pixel ratio
-#ifndef _MSC_VER
+    self->min_persistence = 2;
+    self->max_miss = 1;
+    self->iou_threshold = 0.3;
+    self->smooth_alpha = 0.5;
+    self->block_state_w = 0;
+    self->block_state_h = 0;
     self->va_dpy = nullptr;
     self->va_display = nullptr;
     self->prev_sid = VA_INVALID_SURFACE;
     self->scaled_sid = VA_INVALID_SURFACE;
     self->scaled_w = 0;
     self->scaled_h = 0;
-#endif
     // Debug environment parsing (simple, no logging here to avoid early flood)
     const gchar *env_dbg = g_getenv("GVA_MD_PRINT");
     self->debug_enabled = (env_dbg && env_dbg[0] != '\0' && g_strcmp0(env_dbg, "0") != 0);
@@ -943,6 +967,85 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->last_debug_frame = (guint64)-1;
     self->tried_va_query = FALSE;
     g_mutex_init(&self->meta_mutex);
+}
+
+// ---------------- Tracking & Smoothing Helpers ----------------
+static inline double md_iou(const MotionRect &a, const MotionRect &b) {
+    int x1 = std::max(a.x, b.x);
+    int y1 = std::max(a.y, b.y);
+    int x2 = std::min(a.x + a.w, b.x + b.w);
+    int y2 = std::min(a.y + a.h, b.y + b.h);
+    int iw = std::max(0, x2 - x1);
+    int ih = std::max(0, y2 - y1);
+    int inter = iw * ih;
+    int areaA = a.w * a.h;
+    int areaB = b.w * b.h;
+    if (inter == 0)
+        return 0.0;
+    return (double)inter / (double)(areaA + areaB - inter);
+}
+
+static void gst_gva_motion_detect_process_and_attach(GstGvaMotionDetect *self, GstBuffer *buf,
+                                                     const std::vector<MotionRect> &raw_rois, int width, int height) {
+    std::vector<bool> matched(raw_rois.size(), false);
+    for (auto &t : self->tracked_rois)
+        t.misses++;
+    for (size_t i = 0; i < raw_rois.size(); ++i) {
+        const MotionRect &r = raw_rois[i];
+        double best_iou = 0.0;
+        int best_idx = -1;
+        for (size_t j = 0; j < self->tracked_rois.size(); ++j) {
+            double iou = md_iou(r, {self->tracked_rois[j].x, self->tracked_rois[j].y, self->tracked_rois[j].w,
+                                    self->tracked_rois[j].h});
+            if (iou > best_iou) {
+                best_iou = iou;
+                best_idx = (int)j;
+            }
+        }
+        if (best_idx >= 0 && best_iou >= self->iou_threshold) {
+            auto &t = self->tracked_rois[best_idx];
+            t.x = r.x;
+            t.y = r.y;
+            t.w = r.w;
+            t.h = r.h;
+            double a = self->smooth_alpha;
+            t.sx = a * r.x + (1 - a) * t.sx;
+            t.sy = a * r.y + (1 - a) * t.sy;
+            t.sw = a * r.w + (1 - a) * t.sw;
+            t.sh = a * r.h + (1 - a) * t.sh;
+            t.age++;
+            t.misses = 0;
+            matched[i] = true;
+        }
+    }
+    for (size_t i = 0; i < raw_rois.size(); ++i)
+        if (!matched[i]) {
+            const MotionRect &r = raw_rois[i];
+            GstGvaMotionDetect::TrackedROI t{r.x,         r.y,         r.w,         r.h, (double)r.x,
+                                             (double)r.y, (double)r.w, (double)r.h, 1,   0};
+            self->tracked_rois.push_back(t);
+        }
+    std::vector<MotionRect> stable;
+    for (auto &t : self->tracked_rois)
+        if (t.age >= self->min_persistence && t.misses == 0) {
+            MotionRect out{(int)std::lround(t.sx), (int)std::lround(t.sy), (int)std::lround(t.sw),
+                           (int)std::lround(t.sh)};
+            if (out.x < 0)
+                out.x = 0;
+            if (out.y < 0)
+                out.y = 0;
+            if (out.x + out.w > width)
+                out.w = width - out.x;
+            if (out.y + out.h > height)
+                out.h = height - out.y;
+            stable.push_back(out);
+        }
+    self->tracked_rois.erase(
+        std::remove_if(self->tracked_rois.begin(), self->tracked_rois.end(),
+                       [self](const GstGvaMotionDetect::TrackedROI &t) { return t.misses > self->max_miss; }),
+        self->tracked_rois.end());
+    if (!stable.empty())
+        gst_gva_motion_detect_attach_rois(self, buf, stable, width, height);
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {
