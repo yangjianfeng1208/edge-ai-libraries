@@ -73,15 +73,15 @@ spec:
         app: {{ include "nginx.fullname" . }}
     spec:
       containers:
-      - image: nginxinc/nginx-unprivileged:1.29.1
+      - image: nginxinc/nginx-unprivileged:1.29.2
         imagePullPolicy: {{ .Values.Chatqna.image.pullPolicy }}
         name: nginx
         volumeMounts:
         - mountPath: /etc/nginx/nginx.conf
           name: nginx-config-volume
           subPath: nginx.conf
-      securityContext:
-        allowPrivilegeEscalation: false
+        securityContext:
+          allowPrivilegeEscalation: false
       volumes:
       - configMap:
           name: {{ include "nginx.fullname" . }}-config
