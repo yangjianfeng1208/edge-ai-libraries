@@ -1052,5 +1052,5 @@ static gboolean plugin_init(GstPlugin *plugin) {
     return gst_element_register(plugin, "gvamotiondetect", GST_RANK_NONE, GST_TYPE_GVA_MOTION_DETECT);
 }
 
-GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvamotiondetect, "GVA motion detect filter", plugin_init, "1.0",
-                  "MIT/X11", "dlstreamer", "https://example.com")
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvamotiondetect, PRODUCT_FULL_NAME " gvamotiondetect element",
+                  plugin_init, PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)
