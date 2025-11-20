@@ -189,7 +189,7 @@ WORKDIR /home/dlstreamer
 
 # Copy GStreamer patches
 RUN mkdir -p /tmp/patches
-COPY dependencies/patches/* /tmp/patches/*
+COPY dependencies/patches/ /tmp/patches/
 
 RUN \
     git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
@@ -202,7 +202,7 @@ WORKDIR /home/dlstreamer/gstreamer
 
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
-    git apply /tmp/patches/* && \
+    git apply /tmp/patches/*.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \

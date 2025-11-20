@@ -183,7 +183,7 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 # Copy GStreamer patches
 RUN mkdir -p /tmp/patches
-COPY dependencies/patches/* /tmp/patches/*
+COPY dependencies/patches/ /tmp/patches/
 
 # Build GStreamer
 WORKDIR /home/dlstreamer
@@ -199,7 +199,7 @@ WORKDIR /home/dlstreamer/gstreamer
 
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
-    git apply /tmp/patches/* && \
+    git apply /tmp/patches/*.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \
