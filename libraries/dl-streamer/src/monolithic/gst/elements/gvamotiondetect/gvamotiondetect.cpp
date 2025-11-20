@@ -55,7 +55,9 @@ enum {
     PROP_MIN_PERSISTENCE,
     PROP_MAX_MISS,
     PROP_IOU_THRESHOLD,
-    PROP_SMOOTH_ALPHA
+    PROP_SMOOTH_ALPHA,
+    PROP_CONFIRM_FRAMES,
+    PROP_PIXEL_DIFF_THRESHOLD
 };
 
 struct _GstGvaMotionDetect {
@@ -90,10 +92,12 @@ struct _GstGvaMotionDetect {
     double motion_threshold;
 
     // Stability (temporal smoothing) configuration
-    int min_persistence;  // frames required before ROI published
-    int max_miss;         // grace frames allowed after disappearance
-    double iou_threshold; // ROI tracking match threshold
-    double smooth_alpha;  // EMA smoothing factor for coordinates
+    int min_persistence;      // frames required before ROI published
+    int max_miss;             // grace frames allowed after disappearance
+    double iou_threshold;     // ROI tracking match threshold
+    double smooth_alpha;      // EMA smoothing factor for coordinates
+    int confirm_frames;       // consecutive frames required to confirm motion (1=single-frame)
+    int pixel_diff_threshold; // per-pixel absolute luma difference threshold (1..255)
 
     // Block agreement state (grid of counters 0..2 for consecutive active frames)
     cv::Mat block_state; // CV_8U
@@ -147,6 +151,12 @@ static void gst_gva_motion_detect_get_property(GObject *object, guint prop_id, G
     case PROP_SMOOTH_ALPHA:
         g_value_set_double(value, self->smooth_alpha);
         break;
+    case PROP_CONFIRM_FRAMES:
+        g_value_set_int(value, self->confirm_frames);
+        break;
+    case PROP_PIXEL_DIFF_THRESHOLD:
+        g_value_set_int(value, self->pixel_diff_threshold);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
     }
@@ -173,6 +183,21 @@ static void gst_gva_motion_detect_set_property(GObject *object, guint prop_id, c
     case PROP_SMOOTH_ALPHA: {
         double a = g_value_get_double(value);
         self->smooth_alpha = (a < 0.0) ? 0.0 : (a > 1.0 ? 1.0 : a);
+        break;
+    }
+    case PROP_CONFIRM_FRAMES: {
+        int cf = g_value_get_int(value);
+        self->confirm_frames = std::max(1, std::min(cf, 10));
+        // Optionally shrink existing block_state values if they exceed new threshold
+        if (!self->block_state.empty() && self->confirm_frames < 2) {
+            // No temporal confirmation needed; counters can be cleared
+            self->block_state.setTo(cv::Scalar(0));
+        }
+        break;
+    }
+    case PROP_PIXEL_DIFF_THRESHOLD: {
+        int thr = g_value_get_int(value);
+        self->pixel_diff_threshold = std::max(1, std::min(thr, 255));
         break;
     }
     default:
@@ -555,6 +580,120 @@ static void gst_gva_motion_detect_merge_rois(std::vector<MotionRect> &rois) {
     }
 }
 
+// ------------------- Motion Mask & Block Scan Helpers (Refactored) -------------------
+// Build motion mask (absdiff -> blur -> threshold -> morphology) from current small frame and previous small frame.
+static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &prev_small_gray, cv::UMat &morph_small,
+                                 int pixel_diff_threshold) {
+    int PIXEL_DIFF_THR = std::max(1, std::min(pixel_diff_threshold, 255));
+    cv::UMat diff_small;
+    cv::absdiff(curr_small, prev_small_gray, diff_small);
+    cv::UMat blurred_small;
+    cv::GaussianBlur(diff_small, blurred_small, cv::Size(3, 3), 0);
+    cv::UMat thresh_small;
+    cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
+    cv::UMat tmp;
+    cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(thresh_small, tmp, cv::MORPH_OPEN, ksmall);
+    cv::dilate(tmp, morph_small, ksmall, cv::Point(-1, -1), 1);
+}
+
+// Scan blocks with temporal agreement counters (used for CPU/system-memory path). Populates rois.
+// Unified block scan honoring confirm_frames property.
+static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph_small, int width, int height, int small_w,
+                           int small_h, std::vector<MotionRect> &rois) {
+    const double MIN_REL_AREA = 0.0005;
+    double full_area = (double)width * (double)height;
+    double scale_x = (double)width / (double)small_w;
+    double scale_y = (double)height / (double)small_h;
+    int block_full = std::max(16, self->block_size);
+    int block_small_w = std::max(4, (int)std::round(block_full / scale_x));
+    int block_small_h = std::max(4, (int)std::round(block_full / scale_y));
+    double change_thr = std::max(0.0, std::min(1.0, self->motion_threshold));
+    int required = std::max(1, self->confirm_frames);
+    cv::Mat morph_cpu = morph_small.getMat(cv::ACCESS_READ);
+    if (required > 1) {
+        int grid_rows = (small_h + block_small_h - 1) / block_small_h;
+        int grid_cols = (small_w + block_small_w - 1) / block_small_w;
+        if (self->block_state.empty() || self->block_state.rows != grid_rows || self->block_state.cols != grid_cols)
+            self->block_state = cv::Mat(grid_rows, grid_cols, CV_8U, cv::Scalar(0));
+        for (int by = 0, gy = 0; by < small_h; by += block_small_h, ++gy) {
+            int h_small = std::min(block_small_h, small_h - by);
+            if (h_small < 4)
+                break;
+            for (int bx = 0, gx = 0; bx < small_w; bx += block_small_w, ++gx) {
+                int w_small = std::min(block_small_w, small_w - bx);
+                if (w_small < 4)
+                    break;
+                cv::Rect r_small(bx, by, w_small, h_small);
+                cv::Mat sub = morph_cpu(r_small);
+                int changed = cv::countNonZero(sub);
+                double ratio = (double)changed / (double)(r_small.width * r_small.height);
+                unsigned char &state = self->block_state.at<unsigned char>(gy, gx);
+                if (ratio >= change_thr) {
+                    if (state < required)
+                        state++;
+                } else {
+                    if (state > 0)
+                        state--;
+                }
+                if (state < required)
+                    continue;
+                int fx = (int)std::round(r_small.x * scale_x);
+                int fy = (int)std::round(r_small.y * scale_y);
+                int fw = (int)std::round(r_small.width * scale_x);
+                int fh = (int)std::round(r_small.height * scale_y);
+                double area_full = (double)fw * (double)fh;
+                if (area_full / full_area < MIN_REL_AREA)
+                    continue;
+                const int PAD = 4;
+                fx = std::max(0, fx - PAD);
+                fy = std::max(0, fy - PAD);
+                fw = std::min(width - fx, fw + 2 * PAD);
+                fh = std::min(height - fy, fh + 2 * PAD);
+                if (fx + fw > width)
+                    fw = width - fx;
+                if (fy + fh > height)
+                    fh = height - fy;
+                rois.push_back(MotionRect{fx, fy, fw, fh});
+            }
+        }
+    } else { // single-frame immediate logic
+        for (int by = 0; by < small_h; by += block_small_h) {
+            int h_small = std::min(block_small_h, small_h - by);
+            if (h_small < 4)
+                break;
+            for (int bx = 0; bx < small_w; bx += block_small_w) {
+                int w_small = std::min(block_small_w, small_w - bx);
+                if (w_small < 4)
+                    break;
+                cv::Rect r_small(bx, by, w_small, h_small);
+                cv::Mat sub = morph_cpu(r_small);
+                int changed = cv::countNonZero(sub);
+                double ratio = (double)changed / (double)(r_small.width * r_small.height);
+                if (ratio < change_thr)
+                    continue;
+                int fx = (int)std::round(r_small.x * scale_x);
+                int fy = (int)std::round(r_small.y * scale_y);
+                int fw = (int)std::round(r_small.width * scale_x);
+                int fh = (int)std::round(r_small.height * scale_y);
+                double area_full = (double)fw * (double)fh;
+                if (area_full / full_area < MIN_REL_AREA)
+                    continue;
+                const int PAD = 4;
+                fx = std::max(0, fx - PAD);
+                fy = std::max(0, fy - PAD);
+                fw = std::min(width - fx, fw + 2 * PAD);
+                fh = std::min(height - fy, fh + 2 * PAD);
+                if (fx + fw > width)
+                    fw = width - fx;
+                if (fy + fh > height)
+                    fh = height - fy;
+                rois.push_back(MotionRect{fx, fy, fw, fh});
+            }
+        }
+    }
+}
+
 // In-place processing: get VASurfaceID via mapper
 static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
     GstGvaMotionDetect *self = GST_GVA_MOTION_DETECT(trans);
@@ -599,77 +738,10 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
             curr_luma.copyTo(self->prev_luma);
             return GST_FLOW_OK;
         }
-        const int PIXEL_DIFF_THR = 15;
-        cv::UMat diff_small;
-        cv::absdiff(curr_small, self->prev_small_gray, diff_small);
-        cv::UMat blurred_small;
-        cv::GaussianBlur(diff_small, blurred_small, cv::Size(3, 3), 0);
-        cv::UMat thresh_small;
-        cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
         cv::UMat morph_small;
-        {
-            cv::UMat tmp;
-            cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-            cv::morphologyEx(thresh_small, tmp, cv::MORPH_OPEN, ksmall);
-            cv::dilate(tmp, morph_small, ksmall, cv::Point(-1, -1), 1);
-        }
+        md_build_motion_mask(curr_small, self->prev_small_gray, morph_small, self->pixel_diff_threshold);
         std::vector<MotionRect> rois;
-        const double MIN_REL_AREA = 0.0005;
-        double full_area = (double)width * (double)height;
-        double scale_x = (double)width / (double)small_w;
-        double scale_y = (double)height / (double)small_h;
-        int block_full = std::max(16, self->block_size);
-        int block_small_w = std::max(4, (int)std::round(block_full / scale_x));
-        int block_small_h = std::max(4, (int)std::round(block_full / scale_y));
-        double CHANGE_RATIO_THR = std::max(0.0, std::min(1.0, self->motion_threshold));
-        cv::Mat morph_cpu = morph_small.getMat(cv::ACCESS_READ);
-        // Block agreement counters (state 0..2) persisted in self->block_state
-        int grid_rows = (small_h + block_small_h - 1) / block_small_h;
-        int grid_cols = (small_w + block_small_w - 1) / block_small_w;
-        if (self->block_state.empty() || self->block_state.rows != grid_rows || self->block_state.cols != grid_cols) {
-            self->block_state = cv::Mat(grid_rows, grid_cols, CV_8U, cv::Scalar(0));
-        }
-        for (int by = 0, gy = 0; by < small_h; by += block_small_h, ++gy) {
-            int h_small = std::min(block_small_h, small_h - by);
-            if (h_small < 4)
-                break;
-            for (int bx = 0, gx = 0; bx < small_w; bx += block_small_w, ++gx) {
-                int w_small = std::min(block_small_w, small_w - bx);
-                if (w_small < 4)
-                    break;
-                cv::Rect r_small(bx, by, w_small, h_small);
-                cv::Mat sub = morph_cpu(r_small);
-                int changed = cv::countNonZero(sub);
-                double ratio = (double)changed / (double)(r_small.width * r_small.height);
-                unsigned char &state = self->block_state.at<unsigned char>(gy, gx);
-                if (ratio >= CHANGE_RATIO_THR) {
-                    if (state < 2)
-                        state++;
-                } else {
-                    if (state > 0)
-                        state--;
-                }
-                if (state < 2)
-                    continue; // need 2 consecutive active frames
-                int fx = (int)std::round(r_small.x * scale_x);
-                int fy = (int)std::round(r_small.y * scale_y);
-                int fw = (int)std::round(r_small.width * scale_x);
-                int fh = (int)std::round(r_small.height * scale_y);
-                double area_full = (double)fw * (double)fh;
-                if (area_full / full_area < MIN_REL_AREA)
-                    continue;
-                const int PAD = 4;
-                fx = std::max(0, fx - PAD);
-                fy = std::max(0, fy - PAD);
-                fw = std::min(width - fx, fw + 2 * PAD);
-                fh = std::min(height - fy, fh + 2 * PAD);
-                if (fx + fw > width)
-                    fw = width - fx;
-                if (fy + fh > height)
-                    fh = height - fy;
-                rois.push_back(MotionRect{fx, fy, fw, fh});
-            }
-        }
+        md_scan_blocks(self, morph_small, width, height, small_w, small_h, rois);
         if (!rois.empty()) {
             gst_gva_motion_detect_merge_rois(rois);
             gst_gva_motion_detect_process_and_attach(self, buf, rois, width, height);
@@ -778,84 +850,15 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *trans,
         return GST_FLOW_OK;
     }
 
-    // Motion mask generation (absdiff -> blur -> threshold -> morphology)
-    const int PIXEL_DIFF_THR = 15; // absolute difference threshold
-    cv::UMat diff_small;
-    cv::absdiff(curr_small, self->prev_small_gray, diff_small);
-    cv::UMat blurred_small;
-    cv::GaussianBlur(diff_small, blurred_small, cv::Size(3, 3), 0);
-    cv::UMat thresh_small;
-    cv::threshold(blurred_small, thresh_small, PIXEL_DIFF_THR, 255, cv::THRESH_BINARY);
     cv::UMat morph_small;
-    {
-        cv::UMat tmp;
-        cv::Mat ksmall = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-        cv::morphologyEx(thresh_small, tmp, cv::MORPH_OPEN, ksmall);
-        cv::dilate(tmp, morph_small, ksmall, cv::Point(-1, -1), 1);
-    }
-
-    // Block-based scan instead of contours
+    md_build_motion_mask(curr_small, self->prev_small_gray, morph_small, self->pixel_diff_threshold);
     std::vector<MotionRect> rois;
-    const double MIN_REL_AREA = 0.0005; // fraction of full image (tunable)
-    double full_area = (double)width * (double)height;
-    double scale_x = (double)width / (double)small_w;
-    double scale_y = (double)height / (double)small_h;
-
-    int block_full = std::max(16, self->block_size); // clamp
-    int block_small_w = std::max(4, (int)std::round(block_full / scale_x));
-    int block_small_h = std::max(4, (int)std::round(block_full / scale_y));
-    const double CHANGE_RATIO_THR =
-        std::max(0.0, std::min(1.0, self->motion_threshold)); // fraction of changed pixels within block (property)
-    cv::Mat morph_cpu = morph_small.getMat(cv::ACCESS_READ);
-
-    for (int by = 0; by < small_h; by += block_small_h) {
-        int h_small = std::min(block_small_h, small_h - by);
-        if (h_small < 4)
-            break;
-        for (int bx = 0; bx < small_w; bx += block_small_w) {
-            int w_small = std::min(block_small_w, small_w - bx);
-            if (w_small < 4)
-                break;
-            cv::Rect r_small(bx, by, w_small, h_small);
-            cv::Mat sub = morph_cpu(r_small);
-            int changed = cv::countNonZero(sub);
-            double ratio = (double)changed / (double)(r_small.width * r_small.height);
-            if (ratio < CHANGE_RATIO_THR)
-                continue; // insufficient motion in block
-
-            // Scale to full-res
-            int fx = (int)std::round(r_small.x * scale_x);
-            int fy = (int)std::round(r_small.y * scale_y);
-            int fw = (int)std::round(r_small.width * scale_x);
-            int fh = (int)std::round(r_small.height * scale_y);
-
-            double area_full = (double)fw * (double)fh;
-            if (area_full / full_area < MIN_REL_AREA)
-                continue; // too small
-
-            // Pad a little
-            const int PAD = 4;
-            fx = std::max(0, fx - PAD);
-            fy = std::max(0, fy - PAD);
-            fw = std::min(width - fx, fw + 2 * PAD);
-            fh = std::min(height - fy, fh + 2 * PAD);
-
-            // Clamp
-            if (fx + fw > width)
-                fw = width - fx;
-            if (fy + fh > height)
-                fh = height - fy;
-
-            rois.push_back(MotionRect{fx, fy, fw, fh});
-        }
-    }
-
+    md_scan_blocks(self, morph_small, width, height, small_w, small_h, rois);
     if (!rois.empty()) {
         gst_gva_motion_detect_merge_rois(rois);
         gst_gva_motion_detect_process_and_attach(self, buf, rois, width, height);
     }
 
-    // Update previous frames
     // Update previous frames
     curr_small.copyTo(self->prev_small_gray);
     curr_luma.copyTo(self->prev_luma);
@@ -930,6 +933,19 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
         g_param_spec_double("smooth-alpha", "Smooth Alpha", "EMA smoothing factor for ROI coordinates (0..1)", 0.0, 1.0,
                             0.5, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
+    g_object_class_install_property(
+        oclass, PROP_CONFIRM_FRAMES,
+        g_param_spec_int("confirm-frames", "Confirm Frames",
+                         "Consecutive frames required to confirm motion block (1=single-frame immediate)", 1, 10, 1,
+                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(
+        oclass, PROP_PIXEL_DIFF_THRESHOLD,
+        g_param_spec_int(
+            "pixel-diff-threshold", "Pixel Diff Threshold",
+            "Per-pixel absolute luma difference used before blur+threshold (1..255). Lower = more sensitive", 1, 255,
+            15, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     /* OpenCL kernel property removed. */
 }
 
@@ -945,6 +961,10 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->max_miss = 1;
     self->iou_threshold = 0.3;
     self->smooth_alpha = 0.5;
+    // Use single-frame immediate detection by default (matches original VA path sensitivity).
+    // Users can raise to >1 to require temporal confirmation.
+    self->confirm_frames = 1;
+    self->pixel_diff_threshold = 15; // default per-pixel difference threshold
     self->block_state_w = 0;
     self->block_state_h = 0;
     self->va_dpy = nullptr;
