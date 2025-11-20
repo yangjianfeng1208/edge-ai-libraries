@@ -7,7 +7,6 @@
 #include "gvamotiondetect.h"
 #include <algorithm>
 #include <cmath>
-#include <dlstreamer/gst/videoanalytics/video_frame.h>
 #include <glib.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -15,6 +14,14 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <vector>
+
+// Detect availability of GStreamer Analytics headers at compile time.
+#if defined(__has_include)
+#if __has_include(<dlstreamer/gst/videoanalytics/video_frame.h>)
+#define GVA_MD_HAVE_ANALYTICS 1
+#include <dlstreamer/gst/videoanalytics/video_frame.h>
+#endif
+#endif
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug_win);
 #define GST_CAT_DEFAULT gst_gva_motion_detect_debug_win
@@ -170,7 +177,8 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *t, GstCaps *in,
     return gst_video_info_from_caps(&self->vinfo, in);
 }
 
-// Attach motion metadata (relation meta + ROI metas) using current tracks
+// Attach motion metadata. If analytics headers are available we add relation meta + OD entries; otherwise fallback to
+// ROI-only.
 static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstBuffer *buf, int width, int height) {
     std::vector<_GstGvaMotionDetect::Track> publish;
     publish.reserve(self->tracks.size());
@@ -188,13 +196,12 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
     if (!gst_buffer_is_writable(buf))
         return;
     g_mutex_lock(&self->meta_mutex);
+#if GVA_MD_HAVE_ANALYTICS
     GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf);
     if (!relation_meta)
         relation_meta = gst_buffer_add_analytics_relation_meta(buf);
-    if (!relation_meta) {
-        g_mutex_unlock(&self->meta_mutex);
-        return;
-    }
+        // If relation_meta creation fails we gracefully degrade to ROI-only path.
+#endif
     for (auto &tr : publish) {
         double nx = std::clamp(tr.sx / (double)width, 0.0, 1.0);
         double ny = std::clamp(tr.sy / (double)height, 0.0, 1.0);
@@ -211,13 +218,36 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
         GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max",
                                                     G_TYPE_DOUBLE, x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max",
                                                     G_TYPE_DOUBLE, y_max_r, "confidence", G_TYPE_DOUBLE, 1.0, NULL);
-        GstAnalyticsODMtd od_mtd;
-        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"), (int)std::lround(_x),
-                                                    (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h),
-                                                    1.0, &od_mtd)) {
-            gst_structure_free(detection);
-            continue;
+#if GVA_MD_HAVE_ANALYTICS
+        bool attached_with_relation = false;
+        if (relation_meta) {
+            GstAnalyticsODMtd od_mtd;
+            if (gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"),
+                                                       (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w),
+                                                       (int)std::lround(_h), 1.0, &od_mtd)) {
+                GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_add_video_region_of_interest_meta(
+                    buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y), (guint)std::lround(_w),
+                    (guint)std::lround(_h));
+                if (roi_meta) {
+                    roi_meta->id = od_mtd.id;
+                    gst_video_region_of_interest_meta_add_param(roi_meta, detection);
+                    attached_with_relation = true;
+                }
+            }
         }
+        if (!attached_with_relation) {
+            // Fallback: ROI-only
+            GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_add_video_region_of_interest_meta(
+                buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y), (guint)std::lround(_w),
+                (guint)std::lround(_h));
+            if (!roi_meta) {
+                gst_structure_free(detection);
+                continue;
+            }
+            gst_video_region_of_interest_meta_add_param(roi_meta, detection);
+        }
+#else
+        // ROI-only path when analytics headers absent
         GstVideoRegionOfInterestMeta *roi_meta =
             gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
                                                          (guint)std::lround(_w), (guint)std::lround(_h));
@@ -225,8 +255,8 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
             gst_structure_free(detection);
             continue;
         }
-        roi_meta->id = od_mtd.id;
         gst_video_region_of_interest_meta_add_param(roi_meta, detection);
+#endif
     }
     g_mutex_unlock(&self->meta_mutex);
 }
