@@ -136,7 +136,7 @@ class PerformanceTestSpec(BaseModel):
 
 
 class DensityTestSpec(BaseModel):
-    fps_floor: int = Field(ge=0)
+    fps_floor: int = Field(ge=0, examples=[30])
     pipeline_density_specs: list[PipelineDensitySpec]
 
 

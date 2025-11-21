@@ -1285,7 +1285,10 @@
           "fps_floor": {
             "type": "integer",
             "minimum": 0.0,
-            "title": "Fps Floor"
+            "title": "Fps Floor",
+            "examples": [
+              30
+            ]
           },
           "pipeline_density_specs": {
             "items": {
