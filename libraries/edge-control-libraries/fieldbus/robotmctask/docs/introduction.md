@@ -1,7 +1,7 @@
 # Robot Motion Control Task
 ## Overview
 
-**Robotmctask** is a comprehensive C++ library designed for robot motion control task developement. It provides  APIs that enable robot developers to build sophisticated robot applications with integrated AI inference engines and EtherCAT protocol support.
+**Robotmctask** is a comprehensive C++ library designed for robot motion control task development. It provides  APIs that enable robot developers to build sophisticated robot applications with integrated AI inference engines and EtherCAT protocol support.
 
 # Key Features:
 
