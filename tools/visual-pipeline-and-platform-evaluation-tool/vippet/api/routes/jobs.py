@@ -24,6 +24,45 @@ def get_job_status_or_404(job_id: str, job_type: str):
     return status
 
 
+def stop_test_job_handler(job_id: str):
+    """
+    Common handler for stopping test jobs (performance or density).
+
+    This helper function encapsulates the shared logic for stopping test jobs
+    and mapping the outcome to appropriate HTTP status codes.
+
+    Parameters
+    ----------
+    job_id : str
+        Identifier of the test job to stop.
+
+    Returns
+    -------
+    MessageResponse | JSONResponse
+        A :class:`MessageResponse` instance (directly for success; wrapped
+        in :class:`JSONResponse` for non‑200 cases) describing the result
+        of the stop attempt.
+    """
+    success, message = tests_manager.stop_job(job_id)
+    response = schemas.MessageResponse(message=message)
+    if success:
+        return response
+    if "not found" in message.lower() or "no active runner found" in message.lower():
+        return JSONResponse(
+            content=response.model_dump(),
+            status_code=404,
+        )
+    if "not running" in message.lower():
+        return JSONResponse(
+            content=response.model_dump(),
+            status_code=409,
+        )
+    return JSONResponse(
+        content=response.model_dump(),
+        status_code=500,
+    )
+
+
 @router.get(
     "/tests/performance/status",
     operation_id="get_performance_statuses",
@@ -186,24 +225,7 @@ def stop_performance_test_job(job_id: str):
             in :class:`JSONResponse` for non‑200 cases) describing the result
             of the stop attempt.
     """
-    success, message = tests_manager.stop_job(job_id)
-    response = schemas.MessageResponse(message=message)
-    if success:
-        return response
-    if "not found" in message.lower() or "no active runner found" in message.lower():
-        return JSONResponse(
-            content=response.model_dump(),
-            status_code=404,
-        )
-    if "not running" in message.lower():
-        return JSONResponse(
-            content=response.model_dump(),
-            status_code=409,
-        )
-    return JSONResponse(
-        content=response.model_dump(),
-        status_code=500,
-    )
+    return stop_test_job_handler(job_id)
 
 
 @router.get(
@@ -368,24 +390,7 @@ def stop_density_test_job(job_id: str):
             in :class:`JSONResponse` for non‑200 cases) describing the result
             of the stop attempt.
     """
-    success, message = tests_manager.stop_job(job_id)
-    response = schemas.MessageResponse(message=message)
-    if success:
-        return response
-    if "not found" in message.lower() or "no active runner found" in message.lower():
-        return JSONResponse(
-            content=response.model_dump(),
-            status_code=404,
-        )
-    if "not running" in message.lower():
-        return JSONResponse(
-            content=response.model_dump(),
-            status_code=409,
-        )
-    return JSONResponse(
-        content=response.model_dump(),
-        status_code=500,
-    )
+    return stop_test_job_handler(job_id)
 
 
 @router.get(

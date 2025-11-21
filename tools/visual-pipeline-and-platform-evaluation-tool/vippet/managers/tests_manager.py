@@ -501,7 +501,7 @@ class TestsManager:
                 self.logger.warning(msg)
                 return False, msg
 
-        runner.cancel()
-        msg = f"Job {job_id} stopped"
-        self.logger.info(msg)
-        return True, msg
+            runner.cancel()
+            msg = f"Job {job_id} stopped"
+            self.logger.info(msg)
+            return True, msg
