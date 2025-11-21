@@ -19,16 +19,20 @@ class TestPipelineManager(unittest.TestCase):
             parameters=None,
         )
 
-        manager.add_pipeline(new_pipeline)
+        added_pipeline = manager.add_pipeline(new_pipeline)
         pipelines = manager.get_pipelines()
         self.assertEqual(len(pipelines), initial_count + 1)
 
-        # Verify the added pipeline
-        added_pipeline = manager.get_pipeline_by_name_and_version(
-            "user-defined-pipelines", "test-pipeline"
-        )
+        # Verify the added pipeline has an ID and correct attributes
+        self.assertIsNotNone(added_pipeline.id)
+        self.assertTrue(added_pipeline.id.startswith("pipeline-"))
         self.assertEqual(added_pipeline.name, "user-defined-pipelines")
         self.assertEqual(added_pipeline.version, "test-pipeline")
+
+        # Verify we can retrieve it by ID
+        retrieved = manager.get_pipeline_by_id(added_pipeline.id)
+        self.assertEqual(retrieved.name, "user-defined-pipelines")
+        self.assertEqual(retrieved.version, "test-pipeline")
 
     def test_add_pipeline_duplicate(self):
         manager = PipelineManager()
@@ -43,27 +47,22 @@ class TestPipelineManager(unittest.TestCase):
             parameters=None,
         )
 
-        manager.add_pipeline(new_pipeline)
+        # Add pipeline twice - should succeed both times since each gets unique ID
+        first = manager.add_pipeline(new_pipeline)
+        second = manager.add_pipeline(new_pipeline)
 
-        # Attempt to add the same pipeline again should raise ValueError
-        with self.assertRaises(ValueError) as context:
-            manager.add_pipeline(new_pipeline)
+        # Both should have different IDs
+        self.assertNotEqual(first.id, second.id)
+        self.assertEqual(len(manager.get_pipelines()), 2)
 
-        self.assertIn(
-            "Pipeline with name 'user-defined-pipelines' and version 'test-pipeline' already exists.",
-            str(context.exception),
-        )
-
-    def test_get_pipeline_by_name_and_version_not_found(self):
+    def test_get_pipeline_by_id_not_found(self):
         manager = PipelineManager()
 
         with self.assertRaises(ValueError) as context:
-            manager.get_pipeline_by_name_and_version(
-                "user-defined-pipelines", "nonexistent-pipeline"
-            )
+            manager.get_pipeline_by_id("nonexistent-pipeline-id")
 
         self.assertIn(
-            "Pipeline with name 'user-defined-pipelines' and version 'nonexistent-pipeline' not found.",
+            "Pipeline with id 'nonexistent-pipeline-id' not found.",
             str(context.exception),
         )
 
@@ -116,14 +115,10 @@ class TestPipelineManager(unittest.TestCase):
             pipeline_description="fakesrc ! fakesink",
             parameters=None,
         )
-        manager.add_pipeline(test_pipeline)
+        added = manager.add_pipeline(test_pipeline)
 
-        # Build command with one pipeline and one stream
-        pipeline_performance_specs = [
-            PipelinePerformanceSpec(
-                name="test-pipelines", version="test-single", streams=1
-            )
-        ]
+        # Build command with one pipeline and one stream using the pipeline ID
+        pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=1)]
 
         command = manager.build_pipeline_command(pipeline_performance_specs)
 
@@ -145,14 +140,10 @@ class TestPipelineManager(unittest.TestCase):
             pipeline_description="videotestsrc ! tee name=t ! queue ! fakesink t. ! queue ! fakesink",
             parameters=None,
         )
-        manager.add_pipeline(test_pipeline)
+        added = manager.add_pipeline(test_pipeline)
 
-        # Build command with one pipeline and 3 streams
-        pipeline_performance_specs = [
-            PipelinePerformanceSpec(
-                name="test-pipelines", version="test-multi", streams=3
-            )
-        ]
+        # Build command with one pipeline and 3 streams using the pipeline ID
+        pipeline_performance_specs = [PipelinePerformanceSpec(id=added.id, streams=3)]
 
         command = manager.build_pipeline_command(pipeline_performance_specs)
 
@@ -182,17 +173,13 @@ class TestPipelineManager(unittest.TestCase):
             pipeline_description="videotestsrc name=source2 ! fakesink",
             parameters=None,
         )
-        manager.add_pipeline(pipeline1)
-        manager.add_pipeline(pipeline2)
+        added1 = manager.add_pipeline(pipeline1)
+        added2 = manager.add_pipeline(pipeline2)
 
-        # Build command with two pipelines with different stream counts
+        # Build command with two pipelines with different stream counts using IDs
         pipeline_performance_specs = [
-            PipelinePerformanceSpec(
-                name="test-pipelines", version="pipeline1", streams=2
-            ),
-            PipelinePerformanceSpec(
-                name="test-pipelines", version="pipeline2", streams=3
-            ),
+            PipelinePerformanceSpec(id=added1.id, streams=2),
+            PipelinePerformanceSpec(id=added2.id, streams=3),
         ]
 
         command = manager.build_pipeline_command(pipeline_performance_specs)
@@ -207,15 +194,15 @@ class TestPipelineManager(unittest.TestCase):
     def test_build_pipeline_command_nonexistent_pipeline_raises_error(self):
         manager = PipelineManager()
 
-        # Try to build command with pipeline that doesn't exist
+        # Try to build command with pipeline ID that doesn't exist
         pipeline_performance_specs = [
-            PipelinePerformanceSpec(name="nonexistent", version="missing", streams=1)
+            PipelinePerformanceSpec(id="nonexistent-pipeline-id", streams=1)
         ]
 
         with self.assertRaises(ValueError) as context:
             manager.build_pipeline_command(pipeline_performance_specs)
 
         self.assertIn(
-            "Pipeline with name 'nonexistent' and version 'missing' not found",
+            "Pipeline with id 'nonexistent-pipeline-id' not found",
             str(context.exception),
         )

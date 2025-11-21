@@ -85,18 +85,17 @@ class PipelineParameters(BaseModel):
 
 
 class PipelinePerformanceSpec(BaseModel):
-    name: str
-    version: str
+    id: str
     streams: int = Field(default=1, ge=0)
 
 
 class PipelineDensitySpec(BaseModel):
-    name: str
-    version: str
+    id: str
     stream_rate: int = Field(default=100, ge=0)
 
 
 class Pipeline(BaseModel):
+    id: str
     name: str
     version: str
     description: str

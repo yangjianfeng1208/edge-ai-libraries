@@ -61,8 +61,7 @@ class TestTestsAPI(unittest.TestCase):
         request_body = {
             "pipeline_performance_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "test-pipeline",
+                    "id": "pipeline-test123",
                     "streams": 2,
                 }
             ]
@@ -80,12 +79,7 @@ class TestTestsAPI(unittest.TestCase):
         call_args = mock_test_manager.test_performance.call_args[0][0]
         self.assertIsInstance(call_args, schemas.PerformanceTestSpec)
         self.assertEqual(len(call_args.pipeline_performance_specs), 1)
-        self.assertEqual(
-            call_args.pipeline_performance_specs[0].name, "user-defined-pipelines"
-        )
-        self.assertEqual(
-            call_args.pipeline_performance_specs[0].version, "test-pipeline"
-        )
+        self.assertEqual(call_args.pipeline_performance_specs[0].id, "pipeline-test123")
         self.assertEqual(call_args.pipeline_performance_specs[0].streams, 2)
 
     @patch("api.routes.tests.test_manager")
@@ -101,13 +95,11 @@ class TestTestsAPI(unittest.TestCase):
         request_body = {
             "pipeline_performance_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "pipeline-a",
+                    "id": "pipeline-abc123",
                     "streams": 1,
                 },
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "pipeline-b",
+                    "id": "pipeline-def456",
                     "streams": 3,
                 },
             ]
@@ -154,8 +146,7 @@ class TestTestsAPI(unittest.TestCase):
         request_body = {
             "pipeline_performance_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "test-pipeline",
+                    "id": "pipeline-test789",
                     "streams": -1,
                 }
             ]
@@ -189,8 +180,7 @@ class TestTestsAPI(unittest.TestCase):
             "fps_floor": 30,
             "pipeline_density_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "test-pipeline",
+                    "id": "pipeline-ghi789",
                     "stream_rate": 100,
                 }
             ],
@@ -209,10 +199,7 @@ class TestTestsAPI(unittest.TestCase):
         self.assertIsInstance(call_args, schemas.DensityTestSpec)
         self.assertEqual(call_args.fps_floor, 30)
         self.assertEqual(len(call_args.pipeline_density_specs), 1)
-        self.assertEqual(
-            call_args.pipeline_density_specs[0].name, "user-defined-pipelines"
-        )
-        self.assertEqual(call_args.pipeline_density_specs[0].version, "test-pipeline")
+        self.assertEqual(call_args.pipeline_density_specs[0].id, "pipeline-ghi789")
         self.assertEqual(call_args.pipeline_density_specs[0].stream_rate, 100)
 
     @patch("api.routes.tests.test_manager")
@@ -229,13 +216,11 @@ class TestTestsAPI(unittest.TestCase):
             "fps_floor": 25,
             "pipeline_density_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "pipeline-x",
+                    "id": "pipeline-jkl012",
                     "stream_rate": 50,
                 },
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "pipeline-y",
+                    "id": "pipeline-mno345",
                     "stream_rate": 75,
                 },
             ],
@@ -265,8 +250,7 @@ class TestTestsAPI(unittest.TestCase):
         request_body = {
             "pipeline_density_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "test-pipeline",
+                    "id": "pipeline-pqr678",
                     "stream_rate": 100,
                 }
             ]
@@ -290,8 +274,7 @@ class TestTestsAPI(unittest.TestCase):
             "fps_floor": -10,
             "pipeline_density_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "test-pipeline",
+                    "id": "pipeline-stu901",
                     "stream_rate": 100,
                 }
             ],
@@ -315,8 +298,7 @@ class TestTestsAPI(unittest.TestCase):
             "fps_floor": 30,
             "pipeline_density_specs": [
                 {
-                    "name": "user-defined-pipelines",
-                    "version": "test-pipeline",
+                    "id": "pipeline-vwx234",
                     "stream_rate": -50,
                 }
             ],

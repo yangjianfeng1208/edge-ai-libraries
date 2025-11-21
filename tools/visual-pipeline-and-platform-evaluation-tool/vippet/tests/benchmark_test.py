@@ -14,8 +14,8 @@ class TestBenchmark(unittest.TestCase):
     def setUp(self):
         self.fps_floor = 30
         self.pipeline_benchmark_specs = [
-            PipelineDensitySpec(name="test-pipeline-1", version="1.0", stream_rate=50),
-            PipelineDensitySpec(name="test-pipeline-2", version="1.0", stream_rate=50),
+            PipelineDensitySpec(id="pipeline-test1", stream_rate=50),
+            PipelineDensitySpec(id="pipeline-test2", stream_rate=50),
         ]
         self.benchmark = Benchmark()
 
@@ -26,13 +26,11 @@ class TestBenchmark(unittest.TestCase):
             n_streams=3,
             streams_per_pipeline=[
                 PipelinePerformanceSpec(
-                    name="test-pipeline-1",
-                    version="1.0",
+                    id="pipeline-test1",
                     streams=2,
                 ),
                 PipelinePerformanceSpec(
-                    name="test-pipeline-2",
-                    version="1.0",
+                    id="pipeline-test2",
                     streams=1,
                 ),
             ],
@@ -128,9 +126,9 @@ class TestBenchmark(unittest.TestCase):
 
     def test_calculate_streams_per_pipeline(self):
         pipeline_benchmark_specs = [
-            PipelineDensitySpec(name="pipeline-1", version="1.0", stream_rate=50),
-            PipelineDensitySpec(name="pipeline-2", version="1.0", stream_rate=30),
-            PipelineDensitySpec(name="pipeline-3", version="1.0", stream_rate=20),
+            PipelineDensitySpec(id="pipeline-1", stream_rate=50),
+            PipelineDensitySpec(id="pipeline-2", stream_rate=30),
+            PipelineDensitySpec(id="pipeline-3", stream_rate=20),
         ]
 
         # Test with total_streams = 10

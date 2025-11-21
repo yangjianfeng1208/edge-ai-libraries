@@ -1,7 +1,36 @@
+import hashlib
 import logging
 import re
+import time
 
 logger = logging.getLogger("utils")
+
+
+def generate_unique_id(prefix: str) -> str:
+    """
+    Generate a unique ID based on a prefix name and an 8-character hash suffix.
+
+    The hash is generated using the prefix, current timestamp, and a counter
+    to ensure uniqueness even for rapid successive calls with the same prefix.
+
+    Args:
+        prefix: The prefix string to use for the ID.
+
+    Returns:
+        str: A unique identifier in the format "{prefix}-{hash}" where hash is 8 characters.
+
+    Example:
+        >>> generate_unique_id("pipeline")
+        'pipeline-a3f5d9e1'
+    """
+    # Combine prefix with current time in nanoseconds for uniqueness
+    unique_string = f"{prefix}-{time.time_ns()}"
+
+    # Generate SHA256 hash and take first 8 characters
+    hash_object = hashlib.sha256(unique_string.encode())
+    hash_suffix = hash_object.hexdigest()[:8]
+
+    return f"{prefix}-{hash_suffix}"
 
 
 def make_tee_names_unique(

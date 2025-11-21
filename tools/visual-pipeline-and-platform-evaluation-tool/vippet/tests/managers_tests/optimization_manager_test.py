@@ -71,6 +71,7 @@ class TestOptimizationManager(unittest.TestCase):
         """Helper that constructs a minimal Pipeline instance."""
         graph = PipelineGraph.model_validate_json(self.test_graph_json)
         return Pipeline(
+            id="pipeline-test123",
             name="user-defined-pipelines",
             version="test-pipeline",
             description="A test pipeline",

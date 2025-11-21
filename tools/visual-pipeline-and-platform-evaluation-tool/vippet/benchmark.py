@@ -114,9 +114,7 @@ class Benchmark:
 
             # Build run specs with calculated stream counts
             run_specs = [
-                PipelinePerformanceSpec(
-                    name=spec.name, version=spec.version, streams=streams
-                )
+                PipelinePerformanceSpec(id=spec.id, streams=streams)
                 for spec, streams in zip(
                     pipeline_benchmark_specs, streams_per_pipeline_counts
                 )
@@ -201,9 +199,7 @@ class Benchmark:
 
             # Build streams_per_pipeline dict from best_run_specs
             streams_per_pipeline = [
-                PipelinePerformanceSpec(
-                    name=spec.name, version=spec.version, streams=spec.streams
-                )
+                PipelinePerformanceSpec(id=spec.id, streams=spec.streams)
                 for spec in best_run_specs
             ]
 
@@ -215,9 +211,7 @@ class Benchmark:
         else:
             # Fallback to last attempt - build streams_per_pipeline from last run_specs
             streams_per_pipeline = [
-                PipelinePerformanceSpec(
-                    name=spec.name, version=spec.version, streams=spec.streams
-                )
+                PipelinePerformanceSpec(id=spec.id, streams=spec.streams)
                 for spec in run_specs
             ]
 

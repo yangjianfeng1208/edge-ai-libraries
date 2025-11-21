@@ -247,8 +247,7 @@ class TestsManager:
                             # Build streams distribution per pipeline
                             streams_per_pipeline = [
                                 PipelinePerformanceSpec(
-                                    name=spec.name,
-                                    version=spec.version,
+                                    id=spec.id,
                                     streams=spec.streams,
                                 )
                                 for spec in performance_request.pipeline_performance_specs

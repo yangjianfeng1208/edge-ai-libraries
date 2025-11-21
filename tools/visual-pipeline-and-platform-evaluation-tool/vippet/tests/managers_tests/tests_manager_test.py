@@ -22,8 +22,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="test-pipeline",
-                    version="test-pipeline",
+                    id="pipeline-test123",
                     streams=1,
                 )
             ]
@@ -41,8 +40,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-test456",
                     streams=1,
                 )
             ]
@@ -54,7 +52,7 @@ class TestTestsManager(unittest.TestCase):
             assert isinstance(job, PerformanceJob)  # for type checker
             self.assertEqual(job.request, pipeline_request)
             self.assertEqual(
-                job.request.pipeline_performance_specs[0].version, "test-pipeline"
+                job.request.pipeline_performance_specs[0].id, "pipeline-test456"
             )
             self.assertEqual(job.request, pipeline_request)
             self.assertEqual(job.state.name, TestJobState.RUNNING)
@@ -71,8 +69,7 @@ class TestTestsManager(unittest.TestCase):
             fps_floor=30,
             pipeline_density_specs=[
                 PipelineDensitySpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-test789",
                     stream_rate=100,
                 )
             ],
@@ -86,10 +83,7 @@ class TestTestsManager(unittest.TestCase):
             job = manager.jobs[job_id]
             assert isinstance(job, DensityJob)  # for type checker
             self.assertEqual(
-                job.request.pipeline_density_specs[0].name, "user-defined-pipelines"
-            )
-            self.assertEqual(
-                job.request.pipeline_density_specs[0].version, "test-pipeline"
+                job.request.pipeline_density_specs[0].id, "pipeline-test789"
             )
             self.assertEqual(job.request, pipeline_request)
             self.assertEqual(job.state.name, TestJobState.RUNNING)
@@ -105,8 +99,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_performance_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-perf123",
                     streams=1,
                 )
             ]
@@ -116,8 +109,7 @@ class TestTestsManager(unittest.TestCase):
             fps_floor=30,
             pipeline_density_specs=[
                 PipelineDensitySpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-dens456",
                     stream_rate=100,
                 )
             ],
@@ -162,8 +154,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_performance_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-abc123",
                     streams=1,
                 )
             ]
@@ -202,8 +193,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-def456",
                     streams=1,
                 )
             ]
@@ -230,8 +220,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-ghi789",
                     streams=1,
                 )
             ]
@@ -264,8 +253,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-jkl012",
                     streams=1,
                 )
             ]
@@ -294,8 +282,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-mno345",
                     streams=1,
                 )
             ]
@@ -321,8 +308,7 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(
-                    name="user-defined-pipelines",
-                    version="test-pipeline",
+                    id="pipeline-pqr678",
                     streams=1,
                 )
             ]
@@ -358,8 +344,8 @@ class TestTestsManager(unittest.TestCase):
 
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
-                PipelinePerformanceSpec(name="pipeA", version="v1", streams=1),
-                PipelinePerformanceSpec(name="pipeB", version="v2", streams=2),
+                PipelinePerformanceSpec(id="pipeline-test", streams=1),
+                PipelinePerformanceSpec(id="pipeline-test", streams=2),
             ]
         )
 
@@ -406,7 +392,7 @@ class TestTestsManager(unittest.TestCase):
         manager = TestsManager()
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
-                PipelinePerformanceSpec(name="pipeA", version="v1", streams=1),
+                PipelinePerformanceSpec(id="pipeline-test", streams=1),
             ]
         )
 
@@ -447,7 +433,7 @@ class TestTestsManager(unittest.TestCase):
         manager = TestsManager()
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
-                PipelinePerformanceSpec(name="pipeA", version="v1", streams=1),
+                PipelinePerformanceSpec(id="pipeline-test", streams=1),
             ]
         )
 
@@ -481,8 +467,8 @@ class TestTestsManager(unittest.TestCase):
         mock_benchmark_run.return_value = BenchmarkResult(
             n_streams=3,
             streams_per_pipeline=[
-                PipelinePerformanceSpec(name="pipeA", version="v1", streams=2),
-                PipelinePerformanceSpec(name="pipeB", version="v2", streams=1),
+                PipelinePerformanceSpec(id="pipeline-test", streams=2),
+                PipelinePerformanceSpec(id="pipeline-test", streams=1),
             ],
             per_stream_fps=90.0,
         )
@@ -491,8 +477,8 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = DensityTestSpec(
             fps_floor=30,
             pipeline_density_specs=[
-                PipelineDensitySpec(name="pipeA", version="v1", stream_rate=50),
-                PipelineDensitySpec(name="pipeB", version="v2", stream_rate=50),
+                PipelineDensitySpec(id="pipeline-test", stream_rate=50),
+                PipelineDensitySpec(id="pipeline-test", stream_rate=50),
             ],
         )
 
@@ -508,8 +494,8 @@ class TestTestsManager(unittest.TestCase):
         mock_benchmark_run.return_value = BenchmarkResult(
             n_streams=3,
             streams_per_pipeline=[
-                PipelinePerformanceSpec(name="pipeA", version="v1", streams=2),
-                PipelinePerformanceSpec(name="pipeB", version="v2", streams=1),
+                PipelinePerformanceSpec(id="pipeline-test", streams=2),
+                PipelinePerformanceSpec(id="pipeline-test", streams=1),
             ],
             per_stream_fps=90.0,
         )
@@ -529,7 +515,7 @@ class TestTestsManager(unittest.TestCase):
         density_request = DensityTestSpec(
             fps_floor=30,
             pipeline_density_specs=[
-                PipelineDensitySpec(name="pipeA", version="v1", stream_rate=100),
+                PipelineDensitySpec(id="pipeline-test", stream_rate=100),
             ],
         )
 
@@ -548,8 +534,8 @@ class TestTestsManager(unittest.TestCase):
             mock_benchmark_job.run.return_value = BenchmarkResult(
                 n_streams=3,
                 streams_per_pipeline=[
-                    PipelinePerformanceSpec(name="pipeA", version="v1", streams=2),
-                    PipelinePerformanceSpec(name="pipeB", version="v2", streams=1),
+                    PipelinePerformanceSpec(id="pipeline-test", streams=2),
+                    PipelinePerformanceSpec(id="pipeline-test", streams=1),
                 ],
                 per_stream_fps=90.0,
             )
@@ -572,7 +558,7 @@ class TestTestsManager(unittest.TestCase):
         density_request = DensityTestSpec(
             fps_floor=30,
             pipeline_density_specs=[
-                PipelineDensitySpec(name="pipeA", version="v1", stream_rate=100),
+                PipelineDensitySpec(id="pipeline-test", stream_rate=100),
             ],
         )
 

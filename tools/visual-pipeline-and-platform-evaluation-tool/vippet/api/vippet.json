@@ -866,7 +866,7 @@
         }
       }
     },
-    "/pipelines/{name}/{version}": {
+    "/pipelines/{pipeline_id}": {
       "get": {
         "tags": [
           "pipelines"
@@ -875,21 +875,12 @@
         "operationId": "get_pipeline",
         "parameters": [
           {
-            "name": "name",
+            "name": "pipeline_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Name"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Version"
+              "title": "Pipeline Id"
             }
           }
         ],
@@ -941,25 +932,16 @@
           "pipelines"
         ],
         "summary": "Delete Pipeline",
-        "description": "Delete pipeline by name and version.",
+        "description": "Delete pipeline by ID.",
         "operationId": "delete_pipeline",
         "parameters": [
           {
-            "name": "name",
+            "name": "pipeline_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Name"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Version"
+              "title": "Pipeline Id"
             }
           }
         ],
@@ -997,31 +979,22 @@
         }
       }
     },
-    "/pipelines/{name}/{version}/optimize": {
+    "/pipelines/{pipeline_id}/optimize": {
       "post": {
         "tags": [
           "pipelines"
         ],
         "summary": "Optimize Pipeline",
-        "description": "Start an asynchronous optimization job for a given pipeline.\n\nThe handler performs the following steps:\n\n* look up the pipeline identified by ``name`` and ``version`` using\n  :data:`pipeline_manager`,\n* delegate the optimization request to :data:`optimization_manager`,\n  which creates a background job and returns its ``job_id``,\n* wrap the ``job_id`` into :class:`schemas.OptimizationJobResponse`\n  and return it with HTTP 202 (Accepted).\n\nError handling\n--------------\n* If the pipeline does not exist, a 404 response with\n  :class:`schemas.MessageResponse` is returned.\n* Any unexpected exception results in a 500 response with a generic\n  error message, while the original exception string is preserved\n  for easier debugging.",
+        "description": "Start an asynchronous optimization job for a given pipeline.\n\nThe handler performs the following steps:\n\n* look up the pipeline identified by ``pipeline_id`` using\n  :data:`pipeline_manager`,\n* delegate the optimization request to :data:`optimization_manager`,\n  which creates a background job and returns its ``job_id``,\n* wrap the ``job_id`` into :class:`schemas.OptimizationJobResponse`\n  and return it with HTTP 202 (Accepted).\n\nError handling\n--------------\n* If the pipeline does not exist, a 404 response with\n  :class:`schemas.MessageResponse` is returned.\n* Any unexpected exception results in a 500 response with a generic\n  error message, while the original exception string is preserved\n  for easier debugging.",
         "operationId": "optimize_pipeline",
         "parameters": [
           {
-            "name": "name",
+            "name": "pipeline_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Name"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Version"
+              "title": "Pipeline Id"
             }
           }
         ],
@@ -1775,6 +1748,10 @@
       },
       "Pipeline": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -1806,6 +1783,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "name",
           "version",
           "description",
@@ -1860,13 +1838,9 @@
       },
       "PipelineDensitySpec": {
         "properties": {
-          "name": {
+          "id": {
             "type": "string",
-            "title": "Name"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version"
+            "title": "Id"
           },
           "stream_rate": {
             "type": "integer",
@@ -1877,8 +1851,7 @@
         },
         "type": "object",
         "required": [
-          "name",
-          "version"
+          "id"
         ],
         "title": "PipelineDensitySpec"
       },
@@ -1942,13 +1915,9 @@
       },
       "PipelinePerformanceSpec": {
         "properties": {
-          "name": {
+          "id": {
             "type": "string",
-            "title": "Name"
-          },
-          "version": {
-            "type": "string",
-            "title": "Version"
+            "title": "Id"
           },
           "streams": {
             "type": "integer",
@@ -1959,8 +1928,7 @@
         },
         "type": "object",
         "required": [
-          "name",
-          "version"
+          "id"
         ],
         "title": "PipelinePerformanceSpec"
       },

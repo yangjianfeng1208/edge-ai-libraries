@@ -40,12 +40,12 @@ def create_pipeline(body: schemas.PipelineDefinition):
     """Create a custom pipeline from a launch string."""
     # TODO: Validate the launch string
     try:
-        pipeline_manager.add_pipeline(body)
+        pipeline = pipeline_manager.add_pipeline(body)
 
         return JSONResponse(
             content=schemas.MessageResponse(message="Pipeline created").model_dump(),
             status_code=201,
-            headers={"Location": f"/pipelines/{body.name}/{body.version}"},
+            headers={"Location": f"/pipelines/{pipeline.id}"},
         )
     except ValueError as e:
         return JSONResponse(
@@ -81,7 +81,7 @@ def get_pipelines():
 
 
 @router.get(
-    "/{name}/{version}",
+    "/{pipeline_id}",
     operation_id="get_pipeline",
     responses={
         200: {"description": "Successful Response", "model": schemas.Pipeline},
@@ -89,9 +89,9 @@ def get_pipelines():
         500: {"description": "Unexpected error", "model": schemas.MessageResponse},
     },
 )
-def get_pipeline(name: str, version: str):
+def get_pipeline(pipeline_id: str):
     try:
-        return pipeline_manager.get_pipeline_by_name_and_version(name, version)
+        return pipeline_manager.get_pipeline_by_id(pipeline_id)
     except ValueError as e:
         return JSONResponse(
             content=schemas.MessageResponse(message=str(e)).model_dump(),
@@ -107,7 +107,7 @@ def get_pipeline(name: str, version: str):
 
 
 @router.post(
-    "/{name}/{version}/optimize",
+    "/{pipeline_id}/optimize",
     operation_id="optimize_pipeline",
     responses={
         202: {
@@ -118,13 +118,13 @@ def get_pipeline(name: str, version: str):
         500: {"description": "Unexpected error", "model": schemas.MessageResponse},
     },
 )
-def optimize_pipeline(name: str, version: str, body: schemas.PipelineRequestOptimize):
+def optimize_pipeline(pipeline_id: str, body: schemas.PipelineRequestOptimize):
     """
     Start an asynchronous optimization job for a given pipeline.
 
     The handler performs the following steps:
 
-    * look up the pipeline identified by ``name`` and ``version`` using
+    * look up the pipeline identified by ``pipeline_id`` using
       :data:`pipeline_manager`,
     * delegate the optimization request to :data:`optimization_manager`,
       which creates a background job and returns its ``job_id``,
@@ -140,7 +140,7 @@ def optimize_pipeline(name: str, version: str, body: schemas.PipelineRequestOpti
       for easier debugging.
     """
     try:
-        pipeline = pipeline_manager.get_pipeline_by_name_and_version(name, version)
+        pipeline = pipeline_manager.get_pipeline_by_id(pipeline_id)
         job_id = optimization_manager.run_optimization(pipeline, body)
         return schemas.OptimizationJobResponse(job_id=job_id)
     except ValueError as e:
@@ -158,7 +158,7 @@ def optimize_pipeline(name: str, version: str, body: schemas.PipelineRequestOpti
 
 
 @router.delete(
-    "/{name}/{version}",
+    "/{pipeline_id}",
     operation_id="delete_pipeline",
     responses={
         200: {"description": "Pipeline deleted", "model": schemas.MessageResponse},
@@ -168,10 +168,10 @@ def optimize_pipeline(name: str, version: str, body: schemas.PipelineRequestOpti
         },
     },
 )
-def delete_pipeline(name: str, version: str):
-    """Delete pipeline by name and version."""
+def delete_pipeline(pipeline_id: str):
+    """Delete pipeline by ID."""
     try:
-        pipeline_manager.delete_pipeline(name, version)
+        pipeline_manager.delete_pipeline_by_id(pipeline_id)
     except ValueError as e:
         return JSONResponse(
             content=schemas.MessageResponse(message=str(e)).model_dump(),

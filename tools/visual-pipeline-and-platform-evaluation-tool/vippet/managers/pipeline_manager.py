@@ -3,7 +3,7 @@ import sys
 from typing import Optional
 
 from pipelines.loader import PipelineLoader
-from utils import make_tee_names_unique
+from utils import make_tee_names_unique, generate_unique_id
 from graph import Graph
 from api.api_schemas import (
     PipelineType,
@@ -40,16 +40,15 @@ class PipelineManager:
         self.pipelines = self.load_predefined_pipelines()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
-        if self.pipeline_exists(new_pipeline.name, new_pipeline.version):
-            raise ValueError(
-                f"Pipeline with name '{new_pipeline.name}' and version '{new_pipeline.version}' already exists."
-            )
+        # Generate ID with "pipeline" prefix
+        pipeline_id = generate_unique_id("pipeline")
 
         pipeline_graph = Graph.from_pipeline_description(
             new_pipeline.pipeline_description
         ).to_dict()
 
         pipeline = Pipeline(
+            id=pipeline_id,
             name=new_pipeline.name,
             version=new_pipeline.version,
             description=new_pipeline.description,
@@ -60,36 +59,52 @@ class PipelineManager:
 
         self.pipelines.append(pipeline)
         self.logger.debug(f"Pipeline added: {pipeline}")
+        return pipeline
 
     def get_pipelines(self) -> list[Pipeline]:
         return self.pipelines
 
-    def get_pipeline_by_name_and_version(self, name: str, version: str) -> Pipeline:
-        pipeline = self._find_pipeline(name, version)
+    def get_pipeline_by_id(self, pipeline_id: str) -> Pipeline:
+        """
+        Retrieve a pipeline by its ID.
+
+        Args:
+            pipeline_id: The unique ID of the pipeline.
+
+        Returns:
+            Pipeline: The pipeline object.
+
+        Raises:
+            ValueError: If pipeline with given ID is not found.
+        """
+        pipeline = self._find_pipeline_by_id(pipeline_id)
         if pipeline is not None:
             return pipeline
-        raise ValueError(
-            f"Pipeline with name '{name}' and version '{version}' not found."
-        )
+        raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
-    def pipeline_exists(self, name: str, version: str) -> bool:
-        return self._find_pipeline(name, version) is not None
-
-    def _find_pipeline(self, name: str, version: str) -> Pipeline | None:
+    def _find_pipeline_by_id(self, pipeline_id: str) -> Pipeline | None:
+        """Find a pipeline by its ID."""
         for pipeline in self.pipelines:
-            if pipeline.name == name and pipeline.version == version:
+            if pipeline.id == pipeline_id:
                 return pipeline
         return None
 
-    def delete_pipeline(self, name: str, version: str):
-        pipeline = self._find_pipeline(name, version)
+    def delete_pipeline_by_id(self, pipeline_id: str):
+        """
+        Delete a pipeline by its ID.
+
+        Args:
+            pipeline_id: The unique ID of the pipeline to delete.
+
+        Raises:
+            ValueError: If pipeline with given ID is not found.
+        """
+        pipeline = self._find_pipeline_by_id(pipeline_id)
         if pipeline is not None:
             self.pipelines.remove(pipeline)
             self.logger.debug(f"Pipeline deleted: {pipeline}")
         else:
-            raise ValueError(
-                f"Pipeline with name '{name}' and version '{version}' not found."
-            )
+            raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
     def load_predefined_pipelines(self):
         predefined_pipelines = []
@@ -101,10 +116,14 @@ class PipelineManager:
                 pipeline_description
             ).to_dict()
 
+            name = config.get("name", "unnamed-pipeline")
+            version = str(config.get("version", "1.0"))
+
             predefined_pipelines.append(
                 Pipeline(
-                    name=config.get("name", "unnamed-pipeline"),
-                    version=str(config.get("version", "1.0")),
+                    id=generate_unique_id("pipeline"),
+                    name=name,
+                    version=version,
                     description=config.get("display_name", "Unnamed Pipeline"),
                     type=PipelineType.GSTREAMER,
                     pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
@@ -132,10 +151,8 @@ class PipelineManager:
         pipeline_parts = []
 
         for pipeline_index, run_spec in enumerate(pipeline_performance_specs):
-            # Retrieve the pipeline definition
-            pipeline = self.get_pipeline_by_name_and_version(
-                run_spec.name, run_spec.version
-            )
+            # Retrieve the pipeline definition by ID
+            pipeline = self.get_pipeline_by_id(run_spec.id)
 
             # Extract the pipeline description string
             base_pipeline_str = Graph.from_dict(
