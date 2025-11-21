@@ -116,15 +116,12 @@ class PipelineManager:
                 pipeline_description
             ).to_dict()
 
-            name = config.get("name", "unnamed-pipeline")
-            version = str(config.get("version", "1.0"))
-
             predefined_pipelines.append(
                 Pipeline(
                     id=generate_unique_id("pipeline"),
-                    name=name,
-                    version=version,
-                    description=config.get("display_name", "Unnamed Pipeline"),
+                    name=config.get("name", "unnamed-pipeline"),
+                    version=str(config.get("version", "1.0")),
+                    description=config.get("definition", ""),
                     type=PipelineType.GSTREAMER,
                     pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
                     parameters=None,
