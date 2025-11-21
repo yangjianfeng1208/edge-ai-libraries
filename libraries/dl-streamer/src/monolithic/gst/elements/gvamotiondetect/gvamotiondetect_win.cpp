@@ -12,15 +12,16 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 #include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/imgproc.hpp
 #include <vector>
 
 // Detect availability of GStreamer Analytics headers at compile time.
 #if defined(__has_include)
-#if __has_include(<dlstreamer/gst/videoanalytics/video_frame.h>)
-#define GVA_MD_HAVE_ANALYTICS 1
-#include <dlstreamer/gst/videoanalytics/video_frame.h>
-#endif
+// Only enable analytics relation meta on non-Windows builds unless Windows linkage is explicitly added later.
+#  if __has_include(<dlstreamer/gst/videoanalytics/video_frame.h>) && !defined(_WIN32)
+#    define GVA_MD_HAVE_ANALYTICS 1
+#    include <dlstreamer/gst/videoanalytics/video_frame.h>
+#  endif
 #endif
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug_win);
@@ -196,7 +197,7 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
     if (!gst_buffer_is_writable(buf))
         return;
     g_mutex_lock(&self->meta_mutex);
-#if GVA_MD_HAVE_ANALYTICS
+#if defined(GVA_MD_HAVE_ANALYTICS)
     GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf);
     if (!relation_meta)
         relation_meta = gst_buffer_add_analytics_relation_meta(buf);
@@ -218,7 +219,7 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
         GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max",
                                                     G_TYPE_DOUBLE, x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max",
                                                     G_TYPE_DOUBLE, y_max_r, "confidence", G_TYPE_DOUBLE, 1.0, NULL);
-#if GVA_MD_HAVE_ANALYTICS
+#if defined(GVA_MD_HAVE_ANALYTICS)
         bool attached_with_relation = false;
         if (relation_meta) {
             GstAnalyticsODMtd od_mtd;
@@ -246,7 +247,7 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
             }
             gst_video_region_of_interest_meta_add_param(roi_meta, detection);
         }
-#else
+#else // No analytics (Windows build or headers absent): ROI-only path
         // ROI-only path when analytics headers absent
         GstVideoRegionOfInterestMeta *roi_meta =
             gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
@@ -256,7 +257,7 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
             continue;
         }
         gst_video_region_of_interest_meta_add_param(roi_meta, detection);
-#endif
+#endif // defined(GVA_MD_HAVE_ANALYTICS)
     }
     g_mutex_unlock(&self->meta_mutex);
 }
