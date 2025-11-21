@@ -41,6 +41,12 @@ class PipelineManager:
         self.pipelines = self.load_predefined_pipelines()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
+        # Check for duplicate pipeline name and version
+        if self._pipeline_exists(new_pipeline.name, new_pipeline.version):
+            raise ValueError(
+                f"Pipeline with name '{new_pipeline.name}' and version '{new_pipeline.version}' already exists."
+            )
+        
         # Generate ID with "pipeline" prefix
         pipeline_id = generate_unique_id("pipeline")
 
@@ -83,6 +89,15 @@ class PipelineManager:
         if pipeline is not None:
             return pipeline
         raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
+
+    def _pipeline_exists(self, name: str, version: str) -> bool:
+        return self._find_pipeline_by_name_and_version(name, version) is not None
+
+    def _find_pipeline_by_name_and_version(self, name: str, version: str) -> Pipeline | None:
+        for pipeline in self.pipelines:
+            if pipeline.name == name and pipeline.version == version:
+                return pipeline
+        return None
 
     def _find_pipeline_by_id(self, pipeline_id: str) -> Pipeline | None:
         """Find a pipeline by its ID."""

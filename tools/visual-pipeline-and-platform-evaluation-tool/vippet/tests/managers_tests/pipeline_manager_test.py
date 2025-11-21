@@ -54,13 +54,16 @@ class TestPipelineManager(unittest.TestCase):
             parameters=None,
         )
 
-        # Add pipeline twice - should succeed both times since each gets unique ID
-        first = manager.add_pipeline(new_pipeline)
-        second = manager.add_pipeline(new_pipeline)
+        manager.add_pipeline(new_pipeline)
 
-        # Both should have different IDs
-        self.assertNotEqual(first.id, second.id)
-        self.assertEqual(len(manager.get_pipelines()), 2)
+        # Attempt to add the same pipeline again should raise ValueError
+        with self.assertRaises(ValueError) as context:
+            manager.add_pipeline(new_pipeline)
+
+        self.assertIn(
+            "Pipeline with name 'user-defined-pipelines' and version '1' already exists.",
+            str(context.exception),
+        )
 
     def test_get_pipeline_by_id_not_found(self):
         manager = PipelineManager()
