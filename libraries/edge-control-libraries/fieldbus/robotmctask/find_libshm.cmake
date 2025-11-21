@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2025 Intel Corporation
 # Find shmringbuf
 find_library(
   LIBSHM_LIBRARIES

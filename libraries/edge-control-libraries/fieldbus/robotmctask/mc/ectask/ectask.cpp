@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2025 Intel Corporation
 #include "ectask.h"
 #include <sys/time.h>
 #include <time.h>

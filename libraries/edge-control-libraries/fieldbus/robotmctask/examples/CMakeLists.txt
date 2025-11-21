@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2025 Intel Corporation
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../mc
     ${CMAKE_CURRENT_SOURCE_DIR}/../mc/ectask

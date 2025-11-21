@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2025 Intel Corporation
 #include "ecservo.h"
 #define CONVEYOR_RATIO (2.0 * M_PI)
 

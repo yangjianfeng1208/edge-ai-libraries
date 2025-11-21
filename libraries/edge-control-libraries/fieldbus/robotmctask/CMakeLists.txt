@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2025 Intel Corporation
 cmake_minimum_required(VERSION 3.5)
 project(EmbodiedEnablekit VERSION 0.1.0 LANGUAGES CXX)
 
