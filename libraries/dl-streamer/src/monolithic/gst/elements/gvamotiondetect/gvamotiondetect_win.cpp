@@ -12,16 +12,13 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 #include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp
+#include <opencv2/imgproc.hpp>
 #include <vector>
 
-// Detect availability of GStreamer Analytics headers at compile time.
-#if defined(__has_include)
-// Only enable analytics relation meta on non-Windows builds unless Windows linkage is explicitly added later.
-#if __has_include(<dlstreamer/gst/videoanalytics/video_frame.h>) && !defined(_WIN32)
-#define GVA_MD_HAVE_ANALYTICS 1
+// Enable analytics relation meta only on non-Windows builds; Windows uses ROI-only path by default.
+#ifndef _WIN32
 #include <dlstreamer/gst/videoanalytics/video_frame.h>
-#endif
+#define GVA_MD_HAVE_ANALYTICS 1
 #endif
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug_win);
