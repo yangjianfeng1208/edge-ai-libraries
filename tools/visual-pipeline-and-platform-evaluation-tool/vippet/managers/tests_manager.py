@@ -48,6 +48,13 @@ def get_tests_manager() -> "TestsManager":
 
 @dataclass
 class PerformanceJob:
+    """
+    Internal representation of a single performance test job.
+
+    This mirrors what is exposed through :class:`PerformanceJobStatus`
+    and :class:`PerformanceJobSummary`, with a few runtime‑only fields.
+    """
+
     id: str
     request: PerformanceTestSpec
     state: TestJobState
@@ -62,6 +69,13 @@ class PerformanceJob:
 
 @dataclass
 class DensityJob:
+    """
+    Internal representation of a single density test job.
+
+    This mirrors what is exposed through :class:`DensityJobStatus`
+    and :class:`DensityJobSummary`, with a few runtime‑only fields.
+    """
+
     id: str
     request: DensityTestSpec
     state: TestJobState
@@ -75,6 +89,16 @@ class DensityJob:
 
 
 class TestsManager:
+    """
+    Manage performance and density test jobs for pipelines.
+
+    Responsibilities:
+
+    * create and track :class:`PerformanceJob` and :class:`DensityJob` instances,
+    * run tests asynchronously in background threads,
+    * expose job status and summaries in a thread‑safe manner.
+    """
+
     def __init__(self):
         # All known jobs keyed by job id
         self.jobs: Dict[str, PerformanceJob | DensityJob] = {}
@@ -96,7 +120,14 @@ class TestsManager:
         test_request: PerformanceTestSpec | DensityTestSpec,
         target_func,
     ) -> str:
-        """Helper to start a performance or density test and return the job ID."""
+        """
+        Helper to start a performance or density test and return the job ID.
+
+        The method:
+
+        * creates a new job record with RUNNING state,
+        * spawns a background thread that executes the test.
+        """
         job_id = self._generate_job_id()
 
         # Create job record
@@ -134,11 +165,21 @@ class TestsManager:
         return job_id
 
     def test_performance(self, performance_request: PerformanceTestSpec) -> str:
-        """Start a performance test and return the job ID."""
+        """
+        Start a performance test job in the background and return its job id.
+
+        The method creates a new :class:`PerformanceJob` and spawns a
+        background thread that executes the performance test.
+        """
         return self._start_job(performance_request, self._execute_performance_test)
 
     def test_density(self, density_request: DensityTestSpec) -> str:
-        """Start a density test and return the job ID."""
+        """
+        Start a density test job in the background and return its job id.
+
+        The method creates a new :class:`DensityJob` and spawns a
+        background thread that executes the density test.
+        """
         return self._start_job(density_request, self._execute_density_test)
 
     def _execute_performance_test(
@@ -146,7 +187,13 @@ class TestsManager:
         job_id: str,
         performance_request: PerformanceTestSpec,
     ):
-        """Execute the performance test in a background thread."""
+        """
+        Execute the performance test in a background thread.
+
+        The method builds the pipeline command, executes it using
+        :class:`PipelineRunner` and then updates the corresponding
+        :class:`PerformanceJob` accordingly.
+        """
         try:
             # Calculate total streams
             total_streams = sum(
@@ -168,7 +215,7 @@ class TestsManager:
             # Initialize PipelineRunner
             runner = PipelineRunner()
 
-            # Store runner for this job
+            # Store runner for this job so that a future extension could cancel it.
             with self.lock:
                 self.runners[job_id] = runner
 
@@ -186,7 +233,7 @@ class TestsManager:
                     # Check if job was cancelled while running
                     if runner.is_cancelled():
                         self.logger.info(
-                            f"Pipeline {job_id} was cancelled, updating state to ABORTED"
+                            f"Performance test {job_id} was cancelled, updating state to ABORTED"
                         )
                         job.state = TestJobState.ABORTED
                         job.end_time = int(time.time() * 1000)
@@ -213,7 +260,14 @@ class TestsManager:
                             job.total_streams = results.num_streams
                             job.streams_per_pipeline = streams_per_pipeline
 
-                # Clean up runner after completion
+                            self.logger.info(
+                                f"Performance test {job_id} completed successfully: "
+                                f"total_fps={results.total_fps}, "
+                                f"per_stream_fps={results.per_stream_fps}, "
+                                f"total_streams={results.num_streams}"
+                            )
+
+                # Clean up runner after completion regardless of outcome
                 self.runners.pop(job_id, None)
 
         except Exception as e:
@@ -227,12 +281,17 @@ class TestsManager:
         job_id: str,
         density_request: DensityTestSpec,
     ):
-        """Execute the density test in a background thread."""
+        """
+        Execute the density test in a background thread.
+
+        The method runs the benchmark using :class:`Benchmark` and then
+        updates the corresponding :class:`DensityJob` accordingly.
+        """
         try:
             # Initialize Benchmark
             benchmark = Benchmark()
 
-            # Store benchmark runner for this job
+            # Store benchmark runner for this job so that a future extension could cancel it.
             with self.lock:
                 self.runners[job_id] = benchmark
 
@@ -266,10 +325,13 @@ class TestsManager:
                         job.total_streams = results.n_streams
 
                         self.logger.info(
-                            f"Density test completed for job {job_id}: streams={results.n_streams}, streams_per_pipeline={results.streams_per_pipeline}, fps={results.per_stream_fps}"
+                            f"Density test {job_id} completed successfully: "
+                            f"streams={results.n_streams}, "
+                            f"streams_per_pipeline={results.streams_per_pipeline}, "
+                            f"per_stream_fps={results.per_stream_fps}"
                         )
 
-                # Clean up benchmark after completion
+                # Clean up benchmark after completion regardless of outcome
                 self.runners.pop(job_id, None)
 
         except Exception as e:
@@ -278,18 +340,27 @@ class TestsManager:
                 self.runners.pop(job_id, None)
             self._update_job_error(job_id, str(e))
 
-    def _update_job_error(self, job_id: str, error_message: str):
-        """Update job with error state."""
+    def _update_job_error(self, job_id: str, error_message: str) -> None:
+        """
+        Mark the job as failed and persist the error message.
+
+        Used both for validation errors and unexpected exceptions.
+        """
         with self.lock:
             if job_id in self.jobs:
                 job = self.jobs[job_id]
                 job.state = TestJobState.ERROR
                 job.end_time = int(time.time() * 1000)
                 job.error_message = error_message
-        self.logger.error(f"Pipeline test {job_id} error: {error_message}")
+        self.logger.error(f"Test job {job_id} error: {error_message}")
 
     def _build_performance_status(self, job: PerformanceJob) -> PerformanceJobStatus:
-        """Helper to build PerformanceJobStatus from a PerformanceJob."""
+        """
+        Build a :class:`PerformanceJobStatus` DTO from the internal job object.
+
+        This method centralises the mapping to ensure consistency between
+        status queries.
+        """
         current_time = int(time.time() * 1000)
         elapsed_time = (
             job.end_time - job.start_time
@@ -309,7 +380,12 @@ class TestsManager:
         )
 
     def _build_density_status(self, job: DensityJob) -> DensityJobStatus:
-        """Helper to build DensityJobStatus from a DensityJob."""
+        """
+        Build a :class:`DensityJobStatus` DTO from the internal job object.
+
+        This method centralises the mapping to ensure consistency between
+        status queries.
+        """
         current_time = int(time.time() * 1000)
         elapsed_time = (
             job.end_time - job.start_time
@@ -329,8 +405,12 @@ class TestsManager:
         )
 
     def get_job_statuses_by_type(self, job_type) -> list[TestsJobStatus]:
-        """Get status of all jobs of a specific type (PerformanceJob or DensityJob).
-        Returns a list of TestsJobStatus objects (common base for all job statuses).
+        """
+        Return statuses for all jobs of a specific type.
+
+        The ``job_type`` parameter should be either :class:`PerformanceJob`
+        or :class:`DensityJob`.  Access is protected by a lock to avoid
+        reading partial updates.
         """
         with self.lock:
             statuses: list[TestsJobStatus] = []
@@ -343,7 +423,11 @@ class TestsManager:
             return statuses
 
     def get_job_status(self, job_id: str) -> Optional[TestsJobStatus]:
-        """Get status of a specific job by ID. Returns a TestsJobStatus object."""
+        """
+        Return the status for a single job.
+
+        ``None`` is returned when the job id is unknown.
+        """
         with self.lock:
             if job_id not in self.jobs:
                 return None
@@ -354,13 +438,18 @@ class TestsManager:
                 job_status = self._build_density_status(job)
             else:
                 job_status = None
-            self.logger.debug(f"Pipeline job status for {job_id}: {job_status}")
+            self.logger.debug(f"Test job status for {job_id}: {job_status}")
             return job_status
 
     def get_job_summary(
         self, job_id: str
     ) -> Optional[PerformanceJobSummary | DensityJobSummary]:
-        """Get summary of a specific job."""
+        """
+        Return a short summary for a single job.
+
+        The summary intentionally contains only the job id and the original
+        test request.
+        """
         with self.lock:
             if job_id not in self.jobs:
                 return None
@@ -378,12 +467,17 @@ class TestsManager:
                     request=job.request,
                 )
 
-            self.logger.debug(f"Pipeline job summary for {job_id}: {job_summary}")
+            self.logger.debug(f"Test job summary for {job_id}: {job_summary}")
 
             return job_summary
 
     def stop_job(self, job_id: str) -> tuple[bool, str]:
-        """Stop a running pipeline job by calling cancel on its runner. Returns (success, message)."""
+        """
+        Stop a running test job by calling cancel on its runner.
+
+        Returns a tuple of (success, message) indicating whether the
+        cancellation was successful and a human‑readable status message.
+        """
         with self.lock:
             if job_id not in self.jobs:
                 msg = f"Job {job_id} not found"

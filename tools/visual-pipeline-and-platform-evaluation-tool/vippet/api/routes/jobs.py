@@ -12,6 +12,15 @@ optimization_manager = get_optimization_manager()
 tests_manager = get_tests_manager()
 
 
+def get_job_status_or_404(job_id: str, job_type: str):
+    status = tests_manager.get_job_status(job_id)
+    if status is None:
+        return JSONResponse(
+            content={"message": f"{job_type} job {job_id} not found"}, status_code=404
+        )
+    return status
+
+
 @router.get(
     "/tests/performance/status",
     operation_id="get_performance_statuses",
@@ -78,15 +87,7 @@ def get_performance_job_status(job_id: str):
         * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
           a :class:`MessageResponse` with a human‑readable explanation.
     """
-    status = tests_manager.get_job_status(job_id)
-    if status is None:
-        return JSONResponse(
-            content=schemas.MessageResponse(
-                message=f"Job {job_id} not found"
-            ).model_dump(),
-            status_code=404,
-        )
-    return status
+    return get_job_status_or_404(job_id, "Performance")
 
 
 @router.get(
@@ -268,15 +269,7 @@ def get_density_job_status(job_id: str):
         * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
           a :class:`MessageResponse` with a human‑readable explanation.
     """
-    status = tests_manager.get_job_status(job_id)
-    if status is None:
-        return JSONResponse(
-            content=schemas.MessageResponse(
-                message=f"Job {job_id} not found"
-            ).model_dump(),
-            status_code=404,
-        )
-    return status
+    return get_job_status_or_404(job_id, "Density")
 
 
 @router.get(
