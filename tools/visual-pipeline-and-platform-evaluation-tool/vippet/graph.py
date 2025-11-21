@@ -355,7 +355,7 @@ def _video_name_to_path(nodes: list[Node]) -> None:
             if not path:
                 # FIXME
                 # Generate output path as a workaround to run pipeline.
-                # In the long term this should be managed by instance manager
+                # In the long term this should be managed by tests manager
                 if node.type.endswith("sink") and key == "location":
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     suffix = uuid.uuid4().hex[0:6]
