@@ -18,10 +18,10 @@
 // Detect availability of GStreamer Analytics headers at compile time.
 #if defined(__has_include)
 // Only enable analytics relation meta on non-Windows builds unless Windows linkage is explicitly added later.
-#  if __has_include(<dlstreamer/gst/videoanalytics/video_frame.h>) && !defined(_WIN32)
-#    define GVA_MD_HAVE_ANALYTICS 1
-#    include <dlstreamer/gst/videoanalytics/video_frame.h>
-#  endif
+#if __has_include(<dlstreamer/gst/videoanalytics/video_frame.h>) && !defined(_WIN32)
+#define GVA_MD_HAVE_ANALYTICS 1
+#include <dlstreamer/gst/videoanalytics/video_frame.h>
+#endif
 #endif
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug_win);
@@ -247,8 +247,8 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
             }
             gst_video_region_of_interest_meta_add_param(roi_meta, detection);
         }
-#else // No analytics (Windows build or headers absent): ROI-only path
-        // ROI-only path when analytics headers absent
+#else  // No analytics (Windows build or headers absent): ROI-only path
+       // ROI-only path when analytics headers absent
         GstVideoRegionOfInterestMeta *roi_meta =
             gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
                                                          (guint)std::lround(_w), (guint)std::lround(_h));
