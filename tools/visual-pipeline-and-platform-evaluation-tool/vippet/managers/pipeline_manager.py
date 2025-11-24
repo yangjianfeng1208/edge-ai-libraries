@@ -1,29 +1,65 @@
 import logging
+import sys
+from typing import Optional
 
-from gstpipeline import PipelineLoader
-from api.api_schemas import PipelineType, Pipeline, PipelineDefinition, PipelineGraph
+from pipelines.loader import PipelineLoader
+from utils import make_tee_names_unique, generate_unique_id
 from graph import Graph
+from api.api_schemas import (
+    PipelineType,
+    PipelineSource,
+    Pipeline,
+    PipelineDefinition,
+    PipelinePerformanceSpec,
+    PipelineGraph,
+)
+
+logger = logging.getLogger("pipeline_manager")
+
+# Singleton instance for PipelineManager
+_pipeline_manager_instance: Optional["PipelineManager"] = None
+
+
+def get_pipeline_manager() -> "PipelineManager":
+    """
+    Returns the singleton instance of PipelineManager.
+    If it cannot be created, logs an error and exits the application.
+    """
+    global _pipeline_manager_instance
+    if _pipeline_manager_instance is None:
+        try:
+            _pipeline_manager_instance = PipelineManager()
+        except Exception as e:
+            logger.error(f"Failed to initialize PipelineManager: {e}")
+            sys.exit(1)
+    return _pipeline_manager_instance
 
 
 class PipelineManager:
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("PipelineManager")
         self.pipelines = self.load_predefined_pipelines()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
-        if self.pipeline_exists(new_pipeline.name, new_pipeline.version):
+        # Check for duplicate pipeline name and version
+        if self._pipeline_exists(new_pipeline.name, new_pipeline.version):
             raise ValueError(
                 f"Pipeline with name '{new_pipeline.name}' and version '{new_pipeline.version}' already exists."
             )
+
+        # Generate ID with "pipeline" prefix
+        pipeline_id = generate_unique_id("pipeline")
 
         pipeline_graph = Graph.from_pipeline_description(
             new_pipeline.pipeline_description
         ).to_dict()
 
         pipeline = Pipeline(
+            id=pipeline_id,
             name=new_pipeline.name,
             version=new_pipeline.version,
             description=new_pipeline.description,
+            source=new_pipeline.source,
             type=new_pipeline.type,
             pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
             parameters=new_pipeline.parameters,
@@ -31,26 +67,63 @@ class PipelineManager:
 
         self.pipelines.append(pipeline)
         self.logger.debug(f"Pipeline added: {pipeline}")
+        return pipeline
 
     def get_pipelines(self) -> list[Pipeline]:
         return self.pipelines
 
-    def get_pipeline_by_name_and_version(self, name: str, version: str) -> Pipeline:
-        pipeline = self._find_pipeline(name, version)
+    def get_pipeline_by_id(self, pipeline_id: str) -> Pipeline:
+        """
+        Retrieve a pipeline by its ID.
+
+        Args:
+            pipeline_id: The unique ID of the pipeline.
+
+        Returns:
+            Pipeline: The pipeline object.
+
+        Raises:
+            ValueError: If pipeline with given ID is not found.
+        """
+        pipeline = self._find_pipeline_by_id(pipeline_id)
         if pipeline is not None:
             return pipeline
-        raise ValueError(
-            f"Pipeline with name '{name}' and version '{version}' not found."
-        )
+        raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
-    def pipeline_exists(self, name: str, version: str) -> bool:
-        return self._find_pipeline(name, version) is not None
+    def _pipeline_exists(self, name: str, version: int) -> bool:
+        return self._find_pipeline_by_name_and_version(name, version) is not None
 
-    def _find_pipeline(self, name: str, version: str) -> Pipeline | None:
+    def _find_pipeline_by_name_and_version(
+        self, name: str, version: int
+    ) -> Pipeline | None:
         for pipeline in self.pipelines:
             if pipeline.name == name and pipeline.version == version:
                 return pipeline
         return None
+
+    def _find_pipeline_by_id(self, pipeline_id: str) -> Pipeline | None:
+        """Find a pipeline by its ID."""
+        for pipeline in self.pipelines:
+            if pipeline.id == pipeline_id:
+                return pipeline
+        return None
+
+    def delete_pipeline_by_id(self, pipeline_id: str):
+        """
+        Delete a pipeline by its ID.
+
+        Args:
+            pipeline_id: The unique ID of the pipeline to delete.
+
+        Raises:
+            ValueError: If pipeline with given ID is not found.
+        """
+        pipeline = self._find_pipeline_by_id(pipeline_id)
+        if pipeline is not None:
+            self.pipelines.remove(pipeline)
+            self.logger.debug(f"Pipeline deleted: {pipeline}")
+        else:
+            raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
     def load_predefined_pipelines(self):
         predefined_pipelines = []
@@ -64,9 +137,11 @@ class PipelineManager:
 
             predefined_pipelines.append(
                 Pipeline(
-                    name="predefined_pipelines",
-                    version=config.get("name", "UnnamedPipeline"),
-                    description=config.get("display_name", "Unnamed Pipeline"),
+                    id=generate_unique_id("pipeline"),
+                    name=config.get("name", "unnamed-pipeline"),
+                    version=int(config.get("version", 1)),
+                    description=config.get("definition", ""),
+                    source=PipelineSource.PREDEFINED,
                     type=PipelineType.GSTREAMER,
                     pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
                     parameters=None,
@@ -74,3 +149,38 @@ class PipelineManager:
             )
         self.logger.debug("Loaded predefined pipelines: %s", predefined_pipelines)
         return predefined_pipelines
+
+    def build_pipeline_command(
+        self, pipeline_performance_specs: list[PipelinePerformanceSpec]
+    ) -> str:
+        """
+        Build a complete GStreamer pipeline command from run specifications.
+
+        Args:
+            pipeline_performance_specs: List of PipelinePerformanceSpec defining pipelines and streams.
+
+        Returns:
+            str: Complete GStreamer pipeline command string.
+
+        Raises:
+            ValueError: If any pipeline in specs is not found.
+        """
+        pipeline_parts = []
+
+        for pipeline_index, run_spec in enumerate(pipeline_performance_specs):
+            # Retrieve the pipeline definition by ID
+            pipeline = self.get_pipeline_by_id(run_spec.id)
+
+            # Extract the pipeline description string
+            base_pipeline_str = Graph.from_dict(
+                pipeline.pipeline_graph.model_dump()
+            ).to_pipeline_description()
+
+            # Create one pipeline instance per stream with unique tee names
+            for stream_index in range(run_spec.streams):
+                unique_pipeline_str = make_tee_names_unique(
+                    base_pipeline_str, pipeline_index, stream_index
+                )
+                pipeline_parts.append(unique_pipeline_str)
+
+        return " ".join(pipeline_parts)

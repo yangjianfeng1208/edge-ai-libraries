@@ -4,22 +4,6 @@ from typing import List
 import yaml
 
 
-class GstPipeline:
-    def __init__(self, pipeline_description):
-        self._pipeline_description = pipeline_description
-
-    def evaluate(
-        self,
-        regular_channels: int,
-        inference_channels: int,
-    ) -> str:
-        # Remove "gst-launch-1.0 -q " prefix if present
-        description = self._pipeline_description.lstrip()
-        if description.startswith("gst-launch-1.0 -q "):
-            description = description[len("gst-launch-1.0 -q ") :]
-        return " ".join([description] * inference_channels)
-
-
 class PipelineLoader:
     @staticmethod
     def _validate_pipeline_name(
@@ -70,16 +54,3 @@ class PipelineLoader:
         # At this point, config_path_real is guaranteed to exist and be within pipelines_dir
         with open(config_path_real, "r", encoding="utf-8") as f:
             return yaml.safe_load(f.read())
-
-    @staticmethod
-    def load(pipeline_description: str) -> GstPipeline:
-        """
-        Load a custom pipeline from a launch string.
-
-        Args:
-            pipeline_description: The launch command string.
-
-        Returns:
-            GstPipeline: An instance of GstPipeline initialized with the launch string.
-        """
-        return GstPipeline(pipeline_description)

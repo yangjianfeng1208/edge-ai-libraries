@@ -3,22 +3,11 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from pipeline_runner import PipelineRunner, PipelineRunResult
-from gstpipeline import GstPipeline
-
-
-class TestPipeline(GstPipeline):
-    def __init__(self, pipeline_description):
-        super().__init__(pipeline_description=pipeline_description)
-
-    def evaluate(self, regular_channels, inference_channels):
-        return "gst-launch-1.0 -q " + " ".join(
-            [self._pipeline_description] * (inference_channels + regular_channels)
-        )
 
 
 class TestPipelineRunner(unittest.TestCase):
     def setUp(self):
-        test_pipeline_description = (
+        self.test_pipeline_command = (
             "videotestsrc "
             " num-buffers=5 "
             " pattern=snow ! "
@@ -26,7 +15,6 @@ class TestPipelineRunner(unittest.TestCase):
             "gvafpscounter ! "
             "fakesink"
         )
-        self.pipeline = TestPipeline(test_pipeline_description)
 
     @patch("pipeline_runner.Popen")
     @patch("pipeline_runner.ps")
@@ -59,7 +47,7 @@ class TestPipelineRunner(unittest.TestCase):
 
         runner = PipelineRunner()
         results = runner.run(
-            pipeline_description=self.pipeline, regular_channels=2, inference_channels=2
+            pipeline_command=self.test_pipeline_command, total_streams=1
         )
 
         self.assertIsInstance(results, PipelineRunResult)
@@ -82,7 +70,7 @@ class TestPipelineRunner(unittest.TestCase):
         runner = PipelineRunner()
         runner.cancel()
         results = runner.run(
-            pipeline_description=self.pipeline, regular_channels=2, inference_channels=2
+            pipeline_command=self.test_pipeline_command, total_streams=1
         )
 
         self.assertTrue(runner.is_cancelled())

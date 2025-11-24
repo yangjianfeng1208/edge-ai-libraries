@@ -1,6 +1,5 @@
-from typing import Dict, Any, Optional
-from fastapi import Body
-from pydantic import BaseModel
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -10,7 +9,19 @@ class PipelineType(str, Enum):
     FFMPEG = "FFmpeg"
 
 
-class PipelineInstanceState(str, Enum):
+class PipelineSource(str, Enum):
+    PREDEFINED = "PREDEFINED"
+    USER_CREATED = "USER_CREATED"
+
+
+class TestJobState(str, Enum):
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    ERROR = "ERROR"
+    ABORTED = "ABORTED"
+
+
+class OptimizationJobState(str, Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     ERROR = "ERROR"
@@ -38,14 +49,15 @@ class ModelCategory(str, Enum):
     DETECTION = "detection"
 
 
+class OptimizationType(str, Enum):
+    PREPROCESS = "preprocess"
+    OPTIMIZE = "optimize"
+
+
 # Define minimal models based on schema references
 class Source(BaseModel):
     type: SourceType
     uri: Optional[str]
-
-
-class PipelineDescription(BaseModel):
-    pipeline_description: str
 
 
 class Node(BaseModel):
@@ -60,35 +72,39 @@ class Edge(BaseModel):
     target: str
 
 
+class MessageResponse(BaseModel):
+    message: str
+
+
+class PipelineDescription(BaseModel):
+    pipeline_description: str
+
+
 class PipelineGraph(BaseModel):
     nodes: list[Node]
     edges: list[Edge]
-
-
-class MessageResponse(BaseModel):
-    message: str
 
 
 class PipelineParameters(BaseModel):
     default: Optional[Dict[str, Any]]
 
 
-class PipelineParametersRun(BaseModel):
-    inferencing_channels: int = 1
-    recording_channels: int = 0
-    pipeline_graph: PipelineGraph
+class PipelinePerformanceSpec(BaseModel):
+    id: str
+    streams: int = Field(default=1, ge=0)
 
 
-class PipelineParametersBenchmark(BaseModel):
-    fps_floor: int = 30
-    ai_stream_rate: int = 100
-    pipeline_graph: PipelineGraph
+class PipelineDensitySpec(BaseModel):
+    id: str
+    stream_rate: int = Field(default=100, ge=0)
 
 
 class Pipeline(BaseModel):
+    id: str
     name: str
-    version: str
+    version: int
     description: str
+    source: PipelineSource
     type: PipelineType
     pipeline_graph: PipelineGraph
     parameters: Optional[PipelineParameters]
@@ -96,8 +112,9 @@ class Pipeline(BaseModel):
 
 class PipelineDefinition(BaseModel):
     name: str
-    version: str
+    version: int = Field(default=1, ge=1)
     description: str
+    source: PipelineSource = PipelineSource.USER_CREATED
     type: PipelineType
     pipeline_description: str
     parameters: Optional[PipelineParameters]
@@ -109,47 +126,75 @@ class PipelineValidation(BaseModel):
     parameters: Optional[PipelineParameters]
 
 
-class PipelineRequestRun(BaseModel):
-    async_: Optional[bool] = Body(default=True, alias="async")
-    source: Source
-    parameters: PipelineParametersRun
-    tags: Optional[Dict[str, str]]
-
-
-class PipelineRequestBenchmark(BaseModel):
-    async_: Optional[bool] = Body(default=True, alias="async")
-    source: Source
-    parameters: PipelineParametersBenchmark
-    tags: Optional[Dict[str, str]]
-
-
 class PipelineRequestOptimize(BaseModel):
-    async_: Optional[bool] = Body(default=True, alias="async")
-    source: Source
+    type: OptimizationType
     parameters: Optional[Dict[str, Any]]
-    tags: Optional[Dict[str, str]]
 
 
-class PipelineInstanceResponse(BaseModel):
-    instance_id: str
+class PerformanceTestSpec(BaseModel):
+    pipeline_performance_specs: list[PipelinePerformanceSpec]
 
 
-class PipelineInstanceStatus(BaseModel):
+class DensityTestSpec(BaseModel):
+    fps_floor: int = Field(ge=0, examples=[30])
+    pipeline_density_specs: list[PipelineDensitySpec]
+
+
+class TestJobResponse(BaseModel):
+    job_id: str
+
+
+class TestsJobStatus(BaseModel):
     id: str
     start_time: int
     elapsed_time: int
-    state: PipelineInstanceState
+    state: TestJobState
     total_fps: Optional[float]
     per_stream_fps: Optional[float]
-    ai_streams: Optional[int]
-    non_ai_streams: Optional[int]
+    total_streams: Optional[int]
+    streams_per_pipeline: Optional[List[PipelinePerformanceSpec]]
     error_message: Optional[str]
 
 
-class PipelineInstanceSummary(BaseModel):
+class PerformanceJobStatus(TestsJobStatus):
+    pass
+
+
+class DensityJobStatus(TestsJobStatus):
+    pass
+
+
+class PerformanceJobSummary(BaseModel):
     id: str
-    request: PipelineRequestRun | PipelineRequestBenchmark
-    type: str
+    request: PerformanceTestSpec
+
+
+class DensityJobSummary(BaseModel):
+    id: str
+    request: DensityTestSpec
+
+
+class OptimizationJobResponse(BaseModel):
+    job_id: str
+
+
+class OptimizationJobStatus(BaseModel):
+    id: str
+    type: Optional[OptimizationType]
+    start_time: int
+    elapsed_time: int
+    state: OptimizationJobState
+    total_fps: Optional[float]
+    original_pipeline_graph: PipelineGraph
+    optimized_pipeline_graph: Optional[PipelineGraph]
+    original_pipeline_description: str
+    optimized_pipeline_description: Optional[str]
+    error_message: Optional[str]
+
+
+class OptimizationJobSummary(BaseModel):
+    id: str
+    request: PipelineRequestOptimize
 
 
 class Device(BaseModel):
