@@ -29,7 +29,7 @@ const OpenPipelineButton = ({ onImport }: OpenPipelineButtonProps) => {
 
     if (fileExtension !== "json") {
       toast.error("Invalid file type", {
-        description: "Please upload a .json or .txt file",
+        description: "Please upload a .json file",
       });
       return;
     }
