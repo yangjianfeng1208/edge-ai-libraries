@@ -28,6 +28,12 @@ export default defineConfig(({ mode }) => {
           secure: false,
           ws: true,
         },
+        "/assets/videos": {
+          target: env.VITE_API_URL || "http://localhost:7860",
+          changeOrigin: true,
+          secure: false,
+          ws: false,
+        },
       },
     },
   };

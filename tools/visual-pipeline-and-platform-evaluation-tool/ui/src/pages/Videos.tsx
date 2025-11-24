@@ -25,6 +25,7 @@ const Videos = () => {
               <TableHead>Frames</TableHead>
               <TableHead>Codec</TableHead>
               <TableHead>Duration</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -37,6 +38,15 @@ const Videos = () => {
                 <TableCell>{video.frame_count}</TableCell>
                 <TableCell>{video.codec}</TableCell>
                 <TableCell>{video.duration}</TableCell>
+                <TableCell>
+                  <video
+                    src={`/assets/videos/${video.filename}`}
+                    controls
+                    className="w-48 h-auto"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
