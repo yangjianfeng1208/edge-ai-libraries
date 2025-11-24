@@ -43,7 +43,14 @@ endif()
 # Disable ITT notify API to avoid linking against external instrumentation library
 target_compile_definitions(gstgvamotiondetect PRIVATE INTEL_NO_ITTNOTIFY_API)
 
-target_include_directories(gstgvamotiondetect PRIVATE ${PROJECT_SOURCE_DIR}/include ${GST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/videoanalytics/ ${CMAKE_SOURCE_DIR}/src/utils/ ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/include/)
+target_include_directories(gstgvamotiondetect PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+  ${GST_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/videoanalytics/
+  ${CMAKE_SOURCE_DIR}/src/utils/
+  ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/include/
+  ${CMAKE_SOURCE_DIR}/thirdparty/itt/include  # restore ITT header path for ENABLE_ITT builds
+)
 
 target_link_libraries(gstgvamotiondetect PRIVATE PkgConfig::GST dlstreamer_gst dlstreamer_gst_meta gstvideoanalyticsmeta)
 
