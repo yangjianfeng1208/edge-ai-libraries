@@ -39,10 +39,10 @@ import sys
 import time
 from typing import Callable, List, Optional, Tuple
 
-import gi
+import gi  # pyright: ignore[reportMissingImports]
 
 gi.require_version("Gst", "1.0")
-from gi.repository import Gst  # noqa: E402
+from gi.repository import Gst  # noqa: E402 # pyright: ignore[reportMissingImports]
 
 
 ###############################################################################
