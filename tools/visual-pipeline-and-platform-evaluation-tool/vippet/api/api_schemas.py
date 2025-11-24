@@ -28,6 +28,13 @@ class OptimizationJobState(str, Enum):
     ABORTED = "ABORTED"
 
 
+class ValidationJobState(str, Enum):
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    ERROR = "ERROR"
+    ABORTED = "ABORTED"
+
+
 class SourceType(str, Enum):
     URI = "uri"
     GST = "gst"
@@ -121,9 +128,13 @@ class PipelineDefinition(BaseModel):
 
 
 class PipelineValidation(BaseModel):
-    type: PipelineType
-    pipeline_description: str
-    parameters: Optional[PipelineParameters]
+    type: PipelineType = PipelineType.GSTREAMER
+    pipeline_graph: PipelineGraph
+    parameters: Optional[Dict[str, Any]] = None
+
+
+class ValidationJobResponse(BaseModel):
+    job_id: str
 
 
 class PipelineRequestOptimize(BaseModel):
@@ -195,6 +206,20 @@ class OptimizationJobStatus(BaseModel):
 class OptimizationJobSummary(BaseModel):
     id: str
     request: PipelineRequestOptimize
+
+
+class ValidationJobStatus(BaseModel):
+    id: str
+    start_time: int
+    elapsed_time: int
+    state: ValidationJobState
+    is_valid: Optional[bool]
+    error_message: Optional[List[str]]
+
+
+class ValidationJobSummary(BaseModel):
+    id: str
+    request: PipelineValidation
 
 
 class Device(BaseModel):
