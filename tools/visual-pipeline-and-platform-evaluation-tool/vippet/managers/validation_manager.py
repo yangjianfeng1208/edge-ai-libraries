@@ -47,7 +47,7 @@ class ValidationJob:
     Internal representation of a single validation job.
 
     This mirrors what is exposed through :class:`ValidationJobStatus`
-    and :class:`ValidationJobSummary`, with a few runtime‑only fields.
+    and :class:`ValidationJobSummary`, with a few runtime-only fields.
     """
 
     id: str
@@ -67,7 +67,7 @@ class ValidatorRunner:
     Thin wrapper around the external ``validator.py`` script.
 
     All direct subprocess interaction is encapsulated here to make the
-    manager logic easier to unit‑test (this class can be mocked).
+    manager logic easier to unit-test (this class can be mocked).
     """
 
     def __init__(self) -> None:
@@ -100,7 +100,7 @@ class ValidatorRunner:
         (is_valid, errors):
             * ``is_valid`` – ``True`` if the pipeline is considered valid,
               ``False`` otherwise.
-            * ``errors`` – list of human‑readable error strings produced
+            * ``errors`` – list of human-readable error strings produced
               by ``validator.py`` (possibly empty when valid).
         """
         # Build the command; the pipeline string is passed as the last argument.
@@ -206,7 +206,7 @@ class ValidationManager:
     * run validations asynchronously in background threads,
     * spawn a separate subprocess for ``validator.py`` per job to guard
       against crashes such as segmentation faults,
-    * expose job status and summaries in a thread‑safe manner.
+    * expose job status and summaries in a thread-safe manner.
     """
 
     def __init__(self) -> None:
@@ -240,7 +240,7 @@ class ValidationManager:
         Raises
         ------
         ValueError
-            If user‑provided parameters are invalid (e.g. ``max-runtime``
+            If user-provided parameters are invalid (e.g. ``max-runtime``
             is less than 1).
         """
         # Convert PipelineGraph to a launch string once and reuse it for
@@ -367,7 +367,7 @@ class ValidationManager:
         Build a :class:`ValidationJobStatus` DTO from the internal job object.
 
         Centralising this mapping ensures consistency between status
-        queries for single jobs and for the list‑all endpoint.
+        queries for single jobs and for the list-all endpoint.
         """
         current_time = int(time.time() * 1000)
         elapsed_time = (

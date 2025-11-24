@@ -103,7 +103,7 @@ def configure_root_logging(level: int) -> None:
     # Simple "logger - LEVEL - message" format, without brackets or categories.
     log_format = "%(name)s - %(levelname)s - %(message)s"
 
-    # Handler for non‑error messages -> stdout
+    # Handler for non-error messages -> stdout
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.DEBUG)
     stdout_handler.addFilter(lambda record: record.levelno < logging.ERROR)
@@ -158,7 +158,7 @@ def gst_log_bridge(
         user_data: Custom user data (unused).
 
     All messages are logged without the GStreamer category – only the
-    human‑readable message text is propagated. Any newline or carriage
+    human-readable message text is propagated. Any newline or carriage
     return characters in the original message are replaced with spaces
     so that each log record is emitted as a single line.
     """

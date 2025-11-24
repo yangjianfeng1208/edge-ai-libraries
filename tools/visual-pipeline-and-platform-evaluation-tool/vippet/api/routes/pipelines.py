@@ -82,7 +82,7 @@ def create_pipeline(body: schemas.PipelineDefinition):
 )
 def validate_pipeline(body: schemas.PipelineValidation):
     """
-    Start an asynchronous validation job for an ad‑hoc pipeline graph.
+    Start an asynchronous validation job for an ad-hoc pipeline graph.
 
     The handler:
 
@@ -93,7 +93,7 @@ def validate_pipeline(body: schemas.PipelineValidation):
 
     Error handling
     --------------
-    * Invalid arguments (e.g. non‑positive max‑runtime) result in a
+    * Invalid arguments (e.g. non-positive max-runtime) result in a
       ``400`` response.
     * Any unexpected exception results in a ``500`` response.
     """
@@ -104,7 +104,7 @@ def validate_pipeline(body: schemas.PipelineValidation):
             status_code=202,
         )
     except ValueError as e:
-        # ValidationManager uses ValueError for user‑level input problems.
+        # ValidationManager uses ValueError for user-level input problems.
         return JSONResponse(
             content=schemas.MessageResponse(message=str(e)).model_dump(),
             status_code=400,

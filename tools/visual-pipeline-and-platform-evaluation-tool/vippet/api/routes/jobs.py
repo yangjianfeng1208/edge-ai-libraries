@@ -42,7 +42,7 @@ def stop_test_job_handler(job_id: str):
     -------
     MessageResponse | JSONResponse
         A :class:`MessageResponse` instance (directly for success; wrapped
-        in :class:`JSONResponse` for non‑200 cases) describing the result
+        in :class:`JSONResponse` for non-200 cases) describing the result
         of the stop attempt.
     """
     success, message = tests_manager.stop_job(job_id)
@@ -129,7 +129,7 @@ def get_performance_job_status(job_id: str):
         * On success (job exists): the full :class:`PerformanceJobStatus`
           instance describing the current state and metrics.
         * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
-          a :class:`MessageResponse` with a human‑readable explanation.
+          a :class:`MessageResponse` with a human-readable explanation.
     """
     return get_job_status_or_404(job_id, "Performance")
 
@@ -224,7 +224,7 @@ def stop_performance_test_job(job_id: str):
     -------
     MessageResponse | JSONResponse
             A :class:`MessageResponse` instance (directly for success; wrapped
-            in :class:`JSONResponse` for non‑200 cases) describing the result
+            in :class:`JSONResponse` for non-200 cases) describing the result
             of the stop attempt.
     """
     return stop_test_job_handler(job_id)
@@ -294,7 +294,7 @@ def get_density_job_status(job_id: str):
         * On success (job exists): the full :class:`DensityJobStatus`
           instance describing the current state and metrics.
         * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
-          a :class:`MessageResponse` with a human‑readable explanation.
+          a :class:`MessageResponse` with a human-readable explanation.
     """
     return get_job_status_or_404(job_id, "Density")
 
@@ -389,7 +389,7 @@ def stop_density_test_job(job_id: str):
     -------
     MessageResponse | JSONResponse
             A :class:`MessageResponse` instance (directly for success; wrapped
-            in :class:`JSONResponse` for non‑200 cases) describing the result
+            in :class:`JSONResponse` for non-200 cases) describing the result
             of the stop attempt.
     """
     return stop_test_job_handler(job_id)
