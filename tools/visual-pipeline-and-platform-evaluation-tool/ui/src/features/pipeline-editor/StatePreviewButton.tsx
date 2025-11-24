@@ -7,14 +7,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog.tsx";
 import { Braces } from "lucide-react";
-import type { Edge, Node } from "@xyflow/react";
+import type { Edge, Node, Viewport } from "@xyflow/react";
 
 type StatePreviewButtonProps = {
   nodes: Node[];
   edges: Edge[];
+  viewport: Viewport;
 };
 
-const StatePreviewButton = ({ nodes, edges }: StatePreviewButtonProps) => {
+const StatePreviewButton = ({
+  nodes,
+  edges,
+  viewport,
+}: StatePreviewButtonProps) => {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -45,6 +50,12 @@ const StatePreviewButton = ({ nodes, edges }: StatePreviewButtonProps) => {
               </h3>
               <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
                 {JSON.stringify(edges, null, 2)}
+              </pre>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Viewport</h3>
+              <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
+                {JSON.stringify(viewport, null, 2)}
               </pre>
             </div>
           </div>
