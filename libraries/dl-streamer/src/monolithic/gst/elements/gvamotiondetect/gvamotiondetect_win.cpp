@@ -48,6 +48,46 @@ static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &pre
     cv::morphologyEx(thr, tmp, cv::MORPH_OPEN, k);
     cv::dilate(tmp, morph, k);
 }
+// (md_scan_blocks & merge helpers moved below struct for MSVC complete type availability)
+
+enum {
+    PROP_0,
+    PROP_BLOCK_SIZE,
+    PROP_MOTION_THRESHOLD,
+    PROP_MIN_PERSISTENCE,
+    PROP_MAX_MISS,
+    PROP_IOU_THRESHOLD,
+    PROP_SMOOTH_ALPHA,
+    PROP_CONFIRM_FRAMES,
+    PROP_PIXEL_DIFF_THRESHOLD,
+    PROP_MIN_REL_AREA
+};
+struct _GstGvaMotionDetect {
+    GstBaseTransform parent;
+    GstVideoInfo vinfo;
+    gboolean caps_is_va; // always FALSE on Windows
+    int block_size;
+    double motion_threshold;
+    int min_persistence;
+    int max_miss;
+    double iou_threshold;
+    double smooth_alpha;
+    int confirm_frames;       // consecutive frames required (1=immediate)
+    int pixel_diff_threshold; // per-pixel luma diff threshold (1..255)
+    double min_rel_area;      // minimum relative area (0..0.25) for a motion rectangle
+    cv::UMat prev_small_gray;
+    cv::UMat prev_luma;
+    cv::Mat block_state; // CV_8U agreement counters
+    struct Track {
+        int x, y, w, h;
+        double sx, sy, sw, sh;
+        int age;
+        int miss;
+    };
+    std::vector<Track> tracks;
+    uint64_t frame_index;
+    GMutex meta_mutex; // protect metadata writes
+};
 
 // Scan blocks to produce raw motion rectangles (parity with Linux md_scan_blocks, adapted to Windows struct & members)
 static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph, int width, int height, int small_w,
@@ -176,45 +216,6 @@ static void gst_gva_motion_detect_merge_rois(std::vector<MotionRectWin> &raw) {
         raw.swap(out);
     }
 }
-
-enum {
-    PROP_0,
-    PROP_BLOCK_SIZE,
-    PROP_MOTION_THRESHOLD,
-    PROP_MIN_PERSISTENCE,
-    PROP_MAX_MISS,
-    PROP_IOU_THRESHOLD,
-    PROP_SMOOTH_ALPHA,
-    PROP_CONFIRM_FRAMES,
-    PROP_PIXEL_DIFF_THRESHOLD,
-    PROP_MIN_REL_AREA
-};
-struct _GstGvaMotionDetect {
-    GstBaseTransform parent;
-    GstVideoInfo vinfo;
-    gboolean caps_is_va; // always FALSE on Windows
-    int block_size;
-    double motion_threshold;
-    int min_persistence;
-    int max_miss;
-    double iou_threshold;
-    double smooth_alpha;
-    int confirm_frames;       // consecutive frames required (1=immediate)
-    int pixel_diff_threshold; // per-pixel luma diff threshold (1..255)
-    double min_rel_area;      // minimum relative area (0..0.25) for a motion rectangle
-    cv::UMat prev_small_gray;
-    cv::UMat prev_luma;
-    cv::Mat block_state; // CV_8U agreement counters
-    struct Track {
-        int x, y, w, h;
-        double sx, sy, sw, sh;
-        int age;
-        int miss;
-    };
-    std::vector<Track> tracks;
-    uint64_t frame_index;
-    GMutex meta_mutex; // protect metadata writes
-};
 
 struct _GstGvaMotionDetectClass {
     GstBaseTransformClass parent_class;
