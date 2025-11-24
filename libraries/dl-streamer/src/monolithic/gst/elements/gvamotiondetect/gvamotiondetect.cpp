@@ -481,8 +481,9 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *trans, GstCaps 
 // Rationale:
 // - Relation meta enables unified iteration of all analytic objects in a frame (motion, detections, etc.).
 // - ROI meta preserves compatibility with existing GStreamer video analytics / downstream plugins expecting ROIs.
-// - Normalized, rounded coordinates facilitate lightweight serialization while integer pixel coordinates preserve fidelity.
-// If relation meta cannot be obtained/created, we skip attaching any motion ROIs to avoid partially inconsistent state.
+// - Normalized, rounded coordinates facilitate lightweight serialization while integer pixel coordinates preserve
+// fidelity. If relation meta cannot be obtained/created, we skip attaching any motion ROIs to avoid partially
+// inconsistent state.
 static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffer *buf,
                                               const std::vector<MotionRect> &rois, int width, int height) {
     if (rois.empty())
@@ -560,8 +561,8 @@ static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffe
         // Link ROI meta to its corresponding ODMtd entry by copying the generated id, then attach auxiliary params.
         roi_meta->id = od_mtd.id;
         gst_video_region_of_interest_meta_add_param(roi_meta, detection);
-        GST_LOG_OBJECT(self, "Attached motion ROI id=%d rect=[%d,%d %dx%d] (atomic pair)", od_mtd.id, (int)std::lround(_x),
-                       (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h));
+        GST_LOG_OBJECT(self, "Attached motion ROI id=%d rect=[%d,%d %dx%d] (atomic pair)", od_mtd.id,
+                       (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h));
         attached++;
     }
     // Enumerate OD metadata for debug correlation

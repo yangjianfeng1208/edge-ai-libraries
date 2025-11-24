@@ -37,7 +37,8 @@ struct MotionRectWin {
 
 // Build motion mask (software path) analogous to Linux md_build_motion_mask.
 // Inputs: current small-scale grayscale frame and previous frame; Output: morph (opened+dilated) binary mask.
-static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &prev_small_gray, cv::UMat &morph, int pixel_diff_threshold) {
+static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &prev_small_gray, cv::UMat &morph,
+                                 int pixel_diff_threshold) {
     cv::UMat diff, blur, thr;
     cv::absdiff(curr_small, prev_small_gray, diff);
     cv::GaussianBlur(diff, blur, cv::Size(3, 3), 0);
@@ -49,7 +50,8 @@ static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &pre
 }
 
 // Scan blocks to produce raw motion rectangles (parity with Linux md_scan_blocks, adapted to Windows struct & members)
-static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph, int width, int height, int small_w, int small_h, std::vector<MotionRectWin> &raw) {
+static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph, int width, int height, int small_w,
+                           int small_h, std::vector<MotionRectWin> &raw) {
     double scale_x = (double)width / (double)small_w;
     double scale_y = (double)height / (double)small_h;
     double full_area = (double)width * height;
@@ -355,7 +357,8 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
             GST_LOG_OBJECT(self, "Added new GstAnalyticsRelationMeta %p (Windows)", relation_meta);
     }
     if (!relation_meta) {
-        GST_WARNING_OBJECT(self, "Failed to obtain/create GstAnalyticsRelationMeta; skipping motion metadata (Windows atomic)");
+        GST_WARNING_OBJECT(
+            self, "Failed to obtain/create GstAnalyticsRelationMeta; skipping motion metadata (Windows atomic)");
         g_mutex_unlock(&self->meta_mutex);
         return;
     }
@@ -376,9 +379,9 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
                                                     G_TYPE_DOUBLE, x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max",
                                                     G_TYPE_DOUBLE, y_max_r, "confidence", G_TYPE_DOUBLE, 1.0, NULL);
         // Atomic pairing per ROI: create ROI meta first, then add ODMtd; on ODMtd failure roll back ROI meta.
-        GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_add_video_region_of_interest_meta(
-            buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y), (guint)std::lround(_w),
-            (guint)std::lround(_h));
+        GstVideoRegionOfInterestMeta *roi_meta =
+            gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
+                                                         (guint)std::lround(_w), (guint)std::lround(_h));
         if (!roi_meta) {
             GST_WARNING_OBJECT(self, "Failed to add ROI meta (Windows atomic) -> skipping ROI");
             gst_structure_free(detection);
@@ -476,9 +479,10 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, Gst
         }
     // Remove stale tracks exceeding max_miss (Linux parity)
     if (self->max_miss >= 0) {
-        self->tracks.erase(std::remove_if(self->tracks.begin(), self->tracks.end(), [self](const _GstGvaMotionDetect::Track &t) {
-                               return t.miss > self->max_miss;
-                           }), self->tracks.end());
+        self->tracks.erase(
+            std::remove_if(self->tracks.begin(), self->tracks.end(),
+                           [self](const _GstGvaMotionDetect::Track &t) { return t.miss > self->max_miss; }),
+            self->tracks.end());
     }
     // Attach metadata now that tracks updated
     gst_gva_motion_detect_attach_metadata(self, buf, width, height);
@@ -525,23 +529,24 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
                                     g_param_spec_int("min-persistence", "Min Persistence",
                                                      "Frames an ROI must persist before being emitted", 1, 30, 2,
                                                      G_PARAM_READWRITE));
-    g_object_class_install_property(
-        oclass, PROP_MAX_MISS,
-        g_param_spec_int("max-miss", "Max Miss",
-                         "Grace frames after last match before ROI is dropped", 0, 30, 1, G_PARAM_READWRITE));
-    g_object_class_install_property(
-        oclass, PROP_IOU_THRESHOLD,
-        g_param_spec_double("iou-threshold", "IoU Threshold",
-                            "IoU threshold for matching ROIs frame-to-frame (0..1)", 0.0, 1.0, 0.3, G_PARAM_READWRITE));
-    g_object_class_install_property(
-        oclass, PROP_SMOOTH_ALPHA,
-        g_param_spec_double("smooth-alpha", "Smooth Alpha",
-                            "EMA smoothing factor for ROI coordinates (0..1)", 0.0, 1.0, 0.5, G_PARAM_READWRITE));
+    g_object_class_install_property(oclass, PROP_MAX_MISS,
+                                    g_param_spec_int("max-miss", "Max Miss",
+                                                     "Grace frames after last match before ROI is dropped", 0, 30, 1,
+                                                     G_PARAM_READWRITE));
+    g_object_class_install_property(oclass, PROP_IOU_THRESHOLD,
+                                    g_param_spec_double("iou-threshold", "IoU Threshold",
+                                                        "IoU threshold for matching ROIs frame-to-frame (0..1)", 0.0,
+                                                        1.0, 0.3, G_PARAM_READWRITE));
+    g_object_class_install_property(oclass, PROP_SMOOTH_ALPHA,
+                                    g_param_spec_double("smooth-alpha", "Smooth Alpha",
+                                                        "EMA smoothing factor for ROI coordinates (0..1)", 0.0, 1.0,
+                                                        0.5, G_PARAM_READWRITE));
     g_object_class_install_property(
         oclass, PROP_PIXEL_DIFF_THRESHOLD,
-        g_param_spec_int("pixel-diff-threshold", "Pixel Diff Threshold",
-                         "Per-pixel absolute luma difference used before blur+threshold (1..255). Lower = more sensitive",
-                         1, 255, 15, G_PARAM_READWRITE));
+        g_param_spec_int(
+            "pixel-diff-threshold", "Pixel Diff Threshold",
+            "Per-pixel absolute luma difference used before blur+threshold (1..255). Lower = more sensitive", 1, 255,
+            15, G_PARAM_READWRITE));
     g_object_class_install_property(
         oclass, PROP_CONFIRM_FRAMES,
         g_param_spec_int("confirm-frames", "Confirm Frames",
@@ -562,7 +567,7 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->iou_threshold = 0.3;
     self->smooth_alpha = 0.5;
     self->pixel_diff_threshold = 15;
-    self->confirm_frames = 1; // Linux parity: immediate single-frame confirmation
+    self->confirm_frames = 1;    // Linux parity: immediate single-frame confirmation
     self->min_rel_area = 0.0005; // default minimum relative area (0.05% of frame)
     self->frame_index = 0;
     g_mutex_init(&self->meta_mutex);
