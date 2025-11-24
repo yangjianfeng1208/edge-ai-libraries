@@ -6,6 +6,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 include(GNUInstallDirs)
+find_package(OpenVINO REQUIRED Runtime)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GST REQUIRED IMPORTED_TARGET
@@ -15,7 +16,7 @@ pkg_check_modules(GST REQUIRED IMPORTED_TARGET
 )
 
 # GstVA (the 'va' plugin helper library) – skip on MSVC builds (Windows) where VAAPI isn't available
-if(NOT MSVC)
+  if(NOT MSVC)
   pkg_check_modules(GSTVA REQUIRED IMPORTED_TARGET gstreamer-va-1.0)
 endif()
 
@@ -114,6 +115,7 @@ target_include_directories(gstgvamotiondetect PRIVATE
 
 target_link_libraries(gstgvamotiondetect PRIVATE
   PkgConfig::GST
+  openvino::runtime
   dlstreamer_gst
   dlstreamer_gst_meta
 )
