@@ -8,22 +8,23 @@ This script validates a given GStreamer pipeline string by:
 2. Parsing the pipeline string using Gst.parse_launch().
 3. If parsing succeeds, starting the pipeline (PLAYING) and letting it run
    only for a limited amount of time (max-runtime).
-4. During this limited run, we only care if the pipeline fails *early* with
-   a GStreamer ERROR message. We do NOT require the pipeline to reach EOS.
+4. During this limited run, we only care if the pipeline fails with a
+   GStreamer ERROR message. We do NOT require the pipeline to reach EOS.
 5. When the configured max-runtime elapses, we explicitly stop the pipeline.
    This timeout-based termination is NORMAL and is NOT treated as an error.
 
 Validation semantics:
 
 - Failure (exit code 1):
-  * pipeline cannot be parsed, OR
-  * a GStreamer ERROR is observed on the bus during the short run.
+  * pipeline cannot be parsed (including when GStreamer logs ERRORs
+    during parsing), OR
+  * a GStreamer ERROR is observed on the bus at ANY time during the run.
 - Success (exit code 0):
   * the pipeline is parsed successfully AND
   * no GStreamer ERROR appears during the short validation run.
   * Reaching the max-runtime and stopping the pipeline due to timeout is
     considered SUCCESS, because the goal is to validate the pipeline's
-    ability to start, not to run it to completion.
+    ability to start and run briefly, not to run it to completion.
 
 The script is designed to:
 
@@ -43,6 +44,50 @@ import gi  # pyright: ignore[reportMissingImports]
 
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst  # noqa: E402 # pyright: ignore[reportMissingImports]
+
+
+###############################################################################
+# Global state for GStreamer error collection
+###############################################################################
+
+# NOTE:
+#   We keep this as a very small piece of global state, because the GStreamer
+#   logging bridge does not natively support "scoped" collectors. The intended
+#   usage is:
+#
+#     1. Before a sensitive section (e.g. parsing), call:
+#            reset_gstreamer_error_flags()
+#     2. Run GStreamer operations (parse_launch, state changes, etc.).
+#     3. Inspect:
+#            have_gstreamer_errors()  -> did any ERROR-level logs occur?
+#            have_gstreamer_warnings() -> did any WARNING-level logs occur?
+#
+#   This is deliberately simple and conservative: if *any* GStreamer ERROR
+#   was logged between reset_gstreamer_error_flags() and the check, we treat
+#   the corresponding operation as failed from the validator's perspective.
+
+_GST_ERROR_SEEN: bool = False
+_GST_WARNING_SEEN: bool = False
+
+
+def reset_gstreamer_error_flags() -> None:
+    """Reset global GStreamer error and warning flags.
+
+    This is called before a logically isolated phase, such as parsing.
+    """
+    global _GST_ERROR_SEEN, _GST_WARNING_SEEN
+    _GST_ERROR_SEEN = False
+    _GST_WARNING_SEEN = False
+
+
+def have_gstreamer_errors() -> bool:
+    """Return True if at least one ERROR-level GStreamer log was seen."""
+    return _GST_ERROR_SEEN
+
+
+def have_gstreamer_warnings() -> bool:
+    """Return True if at least one WARNING-level GStreamer log was seen."""
+    return _GST_WARNING_SEEN
 
 
 ###############################################################################
@@ -85,9 +130,12 @@ def gst_log_bridge(
     This function is registered with Gst.debug_add_log_function() so that
     GStreamer log messages are forwarded to the Python logger.
 
+    It also updates global flags used by the validator to decide whether
+    ERRORs or WARNINGs occurred during sensitive phases such as parsing.
+
     Mapping:
-    - ERROR and above -> logger.error()
-    - WARNING         -> logger.warning()
+    - ERROR and above -> logger.error() and _GST_ERROR_SEEN = True
+    - WARNING         -> logger.warning() and _GST_WARNING_SEEN = True
     - INFO            -> logger.info()
     - Below INFO      -> logger.debug()
 
@@ -101,12 +149,16 @@ def gst_log_bridge(
         message: GLib.LogMessage, from which we extract the human-readable text.
         user_data: Custom user data (unused).
     """
+    global _GST_ERROR_SEEN, _GST_WARNING_SEEN
+
     logger = get_logger()
     text = message.get()
 
     if level >= Gst.DebugLevel.ERROR:
+        _GST_ERROR_SEEN = True
         logger.error("[Gst:%s] %s", category.get_name(), text)
     elif level >= Gst.DebugLevel.WARNING:
+        _GST_WARNING_SEEN = True
         logger.warning("[Gst:%s] %s", category.get_name(), text)
     elif level >= Gst.DebugLevel.INFO:
         logger.info("[Gst:%s] %s", category.get_name(), text)
@@ -146,7 +198,10 @@ def initialize_gstreamer_logging() -> None:
 ###############################################################################
 
 
-def drain_bus_messages(bus: Gst.Bus, logger: logging.Logger) -> None:
+def drain_bus_messages(
+    bus: Gst.Bus,
+    logger: logging.Logger,
+) -> bool:
     """Drain all pending messages from the given GStreamer bus.
 
     This helper function consumes all currently available messages from
@@ -158,7 +213,11 @@ def drain_bus_messages(bus: Gst.Bus, logger: logging.Logger) -> None:
     We use this primarily for:
     - extra diagnostics during state changes and shutdown,
     - surfacing any late ERROR/WARNING/EOS messages.
+
+    Returns:
+        True if at least one ERROR message was seen while draining, False otherwise.
     """
+    saw_error = False
     message = bus.pop()
     while message is not None:
         mtype = message.type
@@ -166,6 +225,7 @@ def drain_bus_messages(bus: Gst.Bus, logger: logging.Logger) -> None:
         if mtype == Gst.MessageType.ERROR:
             error, debug = message.parse_error()
             logger.error("Pipeline error: %s (debug: %s)", error.message, debug)
+            saw_error = True
         elif mtype == Gst.MessageType.WARNING:
             warning, debug = message.parse_warning()
             logger.warning("Pipeline warning: %s (debug: %s)", warning.message, debug)
@@ -181,31 +241,76 @@ def drain_bus_messages(bus: Gst.Bus, logger: logging.Logger) -> None:
 
         message = bus.pop()
 
+    return saw_error
+
+
+###############################################################################
+# Parsing with global error collector
+###############################################################################
+
 
 def parse_pipeline(pipeline_description: str) -> Tuple[Optional[Gst.Pipeline], bool]:
     """Parse a textual GStreamer pipeline description.
 
     This function wraps Gst.parse_launch() and converts its exceptions to a
-    (pipeline, success) tuple, which is convenient for unit testing and for
+    `(pipeline, success)` tuple, which is convenient for unit testing and for
     higher-level error handling.
+
+    IMPORTANT:
+        - Gst.parse_launch() itself can already emit GStreamer ERROR messages
+          via the logging bridge. In many cases, it does *not* raise a Python
+          exception, but pipelines are effectively invalid (e.g. missing files,
+          elements failing to start).
+        - To catch this, we use the global error collector in gst_log_bridge:
+          we reset it before parsing and inspect it afterwards.
+        - If *any* ERROR is seen while parsing, we treat the pipeline as
+          INVALID and do NOT start it, even if parse_launch returned an object.
 
     Args:
         pipeline_description: Pipeline string to be parsed.
 
     Returns:
-        (pipeline, True)  if parsing succeeded and a pipeline was created.
-        (None, False)     if parsing failed with an exception.
+        (pipeline, True)  if parsing succeeded and no parse-time ERROR was seen.
+        (None, False)     if parsing failed with an exception or if parse-time
+                          ERRORs were logged by GStreamer.
     """
     logger = get_logger()
     logger.debug("Parsing pipeline: %s", pipeline_description)
 
+    # Reset GStreamer error flags before parsing. Any ERRORs logged while
+    # parse_launch is running will flip these flags via gst_log_bridge().
+    reset_gstreamer_error_flags()
+
     try:
         pipeline = Gst.parse_launch(pipeline_description)
-        logger.info("Pipeline parsed successfully.")
-        return pipeline, True
-    except Exception as exc:  # noqa: BLE001 - catch any GStreamer parse errors
-        logger.error("Failed to parse pipeline: %r", exc)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to parse pipeline (exception): %r", exc)
         return None, False
+
+    if have_gstreamer_errors():
+        # GStreamer reported ERRORs while parsing. Even if we got a pipeline
+        # object, we must treat this as a parse failure and not start it.
+        logger.error(
+            "Pipeline description is invalid: GStreamer reported ERRORs "
+            "during parsing. Aborting validation."
+        )
+        # Ensure the partially constructed pipeline is torn down cleanly.
+        try:
+            pipeline.set_state(Gst.State.NULL)
+        except Exception as cleanup_exc:  # noqa: BLE001
+            logger.warning(
+                "Error while cleaning up invalid pipeline after parse: %r",
+                cleanup_exc,
+            )
+        return None, False
+
+    logger.info("Pipeline parsed successfully.")
+    return pipeline, True
+
+
+###############################################################################
+# Short-run validation
+###############################################################################
 
 
 def run_pipeline_for_short_validation(
@@ -214,32 +319,28 @@ def run_pipeline_for_short_validation(
 ) -> Tuple[bool, Optional[str]]:
     """Run the pipeline briefly to validate that it starts without errors.
 
-    IMPORTANT SEMANTICS:
+    Semantics:
 
     - This is NOT a full execution of the pipeline.
-    - The goal is to detect EARLY FAILURES ONLY (e.g. immediate ERROR
-      messages when moving to PLAYING or shortly after).
-    - If the pipeline does not fail within `max_run_time_sec`, we stop it
-      *ourselves* and treat that as SUCCESS.
+    - The goal is to detect failures signaled by GStreamer ERROR messages.
+    - ANY `Gst.MessageType.ERROR` observed on the bus at any time during the
+      observation window causes immediate validation FAILURE.
+    - If the pipeline reaches EOS or survives until timeout without ERROR,
+      validation is considered SUCCESS.
 
-    In more detail:
+    More concretely:
 
     1. Set pipeline to PLAYING.
-    2. Wait briefly for the first stable state.
-    3. Loop until either:
-       - we see a Gst.ERROR message on the bus      -> validation FAILS, or
-       - we see EOS (pipeline finished naturally)   -> validation SUCCEEDS, or
-       - `max_run_time_sec` elapses with no ERROR   -> validation SUCCEEDS.
-    4. At the end (regardless of outcome) we:
-       - set pipeline to NULL,
-       - drain any remaining bus messages.
-
-    Timeout behavior:
-
-    - If the max_run_time_sec elapses without any ERROR on the bus,
-      the function returns success. This reflects the "early failure"
-      validation strategy: we only care whether the pipeline can start
-      and survive briefly without errors.
+    2. Wait for the first stable state (or timeout on get_state).
+    3. Enter a loop that:
+       - drains bus messages for logging,
+       - waits briefly for ERROR or EOS,
+       - checks global timeout.
+    4. On:
+       - ERROR -> log and FAIL immediately,
+       - EOS   -> log and SUCCEED immediately,
+       - timeout with no ERROR -> log and SUCCEED (timeout is not a failure).
+    5. Finally set the pipeline to NULL and drain remaining messages.
 
     Args:
         pipeline: A GStreamer pipeline created by parse_launch().
@@ -257,7 +358,7 @@ def run_pipeline_for_short_validation(
     bus = pipeline.get_bus()
 
     logger.info(
-        "Starting short validation run (max run time: %.1f s).",
+        "Starting validation run (max run time: %.1f s).",
         max_run_time_sec,
     )
 
@@ -266,6 +367,8 @@ def run_pipeline_for_short_validation(
     logger.debug("Requested pipeline state PLAYING, result: %s", ret)
 
     # Wait until the pipeline reaches a stable state or times out.
+    # Even if get_state times out, we still rely on bus messages to detect
+    # ERROR or EOS.
     state_change_ret, current_state, pending = pipeline.get_state(5 * Gst.SECOND)
     logger.debug(
         "Initial state change result: %s, current: %s, pending: %s",
@@ -280,14 +383,16 @@ def run_pipeline_for_short_validation(
     failure_reason: Optional[str] = None
     timed_out_without_error = False
 
-    while True:
-        # Drain any pending messages from the bus (for logging).
-        drain_bus_messages(bus, logger)
+    def check_for_error_or_eos(timeout_ns: int) -> Optional[Tuple[bool, Optional[str]]]:
+        """Helper: wait up to `timeout_ns` for ERROR or EOS.
 
-        # Wait briefly for ERROR or EOS. If nothing arrives within this
-        # small interval, we simply continue the loop.
+        Returns:
+            (False, "error")  if ERROR is received,
+            (True, None)      if EOS is received,
+            None              if nothing relevant was received.
+        """
         message = bus.timed_pop_filtered(
-            500 * Gst.MSECOND,
+            timeout_ns,
             Gst.MessageType.ERROR | Gst.MessageType.EOS,
         )
 
@@ -299,18 +404,22 @@ def run_pipeline_for_short_validation(
                     error.message,
                     debug,
                 )
-                failure_reason = "error"
-                # On ERROR, we stop immediately and treat validation as failure.
-                break
+                return False, "error"
             if message.type == Gst.MessageType.EOS:
                 logger.info("Pipeline produced EOS during validation run.")
-                # EOS is a success case; no failure_reason needed.
-                failure_reason = None
-                break
+                return True, None
+        return None
 
-        # Check if we exceeded max_run_time_sec.
+    # MAIN OBSERVATION LOOP:
+    # Observe until:
+    #   - ERROR -> fail,
+    #   - EOS   -> success,
+    #   - timeout -> success (no ERROR observed).
+    while True:
         now = time.time()
         elapsed = now - start_time
+
+        # Timeout check first.
         if elapsed > max_run_time_sec:
             # This is the key behavioral decision:
             # - We do NOT treat timeout as an error.
@@ -326,10 +435,37 @@ def run_pipeline_for_short_validation(
             failure_reason = "timeout"
             break
 
+        # Drain any pending messages (for logging purposes). This can log
+        # ERRORs; if at least one ERROR is seen here, we must treat it
+        # as a validation failure, even if timed_pop_filtered does not
+        # return it (e.g. if it was posted before we called it).
+        saw_error_in_drain = drain_bus_messages(bus, logger)
+        if saw_error_in_drain:
+            failure_reason = "error"
+            logger.debug(
+                "Detected pipeline ERROR while draining bus messages; "
+                "failing validation immediately."
+            )
+            break
+
+        # Block for a short time waiting for new ERROR/EOS messages.
+        result = check_for_error_or_eos(500 * Gst.MSECOND)
+        if result is not None:
+            run_ok, reason = result
+            if not run_ok:
+                failure_reason = reason  # "error"
+                break
+            # EOS: success, no specific failure_reason.
+            failure_reason = reason
+            break
+
     # Stop the pipeline and clean up.
     logger.debug("Stopping pipeline (setting state to NULL) after validation run.")
     pipeline.set_state(Gst.State.NULL)
-    drain_bus_messages(bus, logger)
+    # Drain any remaining messages on shutdown; again, treat ERROR as fatal.
+    saw_error_shutdown = drain_bus_messages(bus, logger)
+    if saw_error_shutdown and failure_reason is None and not timed_out_without_error:
+        failure_reason = "error"
 
     # We differentiate timeout in the return value only for higher-level
     # diagnostics. Both EOS and timeout are considered success from the
@@ -343,6 +479,11 @@ def run_pipeline_for_short_validation(
     return True, None
 
 
+###############################################################################
+# High-level validation and CLI
+###############################################################################
+
+
 def validate_pipeline(
     pipeline_description: str,
     max_run_time_sec: float,
@@ -354,9 +495,10 @@ def validate_pipeline(
 
     Validation rules:
 
-    - If parsing fails -> validation FAILS.
-    - If parsing succeeds but the pipeline emits a GStreamer ERROR during the
-      short validation run -> validation FAILS.
+    - If parsing fails (exception OR parse-time GStreamer ERRORs) ->
+      validation FAILS.
+    - If parsing succeeds but the pipeline emits a GStreamer ERROR at any
+      moment during the run -> validation FAILS.
     - If the pipeline runs and:
         * reaches EOS within the time window, OR
         * stays alive without errors until the timeout is reached
@@ -413,11 +555,6 @@ def validate_pipeline(
         logger.info("Validation succeeded: pipeline is considered healthy.")
 
     return True
-
-
-###############################################################################
-# Argument parsing and CLI entry point
-###############################################################################
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
