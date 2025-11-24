@@ -25,10 +25,17 @@ endif()
 add_library(gstgvamotiondetect MODULE ${GVAMD_MAIN_SOURCE} ${GVAMD_EXTRA_SOURCES})
 
 if(MSVC)
-  set_target_properties(gstgvamotiondetect PROPERTIES PREFIX "" OUTPUT_NAME "gstgvamotiondetect")
-  foreach(conf IN ITEMS Debug Release RelWithDebInfo MinSizeRel)
-    set_target_properties(gstgvamotiondetect PROPERTIES RUNTIME_OUTPUT_DIRECTORY_${conf} "${CMAKE_BINARY_DIR}/intel64/${conf}/bin/${conf}" LIBRARY_OUTPUT_DIRECTORY_${conf} "${CMAKE_BINARY_DIR}/intel64/${conf}/bin/${conf}" ARCHIVE_OUTPUT_DIRECTORY_${conf} "${CMAKE_BINARY_DIR}/intel64/${conf}/lib/${conf}")
-  endforeach()
+  # Use generator expressions so MSVC multi-config builds place DLL at:
+  #   <build>/intel64/<Config>/bin/<Config>/gstgvamotiondetect.dll
+  # Import lib (.lib) at:
+  #   <build>/intel64/<Config>/lib/<Config>/gstgvamotiondetect.lib
+  set_target_properties(gstgvamotiondetect PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "gstgvamotiondetect"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/intel64/$<CONFIG>/bin/$<CONFIG>"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/intel64/$<CONFIG>/bin/$<CONFIG>"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/intel64/$<CONFIG>/lib/$<CONFIG>"
+  )
 else()
   set_target_properties(gstgvamotiondetect PROPERTIES OUTPUT_NAME "gvamotiondetect" PREFIX "libgst")
 endif()
