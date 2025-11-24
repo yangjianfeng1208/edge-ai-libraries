@@ -94,7 +94,7 @@ const ImportPipelineButton = ({ onImport }: ImportPipelineButtonProps) => {
           <Upload className="w-5 h-5" />
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-6xl!">
+      <DialogContent className="!max-w-6xl">
         <DialogHeader>
           <DialogTitle>Import Pipeline</DialogTitle>
         </DialogHeader>
