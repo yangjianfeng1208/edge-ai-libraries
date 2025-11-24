@@ -8,6 +8,7 @@ set (TARGET_NAME "elements")
 
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
+find_package(OpenVINO REQUIRED Runtime)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
@@ -82,6 +83,7 @@ PRIVATE
     json-hpp
     json-schema-validator
     utils
+    openvino::runtime
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
