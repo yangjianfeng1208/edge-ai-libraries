@@ -16,7 +16,7 @@ pkg_check_modules(GST REQUIRED IMPORTED_TARGET
 )
 
 # GstVA (the 'va' plugin helper library) – skip on MSVC builds (Windows) where VAAPI isn't available
-  if(NOT MSVC)
+if(NOT MSVC)
   pkg_check_modules(GSTVA REQUIRED IMPORTED_TARGET gstreamer-va-1.0)
 endif()
 
