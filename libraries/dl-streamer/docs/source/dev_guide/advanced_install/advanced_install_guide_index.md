@@ -22,6 +22,7 @@
   - [Option #1: Uninstall Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework from APT repository](./advanced_uninstall_guide.md#option-1-apt-repository)
   - [Option #2: Intel® DL Streamer Pipeline Framework Docker image](./advanced_uninstall_guide.md#option-2-docker)
   - [Option #3: Compiled version](./advanced_uninstall_guide.md#option-3-compiled-version)
+- [Advanced installation on Windows - compilation from source files](./advanced_install_on_windows.md)
 
 <!--hide_directive
 :::{toctree}
