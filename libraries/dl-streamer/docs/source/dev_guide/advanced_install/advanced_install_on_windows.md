@@ -19,14 +19,14 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   | Required dependency | Path |
   | -------- | ------- |
   | Temporary downloaded files | C:\\dlstreamer_tmp |
-  | WinGet PowerShell module from PSGallery | \\%programfiles\\%\\WindowsPowerShell\\Modules\\Microsoft.WinGet.Client |
+  | WinGet PowerShell module from PSGallery | \%programfiles\%\\WindowsPowerShell\\Modules\\Microsoft.WinGet.Client |
   | Visual Studio BuildTools | C:\\BuildTools |
-  | Microsoft Windows SDK | \\%programfiles(x86)\\%\\Windows Kits |
+  | Microsoft Windows SDK | \%programfiles(x86)\%\\Windows Kits |
   | GStreamer | C:\\gstreamer |
   | OpenVINO GenAI | C:\\openvino |
-  | Git | \\%programfiles\\%\\Git |
+  | Git | \%programfiles\%\\Git |
   | vcpkg | C:\\vcpkg |
-  | Python | \\%programfiles\\%\\Python |
+  | Python | \%programfiles\%\\Python |
   | NuGet | C:\\libva |
   | Microsoft.Direct3D.VideoAccelerationCompatibilityPack (libva) | C:\\libva |
   | DL Streamer | C:\\dlstreamer_tmp\\build |
