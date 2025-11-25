@@ -10,7 +10,11 @@ import math
 from typing import List
 
 from pipeline_runner import PipelineRunner, PipelineRunResult
-from api.api_schemas import PipelineDensitySpec, PipelinePerformanceSpec
+from api.api_schemas import (
+    PipelineDensitySpec,
+    PipelinePerformanceSpec,
+    VideoOutputConfig,
+)
 from managers.pipeline_manager import get_pipeline_manager
 
 pipeline_manager = get_pipeline_manager()
@@ -21,6 +25,7 @@ class BenchmarkResult:
     n_streams: int
     streams_per_pipeline: List[PipelinePerformanceSpec]
     per_stream_fps: float
+    video_output_paths: dict[str, List[str]]
 
     def __repr__(self):
         return (
@@ -81,7 +86,10 @@ class Benchmark:
         return streams_per_pipeline_counts
 
     def run(
-        self, pipeline_benchmark_specs: list[PipelineDensitySpec], fps_floor: float
+        self,
+        pipeline_benchmark_specs: list[PipelineDensitySpec],
+        fps_floor: float,
+        video_config: VideoOutputConfig,
     ) -> BenchmarkResult:
         """
         Run the benchmark and return the best configuration.
@@ -127,7 +135,9 @@ class Benchmark:
             )
 
             # Build pipeline command
-            pipeline_command = pipeline_manager.build_pipeline_command(run_specs)
+            pipeline_command, video_output_paths = (
+                pipeline_manager.build_pipeline_command(run_specs, video_config)
+            )
 
             # Run the pipeline
             results = self.runner.run(pipeline_command, n_streams)
@@ -207,6 +217,7 @@ class Benchmark:
                 n_streams=total_streams,
                 streams_per_pipeline=streams_per_pipeline,
                 per_stream_fps=best_config[2],
+                video_output_paths=video_output_paths,
             )
         else:
             # Fallback to last attempt - build streams_per_pipeline from last run_specs
@@ -219,6 +230,7 @@ class Benchmark:
                 n_streams=n_streams,
                 streams_per_pipeline=streams_per_pipeline,
                 per_stream_fps=per_stream_fps,
+                video_output_paths=video_output_paths,
             )
 
         return bm_result

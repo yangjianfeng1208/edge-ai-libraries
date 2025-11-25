@@ -131,13 +131,38 @@ class PipelineRequestOptimize(BaseModel):
     parameters: Optional[Dict[str, Any]]
 
 
+class EncoderDeviceConfig(BaseModel):
+    device_name: Optional[str] = Field(
+        default="CPU",
+        description="Name of the encoder device (e.g., 'GPU', 'CPU', 'NPU')",
+        examples=["GPU", "CPU", "NPU"],
+    )
+    gpu_id: Optional[int] = Field(
+        default=None,
+        description="GPU device index (only applicable when device_name indicates a GPU)",
+        examples=[0, 1],
+    )
+
+
+class VideoOutputConfig(BaseModel):
+    enabled: bool = Field(
+        default=False, description="Flag to enable or disable video output generation."
+    )
+    encoder_device: Optional[EncoderDeviceConfig] = Field(
+        default=None,
+        description="Encoder device configuration (only applicable when video output is enabled).",
+    )
+
+
 class PerformanceTestSpec(BaseModel):
     pipeline_performance_specs: list[PipelinePerformanceSpec]
+    video_output: VideoOutputConfig
 
 
 class DensityTestSpec(BaseModel):
     fps_floor: int = Field(ge=0, examples=[30])
     pipeline_density_specs: list[PipelineDensitySpec]
+    video_output: VideoOutputConfig
 
 
 class TestJobResponse(BaseModel):
@@ -153,6 +178,7 @@ class TestsJobStatus(BaseModel):
     per_stream_fps: Optional[float]
     total_streams: Optional[int]
     streams_per_pipeline: Optional[List[PipelinePerformanceSpec]]
+    video_output_paths: Optional[Dict[str, List[str]]]
     error_message: Optional[str]
 
 
