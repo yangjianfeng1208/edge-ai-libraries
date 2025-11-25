@@ -437,7 +437,6 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
         throw std::invalid_argument("DeepSortTracker: buffer is nullptr");
     }
 
-    framenum++;
     // Map buffer to system memory for OpenCV access
     dlstreamer::FramePtr sys_buffer = buffer_mapper_->map(buffer, dlstreamer::AccessMode::Read);
     MappedMat mapped_mat(sys_buffer);
