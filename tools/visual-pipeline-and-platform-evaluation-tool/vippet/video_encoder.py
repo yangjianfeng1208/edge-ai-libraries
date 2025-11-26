@@ -237,10 +237,10 @@ class VideoEncoder:
         Replace all fakesink instances in pipeline string with video encoder and file sink.
 
         Args:
+            pipeline_id: Pipeline ID used to generate unique output filenames
             pipeline_str: GStreamer pipeline string containing fakesink(s)
             encoder_device: Encoder device configuration
             input_video_filenames: List of input video filenames to detect codec
-            pipeline_id: Pipeline ID used to generate unique output filenames
 
         Returns:
             Tuple of (modified pipeline string, list of output paths)

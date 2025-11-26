@@ -113,7 +113,7 @@ def generate_unique_filename(filename: str) -> str:
         filename: Original filename (e.g., "video.mp4").
 
     Returns:
-        str: Unique filename with timestamp and suffix (e.g., "video_20231012T153045_processed.mp4").
+        str: Unique filename with timestamp and suffix (e.g., "video_20231012_153045_abc123.mp4").
     """
     # Extract stem and extension
     path = Path(filename)
