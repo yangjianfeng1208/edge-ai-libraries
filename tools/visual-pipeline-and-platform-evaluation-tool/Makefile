@@ -69,10 +69,10 @@ env-setup: ## Environment setup target: always run before build/run targets that
 	mkdir -p shared/videos/video-generator && chmod o+w shared/videos/video-generator
 	./setup_env.sh
 
-build: env-setup ## Build core images (vippet-app, vippet-collector)
+build: env-setup ## Build core images (vippet-app, vippet-collector, vippet-ui)
 	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml build
 
-build-dev: env-setup ## Build core dev images (vippet-app, vippet-collector)
+build-dev: env-setup ## Build core dev images (vippet-app, vippet-collector, vippet-ui)
 	. .env && docker compose -f $(COMPOSE_FILE) -f compose.$$COMPOSE_PROFILES.yml -f $(DEV_COMPOSE_FILE) build
 
 build-videogenerator: env-setup ## Build videogenerator image

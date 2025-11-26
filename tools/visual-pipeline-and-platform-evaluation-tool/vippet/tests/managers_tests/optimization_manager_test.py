@@ -557,9 +557,8 @@ class TestOptimizationRunner(unittest.TestCase):
     def setUp(self) -> None:
         # Create a fake optimizer module with the required API.
         self.fake_optimizer = types.SimpleNamespace()
-        self.fake_optimizer.preprocess_pipeline = lambda elements: [
-            e.upper() for e in elements
-        ]
+        self.fake_optimizer.preprocess_pipeline = lambda pipeline: pipeline.upper()
+
         self.fake_optimizer.get_optimized_pipeline = (
             lambda pipeline, search_duration, sample_duration: (
                 pipeline + " ! OPTIMIZED",
