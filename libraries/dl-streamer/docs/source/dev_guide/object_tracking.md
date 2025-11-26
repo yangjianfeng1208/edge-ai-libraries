@@ -141,7 +141,7 @@ gvatrack tracking-type=deep-sort deepsort-trck-cfg="n_init=5,max_cosine_distance
 ```bash
 gst-launch-1.0 filesrc location=video.mp4 ! decodebin ! \
   gvadetect model=person-detection.xml ! \
-  gvainference model=mars-small128.xml device=GPU inference-region=roi-list \
+  gvainference model=mars-small128.xml device=GPU inference-region=roi-list ! \
   gvatrack tracking-type=deep-sort \
     deepsort-trck-cfg="max_age=60,max_cosine_distance=0.3" ! \
   gvawatermark ! videoconvert ! autovideosink
