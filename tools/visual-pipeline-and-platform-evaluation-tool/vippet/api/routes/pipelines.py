@@ -149,6 +149,91 @@ def get_pipeline(pipeline_id: str):
         )
 
 
+@router.patch(
+    "/{pipeline_id}",
+    operation_id="update_pipeline",
+    responses={
+        200: {"description": "Pipeline updated", "model": schemas.Pipeline},
+        404: {"description": "Pipeline not found", "model": schemas.MessageResponse},
+        400: {"description": "Invalid request", "model": schemas.MessageResponse},
+        500: {"description": "Unexpected error", "model": schemas.MessageResponse},
+    },
+)
+def update_pipeline(pipeline_id: str, body: schemas.PipelineUpdate):
+    """Partially update an existing pipeline.
+
+    Currently, supports updating the human-readable ``description``,
+    ``name``, ``parameters`` and the structured ``pipeline_graph``
+    representation.
+
+    .. note::
+       Pipeline ``version`` is not updatable yet. It will become
+       editable via this endpoint once proper versioning semantics
+       are introduced for pipelines.
+    """
+
+    if (
+        body.name is None
+        and body.description is None
+        and body.parameters is None
+        and body.pipeline_graph is None
+    ):
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message="At least one of 'name', 'description', 'parameters' or 'pipeline_graph' must be provided."
+            ).model_dump(),
+            status_code=400,
+        )
+
+    # Additional lightweight validation to avoid accepting empty values.
+    if body.name is not None and body.name.strip() == "":
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message="Field 'name' must not be empty."
+            ).model_dump(),
+            status_code=400,
+        )
+
+    if body.description is not None and body.description.strip() == "":
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message="Field 'description' must not be empty."
+            ).model_dump(),
+            status_code=400,
+        )
+
+    if body.pipeline_graph is not None:
+        if not body.pipeline_graph.nodes or not body.pipeline_graph.edges:
+            return JSONResponse(
+                content=schemas.MessageResponse(
+                    message="Field 'pipeline_graph' must contain at least one node and one edge."
+                ).model_dump(),
+                status_code=400,
+            )
+
+    try:
+        updated_pipeline = pipeline_manager.update_pipeline(
+            pipeline_id=pipeline_id,
+            name=body.name,
+            description=body.description,
+            pipeline_graph=body.pipeline_graph,
+            parameters=body.parameters,
+        )
+        return updated_pipeline
+    except ValueError as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(message=str(e)).model_dump(),
+            status_code=404,
+        )
+    except Exception as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Unexpected error: {str(e)}"
+            ).model_dump(),
+            status_code=500,
+        )
+
+
 @router.post(
     "/{pipeline_id}/optimize",
     operation_id="optimize_pipeline",
