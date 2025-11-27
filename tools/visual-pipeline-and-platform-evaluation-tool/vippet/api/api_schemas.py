@@ -130,7 +130,9 @@ class PipelineDefinition(BaseModel):
 class PipelineValidation(BaseModel):
     type: PipelineType = PipelineType.GSTREAMER
     pipeline_graph: PipelineGraph
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None, examples=[{"max-runtime": 10}]
+    )
 
 
 class ValidationJobResponse(BaseModel):
