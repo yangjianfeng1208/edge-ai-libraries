@@ -162,7 +162,7 @@ class VideoOutputConfig(BaseModel):
         default=False, description="Flag to enable or disable video output generation."
     )
     encoder_device: EncoderDeviceConfig = Field(
-        default=EncoderDeviceConfig(device_name="GPU", gpu_id=None),
+        default=EncoderDeviceConfig(device_name="GPU", gpu_id=0),
         description="Encoder device configuration (only applicable when video output is enabled).",
         examples=[{"device_name": "GPU", "gpu_id": 0}],
     )
@@ -173,7 +173,7 @@ class PerformanceTestSpec(BaseModel):
     video_output: VideoOutputConfig = Field(
         default=VideoOutputConfig(
             enabled=False,
-            encoder_device=EncoderDeviceConfig(device_name="GPU", gpu_id=None),
+            encoder_device=EncoderDeviceConfig(device_name="GPU", gpu_id=0),
         ),
         description="Video output configuration.",
         examples=[
@@ -188,7 +188,7 @@ class DensityTestSpec(BaseModel):
     video_output: VideoOutputConfig = Field(
         default=VideoOutputConfig(
             enabled=False,
-            encoder_device=EncoderDeviceConfig(device_name="GPU", gpu_id=None),
+            encoder_device=EncoderDeviceConfig(device_name="GPU", gpu_id=0),
         ),
         description="Video output configuration.",
         examples=[
