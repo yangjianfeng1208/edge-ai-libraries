@@ -2,6 +2,10 @@ import hashlib
 import logging
 import re
 import time
+import uuid
+from datetime import datetime
+from pathlib import Path
+
 
 logger = logging.getLogger("utils")
 
@@ -92,14 +96,41 @@ def make_tee_names_unique(
             pipeline_str,
         )
 
-        # Replace references to the tee (e.g., "t0." becomes "t100.")
-        # The pattern matches the original name followed by a dot and optional space
+        # Replace references to the tee (e.g., "t0." becomes "t1000.")
         pipeline_str = re.sub(
             rf"\b{re.escape(original_name)}\.", f"{new_name}.", pipeline_str
         )
 
     logger.debug("Tee name replacement completed successfully")
     return pipeline_str
+
+
+def generate_unique_filename(filename: str) -> str:
+    """
+    Generate a unique filename by appending a timestamp and suffix before the file extension.
+
+    Args:
+        filename: Original filename (e.g., "video.mp4").
+
+    Returns:
+        str: Unique filename with timestamp and suffix (e.g., "video_20231012_153045_abc123.mp4").
+    """
+    # Extract stem and extension
+    path = Path(filename)
+    stem = Path(path.name).stem
+    ext = path.suffix
+
+    if not ext:
+        ext = ".mp4"  # default extension
+
+    # Generate timestamp and short unique suffix
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    suffix = uuid.uuid4().hex[:6]
+
+    # Construct new filename
+    new_filename = f"{stem}_{timestamp}_{suffix}{ext}"
+
+    return new_filename
 
 
 def is_yolov10_model(model_path: str) -> bool:

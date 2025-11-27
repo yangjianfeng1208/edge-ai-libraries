@@ -236,3 +236,105 @@ class TestPipelinesAPI(unittest.TestCase):
                 message="Unexpected error: Unexpected error"
             ).model_dump(),
         )
+
+    # ------------------------------------------------------------------
+    # /pipelines/validate
+    # ------------------------------------------------------------------
+
+    @patch("api.routes.pipelines.validation_manager")
+    def test_validate_pipeline_accepts_request_and_returns_job_id(
+        self, mock_validation_manager
+    ):
+        """
+        The /pipelines/validate endpoint should:
+
+        * accept a PipelineValidation request body,
+        * delegate to validation_manager.run_validation,
+        * return HTTP 202 with a ValidationJobResponse payload.
+        """
+        mock_validation_manager.run_validation.return_value = "val-job-123"
+
+        body = {
+            "pipeline_graph": schemas.PipelineGraph.model_validate_json(
+                self.test_graph
+            ).model_dump(),
+            # Explicitly omit 'parameters' to ensure it is treated as optional.
+        }
+
+        response = self.client.post("/pipelines/validate", json=body)
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(
+            response.json(),
+            schemas.ValidationJobResponse(job_id="val-job-123").model_dump(),
+        )
+
+        # Ensure the manager was called exactly once with a PipelineValidation object.
+        args, kwargs = mock_validation_manager.run_validation.call_args
+        self.assertEqual(len(args), 1)
+        validation_request = args[0]
+        self.assertIsInstance(validation_request, schemas.PipelineValidation)
+        self.assertIsNotNone(validation_request.pipeline_graph)
+        self.assertIsNone(validation_request.parameters)
+
+    @patch("api.routes.pipelines.validation_manager")
+    def test_validate_pipeline_returns_400_on_value_error(
+        self, mock_validation_manager
+    ):
+        """
+        When ValidationManager.run_validation raises ValueError (e.g. invalid
+        max-runtime), the endpoint must return HTTP 400 with a
+        MessageResponse payload.
+        """
+        mock_validation_manager.run_validation.side_effect = ValueError(
+            "Parameter 'max-runtime' must be greater than or equal to 1."
+        )
+
+        body = {
+            "pipeline_graph": schemas.PipelineGraph.model_validate_json(
+                self.test_graph
+            ).model_dump(),
+            "parameters": {"max-runtime": 0},
+        }
+
+        response = self.client.post("/pipelines/validate", json=body)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message="Parameter 'max-runtime' must be greater than or equal to 1."
+            ).model_dump(),
+        )
+
+        self.assertTrue(mock_validation_manager.run_validation.called)
+
+    @patch("api.routes.pipelines.validation_manager")
+    def test_validate_pipeline_returns_500_on_unexpected_error(
+        self, mock_validation_manager
+    ):
+        """
+        Any unexpected exception raised by ValidationManager.run_validation
+        should be translated to HTTP 500 with a generic MessageResponse.
+        """
+        mock_validation_manager.run_validation.side_effect = RuntimeError("boom!")
+
+        body = {
+            "pipeline_graph": schemas.PipelineGraph.model_validate_json(
+                self.test_graph
+            ).model_dump(),
+        }
+
+        response = self.client.post("/pipelines/validate", json=body)
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(message="Unexpected error: boom!").model_dump(),
+        )
+
+        self.assertTrue(mock_validation_manager.run_validation.called)
+
+
+if __name__ == "__main__":
+    unittest.main()

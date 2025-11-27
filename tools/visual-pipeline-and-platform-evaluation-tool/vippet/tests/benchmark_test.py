@@ -8,6 +8,7 @@ from benchmark import (
     PipelinePerformanceSpec,
 )
 from pipeline_runner import PipelineRunResult
+from api.api_schemas import VideoOutputConfig
 
 
 class TestBenchmark(unittest.TestCase):
@@ -21,7 +22,7 @@ class TestBenchmark(unittest.TestCase):
 
     @patch("benchmark.pipeline_manager.build_pipeline_command")
     def test_run_successful_scaling(self, mock_build_command):
-        mock_build_command.return_value = ""  # No actual command needed for test
+        mock_build_command.return_value = ("", {})  # No actual command needed for test
         expected_result = BenchmarkResult(
             n_streams=3,
             streams_per_pipeline=[
@@ -35,6 +36,7 @@ class TestBenchmark(unittest.TestCase):
                 ),
             ],
             per_stream_fps=31.0,
+            video_output_paths={},
         )
 
         with patch.object(self.benchmark.runner, "run") as mock_runner:
@@ -78,7 +80,9 @@ class TestBenchmark(unittest.TestCase):
             ]
 
             result = self.benchmark.run(
-                self.pipeline_benchmark_specs, fps_floor=self.fps_floor
+                self.pipeline_benchmark_specs,
+                fps_floor=self.fps_floor,
+                video_config=VideoOutputConfig(enabled=False),
             )
 
             self.assertEqual(result, expected_result)
@@ -94,11 +98,15 @@ class TestBenchmark(unittest.TestCase):
             ValueError,
             msg=f"Pipeline stream_rate ratios must sum to 100%, got {total_ratio}%",
         ):
-            self.benchmark.run(self.pipeline_benchmark_specs, fps_floor=self.fps_floor)
+            self.benchmark.run(
+                self.pipeline_benchmark_specs,
+                fps_floor=self.fps_floor,
+                video_config=VideoOutputConfig(enabled=False),
+            )
 
     @patch("benchmark.pipeline_manager.build_pipeline_command")
     def test_zero_total_fps(self, mock_build_command):
-        mock_build_command.return_value = ""  # No actual command needed for test
+        mock_build_command.return_value = ("", {})  # No actual command needed for test
         with patch.object(self.benchmark.runner, "run") as mock_runner:
             mock_runner.side_effect = [
                 # First call with 1 stream
@@ -108,12 +116,14 @@ class TestBenchmark(unittest.TestCase):
                 RuntimeError, msg="Pipeline returned zero or invalid FPS metrics."
             ):
                 _ = self.benchmark.run(
-                    self.pipeline_benchmark_specs, fps_floor=self.fps_floor
+                    self.pipeline_benchmark_specs,
+                    fps_floor=self.fps_floor,
+                    video_config=VideoOutputConfig(enabled=False),
                 )
 
     @patch("benchmark.pipeline_manager.build_pipeline_command")
     def test_pipeline_returns_none(self, mock_build_command):
-        mock_build_command.return_value = ""  # No actual command needed for test
+        mock_build_command.return_value = ("", {})  # No actual command needed for test
         with patch.object(self.benchmark.runner, "run") as mock_runner:
             mock_runner.side_effect = [None]
 
@@ -121,7 +131,9 @@ class TestBenchmark(unittest.TestCase):
                 RuntimeError, msg="Pipeline runner returned invalid results."
             ):
                 _ = self.benchmark.run(
-                    self.pipeline_benchmark_specs, fps_floor=self.fps_floor
+                    self.pipeline_benchmark_specs,
+                    fps_floor=self.fps_floor,
+                    video_config=VideoOutputConfig(enabled=False),
                 )
 
     def test_calculate_streams_per_pipeline(self):

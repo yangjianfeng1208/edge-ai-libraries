@@ -1,8 +1,9 @@
 import logging
 import sys
-from typing import Optional
+from typing import Optional, List
 
 from pipelines.loader import PipelineLoader
+from video_encoder import get_video_encoder
 from utils import make_tee_names_unique, generate_unique_id
 from graph import Graph
 from api.api_schemas import (
@@ -11,6 +12,7 @@ from api.api_schemas import (
     Pipeline,
     PipelineDefinition,
     PipelinePerformanceSpec,
+    VideoOutputConfig,
     PipelineGraph,
 )
 
@@ -39,6 +41,7 @@ class PipelineManager:
     def __init__(self):
         self.logger = logging.getLogger("PipelineManager")
         self.pipelines = self.load_predefined_pipelines()
+        self.video_encoder = get_video_encoder()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
         # Check for duplicate pipeline name and version
@@ -151,8 +154,10 @@ class PipelineManager:
         return predefined_pipelines
 
     def build_pipeline_command(
-        self, pipeline_performance_specs: list[PipelinePerformanceSpec]
-    ) -> str:
+        self,
+        pipeline_performance_specs: list[PipelinePerformanceSpec],
+        video_config: VideoOutputConfig,
+    ) -> tuple[str, dict[str, List[str]]]:
         """
         Build a complete GStreamer pipeline command from run specifications.
 
@@ -166,21 +171,45 @@ class PipelineManager:
             ValueError: If any pipeline in specs is not found.
         """
         pipeline_parts = []
+        video_output_paths: dict[str, List[str]] = {}
 
         for pipeline_index, run_spec in enumerate(pipeline_performance_specs):
             # Retrieve the pipeline definition by ID
             pipeline = self.get_pipeline_by_id(run_spec.id)
 
+            # Convert pipeline graph dict back to Graph object
+            graph = Graph.from_dict(pipeline.pipeline_graph.model_dump())
+
+            # Retrieve input video filenames from the graph
+            input_video_filenames = graph.get_input_video_filenames()
+
+            # Prepare intermediate output sinks and get updated graph and output paths
+            graph, output_paths = graph.prepare_output_sinks()
+
+            # Store output paths for this pipeline
+            video_output_paths[pipeline.id] = output_paths
+
             # Extract the pipeline description string
-            base_pipeline_str = Graph.from_dict(
-                pipeline.pipeline_graph.model_dump()
-            ).to_pipeline_description()
+            base_pipeline_str = graph.to_pipeline_description()
 
             # Create one pipeline instance per stream with unique tee names
             for stream_index in range(run_spec.streams):
                 unique_pipeline_str = make_tee_names_unique(
                     base_pipeline_str, pipeline_index, stream_index
                 )
+
+                # Handle final video output if enabled
+                if video_config.enabled and stream_index == 0:
+                    unique_pipeline_str, generated_paths = (
+                        self.video_encoder.replace_fakesink_with_video_output(
+                            pipeline.id,
+                            unique_pipeline_str,
+                            video_config.encoder_device,
+                            input_video_filenames,
+                        )
+                    )
+                    video_output_paths[pipeline.id].extend(generated_paths)
+
                 pipeline_parts.append(unique_pipeline_str)
 
-        return " ".join(pipeline_parts)
+        return " ".join(pipeline_parts), video_output_paths

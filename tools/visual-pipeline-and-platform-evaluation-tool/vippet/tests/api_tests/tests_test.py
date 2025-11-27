@@ -64,7 +64,8 @@ class TestTestsAPI(unittest.TestCase):
                     "id": "pipeline-test123",
                     "streams": 2,
                 }
-            ]
+            ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/performance", json=request_body)
 
@@ -102,7 +103,8 @@ class TestTestsAPI(unittest.TestCase):
                     "id": "pipeline-def456",
                     "streams": 3,
                 },
-            ]
+            ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/performance", json=request_body)
 
@@ -149,13 +151,57 @@ class TestTestsAPI(unittest.TestCase):
                     "id": "pipeline-test789",
                     "streams": -1,
                 }
-            ]
+            ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/performance", json=request_body)
 
         # Assert: FastAPI validation should reject the request
         self.assertEqual(response.status_code, 422)
         mock_test_manager.test_performance.assert_not_called()
+
+    @patch("api.routes.tests.test_manager")
+    def test_run_performance_test_with_gpu_encoder(self, mock_test_manager):
+        """
+        The /tests/performance endpoint should accept video output configuration
+        with GPU encoder device.
+        """
+        # Arrange: configure mock to return a job ID
+        mock_test_manager.test_performance.return_value = "gpu-job-456"
+
+        # Act: send a performance test request with GPU encoder
+        request_body = {
+            "pipeline_performance_specs": [
+                {
+                    "id": "pipeline-gpu123",
+                    "streams": 2,
+                }
+            ],
+            "video_output": {
+                "enabled": True,
+                "encoder_device": {
+                    "device_name": "GPU",
+                    "gpu_id": 0,
+                },
+            },
+        }
+        response = self.client.post("/tests/performance", json=request_body)
+
+        # Assert: verify response
+        self.assertEqual(response.status_code, 202)
+        data = response.json()
+        self.assertIn("job_id", data)
+        self.assertEqual(data["job_id"], "gpu-job-456")
+
+        # Verify manager was called with correct spec including video output
+        mock_test_manager.test_performance.assert_called_once()
+        call_args = mock_test_manager.test_performance.call_args[0][0]
+        self.assertIsInstance(call_args, schemas.PerformanceTestSpec)
+
+        # Verify video output configuration
+        self.assertTrue(call_args.video_output.enabled)
+        self.assertEqual(call_args.video_output.encoder_device.device_name, "GPU")
+        self.assertEqual(call_args.video_output.encoder_device.gpu_id, 0)
 
     # ------------------------------------------------------------------
     # /tests/density
@@ -184,6 +230,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": 100,
                 }
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 
@@ -224,6 +271,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": 75,
                 },
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 
@@ -278,6 +326,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": 100,
                 }
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 
@@ -302,6 +351,7 @@ class TestTestsAPI(unittest.TestCase):
                     "stream_rate": -50,
                 }
             ],
+            "video_output": {"enabled": False},
         }
         response = self.client.post("/tests/density", json=request_body)
 

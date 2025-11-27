@@ -1,14 +1,12 @@
 import logging
 import re
-import uuid
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 
-from videos import get_videos_manager
-
+from utils import generate_unique_filename
+from videos import get_videos_manager, OUTPUT_VIDEO_DIR
 from models import get_supported_models_manager
 
 logger = logging.getLogger(__name__)
@@ -83,7 +81,7 @@ class Graph:
                 prev_token_kind = token.kind
 
         _model_path_to_display_name(nodes)
-        _video_path_to_display_name(nodes)
+        _input_video_path_to_display_name(nodes)
 
         logger.debug(f"Nodes:\n{nodes}")
         logger.debug(f"Edges:\n{edges}")
@@ -100,7 +98,7 @@ class Graph:
 
         nodes = self.nodes[:]
         _model_display_name_to_path(nodes)
-        _video_name_to_path(nodes)
+        _input_video_name_to_path(nodes)
 
         nodes_by_id = {node.id: node for node in nodes}
 
@@ -136,6 +134,68 @@ class Graph:
         logger.debug(f"Generated pipeline description: {pipeline_description}")
 
         return pipeline_description
+
+    def prepare_output_sinks(self) -> tuple["Graph", list[str]]:
+        """
+        Prepare output sink nodes with unique filenames in the output directory.
+
+        Iterates through all sink nodes, generates unique filenames with timestamp and random suffix,
+        updates the location to the output directory, and collects the output paths.
+
+        Note: This is used only during pipeline execution preparation and does not affect
+        the original graph stored in the database.
+
+        Returns:
+            tuple: (Graph object with updated sink nodes, list of output file paths)
+        """
+        output_paths: list[str] = []
+
+        for node in self.nodes:
+            # Check if node is a sink type
+            if not node.type.endswith("sink"):
+                continue
+
+            # Check if location key exists
+            location = node.data.get("location")
+            if not location:
+                continue
+
+            # Create new filename with timestamp and suffix
+            new_filename = generate_unique_filename(location)
+
+            # Construct new full path
+            new_path = str(Path(OUTPUT_VIDEO_DIR) / new_filename)
+
+            # Update node's location
+            node.data["location"] = new_path
+
+            # Add to output paths list
+            output_paths.append(new_path)
+
+            logger.debug(f"Updated sink node {node.id}: {location} -> {new_path}")
+
+        return self, output_paths
+
+    def get_input_video_filenames(self) -> list[str]:
+        """
+        Retrieve a list of input video filenames from source nodes in the graph.
+
+        Returns:
+            list: List of input video filenames.
+        """
+        input_filenames: list[str] = []
+
+        for node in self.nodes:
+            if node.type.endswith("sink"):
+                # Skip sinks to avoid overwriting output paths
+                continue
+            for key in ("source", "location"):
+                filename = node.data.get(key)
+                if filename is None:
+                    continue
+                input_filenames.append(filename)
+
+        return input_filenames
 
 
 @dataclass
@@ -329,8 +389,11 @@ def _model_display_name_to_path(nodes: list[Node]) -> None:
         )
 
 
-def _video_path_to_display_name(nodes: list[Node]) -> None:
+def _input_video_path_to_display_name(nodes: list[Node]) -> None:
     for node in nodes:
+        if node.type.endswith("sink"):
+            # Skip sinks to avoid overwriting output paths
+            continue
         for key in ("source", "location"):
             path = node.data.get(key)
             if path is None:
@@ -344,8 +407,11 @@ def _video_path_to_display_name(nodes: list[Node]) -> None:
                 logger.debug(f"Video path not found: {path}")
 
 
-def _video_name_to_path(nodes: list[Node]) -> None:
+def _input_video_name_to_path(nodes: list[Node]) -> None:
     for node in nodes:
+        if node.type.endswith("sink"):
+            # Skip sinks to avoid overwriting output paths
+            continue
         for key in ("source", "location"):
             name = node.data.get(key)
             if name is None:
@@ -353,17 +419,9 @@ def _video_name_to_path(nodes: list[Node]) -> None:
 
             path = videos_manager.get_video_path(name)
             if not path:
-                # FIXME
-                # Generate output path as a workaround to run pipeline.
-                # In the long term this should be managed by tests manager
-                if node.type.endswith("sink") and key == "location":
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    suffix = uuid.uuid4().hex[0:6]
-                    path = f"/tmp/vippet_{timestamp}_{suffix}.mp4"
-                else:
-                    raise ValueError(
-                        f"Node {node.id}. {node.type}: can't map '{key}={name}' to video path"
-                    )
+                raise ValueError(
+                    f"Node {node.id}. {node.type}: can't map '{key}={name}' to video path"
+                )
 
             node.data[key] = path
             logger.debug(f"Converted video filename to path: {name} -> {path}")

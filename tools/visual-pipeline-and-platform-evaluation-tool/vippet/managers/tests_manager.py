@@ -52,7 +52,7 @@ class PerformanceJob:
     Internal representation of a single performance test job.
 
     This mirrors what is exposed through :class:`PerformanceJobStatus`
-    and :class:`PerformanceJobSummary`, with a few runtime‑only fields.
+    and :class:`PerformanceJobSummary`, with a few runtime-only fields.
     """
 
     id: str
@@ -64,6 +64,7 @@ class PerformanceJob:
     per_stream_fps: Optional[float] = None
     total_streams: Optional[int] = None
     streams_per_pipeline: Optional[List[PipelinePerformanceSpec]] = None
+    video_output_paths: Optional[Dict[str, List[str]]] = None
     error_message: Optional[str] = None
 
 
@@ -73,7 +74,7 @@ class DensityJob:
     Internal representation of a single density test job.
 
     This mirrors what is exposed through :class:`DensityJobStatus`
-    and :class:`DensityJobSummary`, with a few runtime‑only fields.
+    and :class:`DensityJobSummary`, with a few runtime-only fields.
     """
 
     id: str
@@ -85,6 +86,7 @@ class DensityJob:
     per_stream_fps: Optional[float] = None
     total_streams: Optional[int] = None
     streams_per_pipeline: Optional[List[PipelinePerformanceSpec]] = None
+    video_output_paths: Optional[Dict[str, List[str]]] = None
     error_message: Optional[str] = None
 
 
@@ -96,7 +98,7 @@ class TestsManager:
 
     * create and track :class:`PerformanceJob` and :class:`DensityJob` instances,
     * run tests asynchronously in background threads,
-    * expose job status and summaries in a thread‑safe manner.
+    * expose job status and summaries in a thread-safe manner.
     """
 
     def __init__(self):
@@ -208,8 +210,11 @@ class TestsManager:
                 return
 
             # Build pipeline command from specs
-            pipeline_command = pipeline_manager.build_pipeline_command(
-                performance_request.pipeline_performance_specs
+            pipeline_command, video_output_paths = (
+                pipeline_manager.build_pipeline_command(
+                    performance_request.pipeline_performance_specs,
+                    performance_request.video_output,
+                )
             )
 
             # Initialize PipelineRunner
@@ -258,6 +263,7 @@ class TestsManager:
                             job.per_stream_fps = results.per_stream_fps
                             job.total_streams = results.num_streams
                             job.streams_per_pipeline = streams_per_pipeline
+                            job.video_output_paths = video_output_paths
 
                             self.logger.info(
                                 f"Performance test {job_id} completed successfully: "
@@ -298,6 +304,7 @@ class TestsManager:
             results = benchmark.run(
                 pipeline_benchmark_specs=density_request.pipeline_density_specs,
                 fps_floor=density_request.fps_floor,
+                video_config=density_request.video_output,
             )
 
             # Update job with results
@@ -322,6 +329,7 @@ class TestsManager:
                         job.per_stream_fps = results.per_stream_fps
                         job.streams_per_pipeline = results.streams_per_pipeline
                         job.total_streams = results.n_streams
+                        job.video_output_paths = results.video_output_paths
 
                         self.logger.info(
                             f"Density test {job_id} completed successfully: "
@@ -375,6 +383,7 @@ class TestsManager:
             per_stream_fps=job.per_stream_fps,
             total_streams=job.total_streams,
             streams_per_pipeline=job.streams_per_pipeline,
+            video_output_paths=job.video_output_paths,
             error_message=job.error_message,
         )
 
@@ -400,6 +409,7 @@ class TestsManager:
             per_stream_fps=job.per_stream_fps,
             total_streams=job.total_streams,
             streams_per_pipeline=job.streams_per_pipeline,
+            video_output_paths=job.video_output_paths,
             error_message=job.error_message,
         )
 
@@ -475,7 +485,7 @@ class TestsManager:
         Stop a running test job by calling cancel on its runner.
 
         Returns a tuple of (success, message) indicating whether the
-        cancellation was successful and a human‑readable status message.
+        cancellation was successful and a human-readable status message.
         """
         with self.lock:
             if job_id not in self.jobs:

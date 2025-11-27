@@ -22,9 +22,13 @@ VIDEO_EXTENSIONS = (
     "hevc",
 )
 
+# Default directories for input and output videos
+OUTPUT_VIDEO_DIR = "/videos/output"
+INPUT_VIDEO_DIR = "/videos/input"
+
 # Read RECORDINGS_PATH from environment variable
 RECORDINGS_PATH: str = os.path.normpath(
-    os.environ.get("RECORDINGS_PATH", "/videos/input")
+    os.environ.get("RECORDINGS_PATH", INPUT_VIDEO_DIR)
 )
 
 logger = logging.getLogger("videos")

@@ -156,7 +156,7 @@ parse_test_cases = [
                 Node(
                     id="17",
                     type="filesink",
-                    data={"location": "license-plate-detection-output.mp4"},
+                    data={"location": "/tmp/license-plate-detection-output.mp4"},
                 ),
             ],
             edges=[
@@ -279,7 +279,7 @@ parse_test_cases = [
                 Node(
                     id="4",
                     type="splitmuxsink",
-                    data={"location": "output_%02d.mp4"},
+                    data={"location": "/tmp/output_%02d.mp4"},
                 ),
                 Node(id="5", type="queue", data={}),
                 Node(id="6", type="h264parse", data={}),
@@ -296,7 +296,7 @@ parse_test_cases = [
                 Node(id="17", type="vah264enc", data={}),
                 Node(id="18", type="h264parse", data={}),
                 Node(id="19", type="mp4mux", data={}),
-                Node(id="20", type="filesink", data={"location": "YYY"}),
+                Node(id="20", type="filesink", data={"location": "/tmp/YYY"}),
             ],
             edges=[
                 Edge(id="0", source="0", target="1"),
@@ -353,7 +353,7 @@ parse_test_cases = [
                 Node(
                     id="5",
                     type="splitmuxsink",
-                    data={"location": "$(uuid).mp4"},
+                    data={"location": "/tmp/$(uuid).mp4"},
                 ),
                 Node(id="6", type="queue2", data={}),
                 Node(id="7", type="vah264dec", data={}),
@@ -463,7 +463,7 @@ parse_test_cases = [
                 Node(
                     id="5",
                     type="splitmuxsink",
-                    data={"location": "$(uuid).mp4"},
+                    data={"location": "/tmp/$(uuid).mp4"},
                 ),
                 Node(id="6", type="queue2", data={}),
                 Node(id="7", type="vah264dec", data={}),

@@ -8,6 +8,7 @@ from api.api_schemas import (
     PipelineDensitySpec,
     DensityTestSpec,
     TestJobState,
+    VideoOutputConfig,
 )
 from pipeline_runner import PipelineRunner
 from benchmark import BenchmarkResult
@@ -25,7 +26,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-test123",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         with patch.object(manager, "_execute_performance_test") as mock_execute:
@@ -43,7 +45,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-test456",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         with patch.object(manager, "_execute_performance_test"):
@@ -73,6 +76,7 @@ class TestTestsManager(unittest.TestCase):
                     stream_rate=100,
                 )
             ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         with patch.object(manager, "_execute_density_test") as mock_execute:
@@ -102,7 +106,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-perf123",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         pipeline_density_request = DensityTestSpec(
@@ -113,6 +118,7 @@ class TestTestsManager(unittest.TestCase):
                     stream_rate=100,
                 )
             ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         with (
@@ -157,7 +163,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-abc123",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
         job = PerformanceJob(
             id="test-job-id",
@@ -196,7 +203,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-def456",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job = PerformanceJob(
@@ -223,7 +231,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-ghi789",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-job-id"
@@ -256,7 +265,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-jkl012",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-job-id"
@@ -285,7 +295,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-mno345",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-job-id"
@@ -311,7 +322,8 @@ class TestTestsManager(unittest.TestCase):
                     id="pipeline-pqr678",
                     streams=1,
                 )
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-job-start"
@@ -326,7 +338,7 @@ class TestTestsManager(unittest.TestCase):
         with (
             patch(
                 "managers.tests_manager.pipeline_manager.build_pipeline_command",
-                return_value="fakesrc ! fakesink",
+                return_value=("fakesrc ! fakesink", {}),
             ),
             patch.object(PipelineRunner, "run", return_value=None) as mock_run,
         ):
@@ -346,7 +358,8 @@ class TestTestsManager(unittest.TestCase):
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(id="pipeline-test", streams=1),
                 PipelinePerformanceSpec(id="pipeline-test", streams=2),
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-job-metrics"
@@ -361,7 +374,7 @@ class TestTestsManager(unittest.TestCase):
         with (
             patch(
                 "managers.tests_manager.pipeline_manager.build_pipeline_command",
-                return_value="fakesrc ! fakesink",
+                return_value=("fakesrc ! fakesink", {}),
             ),
             patch.object(
                 PipelineRunner,
@@ -393,7 +406,8 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(id="pipeline-test", streams=1),
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-job-cancel"
@@ -408,7 +422,7 @@ class TestTestsManager(unittest.TestCase):
         with (
             patch(
                 "managers.tests_manager.pipeline_manager.build_pipeline_command",
-                return_value="fakesrc ! fakesink",
+                return_value=("fakesrc ! fakesink", {}),
             ),
             patch.object(
                 PipelineRunner,
@@ -434,7 +448,8 @@ class TestTestsManager(unittest.TestCase):
         pipeline_request = PerformanceTestSpec(
             pipeline_performance_specs=[
                 PipelinePerformanceSpec(id="pipeline-test", streams=1),
-            ]
+            ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-job-exception"
@@ -471,6 +486,7 @@ class TestTestsManager(unittest.TestCase):
                 PipelinePerformanceSpec(id="pipeline-test", streams=1),
             ],
             per_stream_fps=90.0,
+            video_output_paths={},
         )
 
         manager = TestsManager()
@@ -480,6 +496,7 @@ class TestTestsManager(unittest.TestCase):
                 PipelineDensitySpec(id="pipeline-test", stream_rate=50),
                 PipelineDensitySpec(id="pipeline-test", stream_rate=50),
             ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-density-success"
@@ -498,6 +515,7 @@ class TestTestsManager(unittest.TestCase):
                 PipelinePerformanceSpec(id="pipeline-test", streams=1),
             ],
             per_stream_fps=90.0,
+            video_output_paths={},
         )
 
         manager._execute_density_test(job_id, pipeline_request)
@@ -517,6 +535,7 @@ class TestTestsManager(unittest.TestCase):
             pipeline_density_specs=[
                 PipelineDensitySpec(id="pipeline-test", stream_rate=100),
             ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-density-cancel"
@@ -538,6 +557,7 @@ class TestTestsManager(unittest.TestCase):
                     PipelinePerformanceSpec(id="pipeline-test", streams=1),
                 ],
                 per_stream_fps=90.0,
+                video_output_paths={},
             )
             mock_benchmark_job.runner.is_cancelled.return_value = True
 
@@ -560,6 +580,7 @@ class TestTestsManager(unittest.TestCase):
             pipeline_density_specs=[
                 PipelineDensitySpec(id="pipeline-test", stream_rate=100),
             ],
+            video_output=VideoOutputConfig(enabled=False),
         )
 
         job_id = "test-density-exception"

@@ -258,6 +258,178 @@ class TestJobsAPI(unittest.TestCase):
         mock_optimization_manager.get_job_status.assert_called_once_with(missing_job_id)
 
     # ------------------------------------------------------------------
+    # /jobs/validation/status
+    # ------------------------------------------------------------------
+
+    @patch("api.routes.jobs.validation_manager")
+    def test_get_validation_statuses_returns_list(self, mock_validation_manager):
+        """
+        The /jobs/validation/status endpoint should return a list of
+        ValidationJobStatus objects as JSON.
+
+        This test validates:
+        * HTTP 200 status,
+        * response shape (list of objects),
+        * selected field values are correctly serialized.
+        """
+        mock_validation_manager.get_all_job_statuses.return_value = [
+            schemas.ValidationJobStatus(
+                id="val-job-1",
+                start_time=1000,
+                elapsed_time=200,
+                state=schemas.ValidationJobState.RUNNING,
+                is_valid=None,
+                error_message=None,
+            ),
+            schemas.ValidationJobStatus(
+                id="val-job-2",
+                start_time=2000,
+                elapsed_time=500,
+                state=schemas.ValidationJobState.ERROR,
+                is_valid=False,
+                error_message=["no element foo"],
+            ),
+        ]
+
+        response = self.client.get("/jobs/validation/status")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        # Basic shape: list with two entries
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 2)
+
+        first, second = data[0], data[1]
+
+        # Spot-check first job
+        self.assertEqual(first["id"], "val-job-1")
+        self.assertEqual(first["state"], schemas.ValidationJobState.RUNNING)
+        self.assertIsNone(first["is_valid"])
+        self.assertIsNone(first["error_message"])
+
+        # Spot-check second job
+        self.assertEqual(second["id"], "val-job-2")
+        self.assertEqual(second["state"], schemas.ValidationJobState.ERROR)
+        self.assertFalse(second["is_valid"])
+        self.assertEqual(second["error_message"], ["no element foo"])
+
+        mock_validation_manager.get_all_job_statuses.assert_called_once_with()
+
+    # ------------------------------------------------------------------
+    # /jobs/validation/{job_id}
+    # ------------------------------------------------------------------
+
+    @patch("api.routes.jobs.validation_manager")
+    def test_get_validation_job_summary_found(self, mock_validation_manager):
+        """
+        When the manager returns a ValidationJobSummary, the endpoint
+        must respond with HTTP 200 and the serialized summary.
+
+        This exercises the "happy path" where a job with the given id
+        exists and demonstrates that the original request object is
+        correctly embedded in the response.
+        """
+        graph = self._make_minimal_graph()
+        request = schemas.PipelineValidation(
+            pipeline_graph=graph,
+            parameters={"max-runtime": 10},
+        )
+        mock_validation_manager.get_job_summary.return_value = (
+            schemas.ValidationJobSummary(
+                id="val-job-123",
+                request=request,
+            )
+        )
+
+        response = self.client.get("/jobs/validation/val-job-123")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertEqual(data["id"], "val-job-123")
+        self.assertIn("request", data)
+        self.assertIn("pipeline_graph", data["request"])
+        self.assertEqual(data["request"]["parameters"], {"max-runtime": 10})
+
+        mock_validation_manager.get_job_summary.assert_called_once_with("val-job-123")
+
+    @patch("api.routes.jobs.validation_manager")
+    def test_get_validation_job_summary_not_found(self, mock_validation_manager):
+        """
+        When the manager returns None, the endpoint should return a 404
+        with a descriptive MessageResponse payload.
+        """
+        mock_validation_manager.get_job_summary.return_value = None
+
+        missing_job_id = "missing-val-job"
+        response = self.client.get(f"/jobs/validation/{missing_job_id}")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message=f"Validation job {missing_job_id} not found"
+            ).model_dump(),
+        )
+
+        mock_validation_manager.get_job_summary.assert_called_once_with(missing_job_id)
+
+    # ------------------------------------------------------------------
+    # /jobs/validation/{job_id}/status
+    # ------------------------------------------------------------------
+
+    @patch("api.routes.jobs.validation_manager")
+    def test_get_validation_job_status_found(self, mock_validation_manager):
+        """
+        When the job exists, /validation/{job_id}/status must return the
+        ValidationJobStatus with HTTP 200.
+        """
+        mock_validation_manager.get_job_status.return_value = (
+            schemas.ValidationJobStatus(
+                id="val-status-1",
+                start_time=123456,
+                elapsed_time=1000,
+                state=schemas.ValidationJobState.COMPLETED,
+                is_valid=True,
+                error_message=None,
+            )
+        )
+
+        response = self.client.get("/jobs/validation/val-status-1/status")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertEqual(data["id"], "val-status-1")
+        self.assertEqual(data["state"], schemas.ValidationJobState.COMPLETED)
+        self.assertTrue(data["is_valid"])
+        self.assertIsNone(data["error_message"])
+
+        mock_validation_manager.get_job_status.assert_called_once_with("val-status-1")
+
+    @patch("api.routes.jobs.validation_manager")
+    def test_get_validation_job_status_not_found(self, mock_validation_manager):
+        """
+        When the job does not exist, /validation/{job_id}/status must
+        respond with HTTP 404 and a MessageResponse.
+        """
+        mock_validation_manager.get_job_status.return_value = None
+
+        missing_job_id = "unknown-val-status-job"
+        response = self.client.get(f"/jobs/validation/{missing_job_id}/status")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message=f"Validation job {missing_job_id} not found"
+            ).model_dump(),
+        )
+
+        mock_validation_manager.get_job_status.assert_called_once_with(missing_job_id)
+
+    # ------------------------------------------------------------------
     # Router metadata
     # ------------------------------------------------------------------
 
@@ -297,6 +469,23 @@ class TestJobsAPI(unittest.TestCase):
         self.assertEqual(
             operations[("/optimization/{job_id}/status", "GET")],
             "get_optimization_job_status",
+        )
+
+        self.assertIn(("/validation/status", "GET"), operations)
+        self.assertIn(("/validation/{job_id}", "GET"), operations)
+        self.assertIn(("/validation/{job_id}/status", "GET"), operations)
+
+        self.assertEqual(
+            operations[("/validation/status", "GET")],
+            "get_validation_statuses",
+        )
+        self.assertEqual(
+            operations[("/validation/{job_id}", "GET")],
+            "get_validation_job_summary",
+        )
+        self.assertEqual(
+            operations[("/validation/{job_id}/status", "GET")],
+            "get_validation_job_status",
         )
 
     @patch("api.routes.jobs.tests_manager")
