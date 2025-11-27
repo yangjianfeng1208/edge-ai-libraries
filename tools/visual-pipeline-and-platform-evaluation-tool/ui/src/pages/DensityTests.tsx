@@ -141,7 +141,6 @@ const DensityTests = () => {
                     {jobStatus.error_message}
                   </span>
                 </div>
-                <TestProgressIndicator />
               </div>
             )}
           </div>

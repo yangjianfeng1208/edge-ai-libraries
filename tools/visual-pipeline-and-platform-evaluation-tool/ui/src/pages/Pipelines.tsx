@@ -74,7 +74,7 @@ const Pipelines = () => {
           pipeline_performance_specs: [
             {
               id,
-              streams: 20,
+              streams: 1,
             },
           ],
         },
@@ -131,7 +131,7 @@ const Pipelines = () => {
 
   if (isSuccess && data) {
     return (
-      <div className="w-full h-screen relative">
+      <div className="w-full h-full relative">
         <PipelineEditor
           key={editorKey}
           pipelineData={data}

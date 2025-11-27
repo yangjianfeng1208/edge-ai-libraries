@@ -119,6 +119,16 @@ const PerformanceTests = () => {
               <TestProgressIndicator />
             </div>
           )}
+          {jobStatus.state === "ERROR" && (
+            <div className="mt-2">
+              <div className="animate-pulse flex items-center gap-2">
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                <span className="text-xs text-blue-700 dark:text-blue-300">
+                  {jobStatus.error_message}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

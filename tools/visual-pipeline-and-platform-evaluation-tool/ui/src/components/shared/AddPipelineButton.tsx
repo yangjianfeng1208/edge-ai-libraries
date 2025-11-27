@@ -7,12 +7,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useCreatePipelineMutation } from "@/api/api.generated";
+import { toast } from "sonner";
 
 const AddPipelineButton = () => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [pipelineDescription, setPipelineDescription] = useState("");
+  const [createPipeline, { isLoading }] = useCreatePipelineMutation();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -26,9 +29,39 @@ const AddPipelineButton = () => {
     reader.readAsText(file);
   };
 
-  const handleAdd = () => {
-    // Logic will be implemented later
-    console.log({ name, description, pipelineDescription });
+  const handleAdd = async () => {
+    if (!name.trim() || !pipelineDescription.trim()) {
+      toast.error("Name and pipeline description are required");
+      return;
+    }
+
+    try {
+      await createPipeline({
+        pipelineDefinition: {
+          name: name.trim(),
+          description: description.trim(),
+          source: "USER_CREATED",
+          type: "GStreamer",
+          pipeline_description: pipelineDescription,
+          parameters: {
+            default: {
+              additionalProp1: {},
+            },
+          },
+        },
+      }).unwrap();
+
+      toast.success("Pipeline created successfully");
+      setOpen(false);
+      setName("");
+      setDescription("");
+      setPipelineDescription("");
+    } catch (error) {
+      toast.error("Failed to create pipeline", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+      console.error("Failed to create pipeline:", error);
+    }
   };
 
   return (
@@ -125,9 +158,11 @@ const AddPipelineButton = () => {
             <button
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleAdd}
-              disabled={!name.trim() || !pipelineDescription.trim()}
+              disabled={
+                isLoading || !name.trim() || !pipelineDescription.trim()
+              }
             >
-              Add
+              {isLoading ? "Creating..." : "Add"}
             </button>
           </div>
         </div>
