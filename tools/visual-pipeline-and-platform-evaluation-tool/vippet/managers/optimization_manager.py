@@ -3,7 +3,7 @@ import time
 import uuid
 import threading
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from dataclasses import dataclass
 
 from graph import Graph
@@ -113,14 +113,7 @@ class OptimizationRunner:
         # https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/scripts/optimizer
         import optimizer  # pyright: ignore[reportMissingImports]
 
-        elements: List[str] = [
-            segment.strip()
-            for segment in pipeline_description.split("!")
-            if segment.strip()
-        ]
-        processed_elements = optimizer.preprocess_pipeline(elements)
-        optimized_pipeline = " ! ".join(processed_elements)
-
+        optimized_pipeline = optimizer.preprocess_pipeline(pipeline_description)
         return PipelineOptimizationResult(
             optimized_pipeline_description=optimized_pipeline
         )

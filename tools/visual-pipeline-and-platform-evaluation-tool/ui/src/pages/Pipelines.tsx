@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import {
   useGetPipelineQuery,
-  useRunPipelineMutation,
-  useStopPipelineInstanceMutation,
+  useRunPerformanceTestMutation,
+  useStopPerformanceTestJobMutation,
 } from "@/api/api.generated";
 import {
   type Edge as ReactFlowEdge,
@@ -13,10 +13,12 @@ import { useState } from "react";
 import PipelineEditor from "@/features/pipeline-editor/PipelineEditor.tsx";
 import FpsDisplay from "@/features/pipeline-editor/FpsDisplay.tsx";
 import { toast } from "sonner";
-import RunPipelineButton from "@/features/pipeline-editor/RunPipelineButton.tsx";
-import StopPipelineButton from "@/features/pipeline-editor/StopPipelineButton.tsx";
+import RunPerformanceTestButton from "@/features/pipeline-editor/RunPerformanceTestButton.tsx";
+import StopPerformanceTestButton from "@/features/pipeline-editor/StopPerformanceTestButton.tsx";
 import StatePreviewButton from "@/features/pipeline-editor/StatePreviewButton.tsx";
-import DownloadPipelineButton from "@/features/pipeline-editor/DownloadPipelineButton.tsx";
+import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
+import OpenPipelineButton from "@/features/pipeline-editor/OpenPipelineButton.tsx";
+import ImportPipelineButton from "@/features/pipeline-editor/ImportPipelineButton.tsx";
 
 type UrlParams = {
   id: string;
@@ -24,9 +26,9 @@ type UrlParams = {
 
 const Pipelines = () => {
   const { id } = useParams<UrlParams>();
-  const [pipelineInstanceId, setPipelineInstanceId] = useState<string | null>(
-    null,
-  );
+  const [performanceTestJobId, setPerformanceTestJobId] = useState<
+    string | null
+  >(null);
   const [currentNodes, setCurrentNodes] = useState<ReactFlowNode[]>([]);
   const [currentEdges, setCurrentEdges] = useState<ReactFlowEdge[]>([]);
   const [currentViewport, setCurrentViewport] = useState<Viewport>({
@@ -34,20 +36,22 @@ const Pipelines = () => {
     y: 0,
     zoom: 1,
   });
+  const [editorKey, setEditorKey] = useState(0);
+  const [shouldFitView, setShouldFitView] = useState(false);
 
   const { data, isSuccess } = useGetPipelineQuery(
     {
-      name: "predefined_pipelines",
-      version: id ?? "",
+      pipelineId: id ?? "",
     },
     {
       skip: !id,
     },
   );
 
-  const [runPipeline, { isLoading: isRunning }] = useRunPipelineMutation();
-  const [stopPipelineInstance, { isLoading: isStopping }] =
-    useStopPipelineInstanceMutation();
+  const [runPerformanceTest, { isLoading: isRunning }] =
+    useRunPerformanceTestMutation();
+  const [stopPerformanceTest, { isLoading: isStopping }] =
+    useStopPerformanceTestJobMutation();
 
   const handleNodesChange = (nodes: ReactFlowNode[]) => {
     setCurrentNodes(nodes);
@@ -65,46 +69,19 @@ const Pipelines = () => {
     if (!id) return;
 
     try {
-      const apiNodes = currentNodes.map((node) => ({
-        id: node.id,
-        type: node.type ?? "default",
-        data: Object.fromEntries(
-          Object.entries(node.data ?? {}).map(([key, value]) => [
-            key,
-            String(value),
-          ]),
-        ),
-      }));
-
-      const response = await runPipeline({
-        name: "predefined_pipelines",
-        version: id,
-        pipelineRequestRunInput: {
-          async_: true,
-          source: {
-            type: "uri",
-            uri: "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4",
-          },
-          parameters: {
-            inferencing_channels: 20,
-            recording_channels: 0,
-            pipeline_graph: {
-              nodes: apiNodes,
-              edges: currentEdges,
+      const response = await runPerformanceTest({
+        performanceTestSpec: {
+          pipeline_performance_specs: [
+            {
+              id,
+              streams: 20,
             },
-          },
-          tags: {
-            additionalProp1: "string",
-          },
+          ],
         },
       }).unwrap();
 
-      if (
-        response &&
-        typeof response === "object" &&
-        "instance_id" in response
-      ) {
-        setPipelineInstanceId(response.instance_id as string);
+      if (response && typeof response === "object" && "job_id" in response) {
+        setPerformanceTestJobId(response.job_id as string);
       }
 
       toast.success("Pipeline run started", {
@@ -119,14 +96,14 @@ const Pipelines = () => {
   };
 
   const handleStopPipeline = async () => {
-    if (!pipelineInstanceId) return;
+    if (!performanceTestJobId) return;
 
     try {
-      await stopPipelineInstance({
-        instanceId: pipelineInstanceId,
+      await stopPerformanceTest({
+        jobId: performanceTestJobId,
       }).unwrap();
 
-      setPipelineInstanceId(null);
+      setPerformanceTestJobId(null);
 
       toast.success("Pipeline stopped", {
         description: new Date().toISOString(),
@@ -139,40 +116,77 @@ const Pipelines = () => {
     }
   };
 
+  const handleImport = (
+    nodes: ReactFlowNode[],
+    edges: ReactFlowEdge[],
+    viewport: Viewport,
+    shouldFitView: boolean,
+  ) => {
+    setCurrentNodes(nodes);
+    setCurrentEdges(edges);
+    setCurrentViewport(viewport);
+    setShouldFitView(shouldFitView);
+    setEditorKey((prev) => prev + 1); // Force PipelineEditor to re-initialize
+  };
+
   if (isSuccess && data) {
     return (
-      <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+      <div className="w-full h-screen relative">
         <PipelineEditor
+          key={editorKey}
           pipelineData={data}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onViewportChange={handleViewportChange}
+          initialNodes={currentNodes.length > 0 ? currentNodes : undefined}
+          initialEdges={currentEdges.length > 0 ? currentEdges : undefined}
+          initialViewport={
+            currentNodes.length > 0 ? currentViewport : undefined
+          }
+          shouldFitView={shouldFitView}
         />
 
-        <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+        <div className="absolute top-4 right-4 flex flex-row gap-2">
+          <button
+            className="bg-gray-600 text-white p-2 rounded-lg shadow-lg transition-colors disabled:opacity-50"
+            title="Optimize Pipeline"
+            disabled={true}
+          >
+            Optimize
+          </button>
           <FpsDisplay />
+        </div>
 
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 items-end">
           <div className="flex gap-2">
-            {pipelineInstanceId ? (
-              <StopPipelineButton
+            <OpenPipelineButton onImport={handleImport} />
+
+            <ImportPipelineButton onImport={handleImport} />
+
+            {performanceTestJobId ? (
+              <StopPerformanceTestButton
                 isStopping={isStopping}
-                onStopPipeline={handleStopPipeline}
+                onStop={handleStopPipeline}
               />
             ) : (
-              <RunPipelineButton
+              <RunPerformanceTestButton
                 isRunning={isRunning}
-                onRunPipeline={handleRunPipeline}
+                onRun={handleRunPipeline}
               />
             )}
 
-            <DownloadPipelineButton
+            <ExportPipelineButton
               edges={currentEdges}
               nodes={currentNodes}
               viewport={currentViewport}
-              pipelineName={data.version}
+              pipelineName={data.name}
             />
 
-            <StatePreviewButton edges={currentEdges} nodes={currentNodes} />
+            <StatePreviewButton
+              edges={currentEdges}
+              nodes={currentNodes}
+              viewport={currentViewport}
+            />
           </div>
         </div>
       </div>

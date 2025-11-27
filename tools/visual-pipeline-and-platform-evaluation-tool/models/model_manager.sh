@@ -78,16 +78,12 @@ function cleanup_and_exit {
 
 download_public_models() {
     local models="$1"
-    local IFS=','
-
-    for model in $models; do
-        echo "Installing public model: $model"
-        if ! bash /opt/intel/dlstreamer/samples/download_public_models.sh "$model"; then
-            echo "Error: Failed to download public model $model"
-            cleanup_and_exit 14
-        fi
-        echo "Model $model installed."
-    done
+    echo "Installing public models: $models"
+    if ! bash /opt/intel/dlstreamer/samples/download_public_models.sh "$models"; then
+        echo "Error: Failed to download public models: $models"
+        cleanup_and_exit 14
+    fi
+    echo "Models $models installed."
 }
 
 download_omz_models() {

@@ -2,15 +2,15 @@ import { Square } from "lucide-react";
 
 type StopPipelineButtonProps = {
   isStopping: boolean;
-  onStopPipeline: () => void;
+  onStop: () => void;
 };
 
-const StopPipelineButton = ({
+const StopPerformanceTestButton = ({
   isStopping,
-  onStopPipeline,
+  onStop,
 }: StopPipelineButtonProps) => (
   <button
-    onClick={onStopPipeline}
+    onClick={onStop}
     disabled={isStopping}
     className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white p-2 rounded-lg shadow-lg transition-colors"
     title="Stop Pipeline"
@@ -19,4 +19,4 @@ const StopPipelineButton = ({
   </button>
 );
 
-export default StopPipelineButton;
+export default StopPerformanceTestButton;

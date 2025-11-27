@@ -2,15 +2,15 @@ import { Play } from "lucide-react";
 
 type RunPipelineButtonProps = {
   isRunning: boolean;
-  onRunPipeline: () => void;
+  onRun: () => void;
 };
 
-const RunPipelineButton = ({
+const RunPerformanceTestButton = ({
   isRunning,
-  onRunPipeline,
+  onRun,
 }: RunPipelineButtonProps) => (
   <button
-    onClick={onRunPipeline}
+    onClick={onRun}
     disabled={isRunning}
     className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white p-2 rounded-lg shadow-lg transition-colors"
     title="Run Pipeline"
@@ -19,4 +19,4 @@ const RunPipelineButton = ({
   </button>
 );
 
-export default RunPipelineButton;
+export default RunPerformanceTestButton;
