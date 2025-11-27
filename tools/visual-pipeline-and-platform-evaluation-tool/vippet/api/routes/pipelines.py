@@ -162,12 +162,12 @@ def get_pipeline(pipeline_id: str):
 def update_pipeline(pipeline_id: str, body: schemas.PipelineUpdate):
     """Partially update an existing pipeline.
 
-    Currently supports updating the human readable ``description``,
+    Currently, supports updating the human-readable ``description``,
     ``name``, ``parameters`` and the structured ``pipeline_graph``
     representation.
 
     .. note::
-       Pipeline ``version`` is not updateable yet. It will become
+       Pipeline ``version`` is not updatable yet. It will become
        editable via this endpoint once proper versioning semantics
        are introduced for pipelines.
     """

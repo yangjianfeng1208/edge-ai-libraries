@@ -134,7 +134,7 @@ class PipelineUpdate(BaseModel):
 
     Currently supported (all fields are optional and independently updatable):
     * ``name`` – the pipeline name
-    * ``description`` – the human readable pipeline description
+    * ``description`` – the human-readable pipeline description
     * ``pipeline_graph`` – the pipeline graph representation
     * ``parameters`` – pipeline parameters
     """

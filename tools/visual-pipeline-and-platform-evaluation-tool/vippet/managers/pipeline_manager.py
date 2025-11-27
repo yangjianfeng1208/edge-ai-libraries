@@ -125,7 +125,7 @@ class PipelineManager:
         Args:
             pipeline_id: ID of the pipeline to update.
             name: Optional new pipeline name.
-            description: Optional new human readable description.
+            description: Optional new human-readable description.
             pipeline_graph: Optional new pipeline graph representation.
             parameters: Optional new pipeline parameters.
 
@@ -147,8 +147,15 @@ class PipelineManager:
         if description is not None:
             pipeline.description = description
 
-        # If a new pipeline graph is provided, replace the existing one
+        # If a new pipeline graph is provided, validate and replace the existing one.
         if pipeline_graph is not None:
+            # Validate the pipeline graph by converting it to a pipeline description.
+            pipeline_description = Graph.from_dict(
+                pipeline_graph.model_dump()
+            ).to_pipeline_description()
+            if not pipeline_description:
+                raise ValueError("Provided pipeline graph is invalid.")
+
             pipeline.pipeline_graph = pipeline_graph
 
         if parameters is not None:

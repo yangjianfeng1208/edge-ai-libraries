@@ -304,6 +304,42 @@ class TestPipelineManager(unittest.TestCase):
         self.assertEqual(updated.pipeline_graph, updated_graph)
         self.assertEqual(updated.parameters, updated_params)
 
+    def test_update_pipeline_invalid_graph_raises(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="test-pipeline-invalid-graph",
+            version=1,
+            description="Pipeline with invalid graph update",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        # Create an invalid graph that should fail validation in update_pipeline
+        invalid_graph = PipelineGraph(
+            nodes=[
+                Node(
+                    id="0",
+                    type="gvafpscounter",
+                    data={"starting-frame": "2000"},
+                ),
+            ],
+            edges=[Edge(id="1", source="0", target="0")],
+        )
+
+        with self.assertRaises(ValueError) as context:
+            manager.update_pipeline(pipeline_id=added.id, pipeline_graph=invalid_graph)
+
+        self.assertIn(
+            "Cannot convert graph to pipeline description: circular graph detected or no start nodes found",
+            str(context.exception),
+        )
+
     def test_update_pipeline_not_found_raises(self):
         manager = PipelineManager()
         manager.pipelines = []
