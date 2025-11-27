@@ -927,6 +927,87 @@
           }
         }
       },
+      "patch": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Update Pipeline",
+        "description": "Partially update an existing pipeline.\n\nCurrently supports updating the human readable ``description``,\n``name``, ``parameters`` and the structured ``pipeline_graph``\nrepresentation.\n\n.. note::\n   Pipeline ``version`` is not updateable yet. It will become\n   editable via this endpoint once proper versioning semantics\n   are introduced for pipelines.",
+        "operationId": "update_pipeline",
+        "parameters": [
+          {
+            "name": "pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pipeline updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pipeline"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pipeline not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "pipelines"
@@ -1984,6 +2065,55 @@
           "FFmpeg"
         ],
         "title": "PipelineType"
+      },
+      "PipelineUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "pipeline_graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineGraph"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineParameters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "PipelineUpdate",
+        "description": "Partial update payload for an existing pipeline.\n\nOnly the fields provided in the request will be updated.\n\nCurrently supported (all fields are optional and independently updatable):\n* ``name`` \u2013 the pipeline name\n* ``description`` \u2013 the human readable pipeline description\n* ``pipeline_graph`` \u2013 the pipeline graph representation\n* ``parameters`` \u2013 pipeline parameters"
       },
       "PipelineValidation": {
         "properties": {

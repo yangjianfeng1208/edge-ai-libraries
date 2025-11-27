@@ -12,6 +12,7 @@ from api.api_schemas import (
     PipelineDefinition,
     PipelinePerformanceSpec,
     PipelineGraph,
+    PipelineParameters,
 )
 
 logger = logging.getLogger("pipeline_manager")
@@ -107,6 +108,51 @@ class PipelineManager:
             if pipeline.id == pipeline_id:
                 return pipeline
         return None
+
+    def update_pipeline(
+        self,
+        pipeline_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        pipeline_graph: Optional[PipelineGraph] = None,
+        parameters: Optional[PipelineParameters] = None,
+    ) -> Pipeline:
+        """Update selected fields of an existing pipeline.
+
+        Args:
+            pipeline_id: ID of the pipeline to update.
+            name: Optional new pipeline name.
+            description: Optional new human readable description.
+            pipeline_graph: Optional new pipeline graph representation.
+            parameters: Optional new pipeline parameters.
+
+        Returns:
+            The updated :class:`Pipeline` instance.
+
+        Raises:
+            ValueError: If the pipeline with the given ID does not exist.
+        """
+
+        pipeline = self._find_pipeline_by_id(pipeline_id)
+        if pipeline is None:
+            raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
+
+        # Update fields if provided
+        if name is not None:
+            pipeline.name = name
+
+        if description is not None:
+            pipeline.description = description
+
+        # If a new pipeline graph is provided, replace the existing one
+        if pipeline_graph is not None:
+            pipeline.pipeline_graph = pipeline_graph
+
+        if parameters is not None:
+            pipeline.parameters = parameters
+
+        self.logger.debug("Pipeline updated: %s", pipeline)
+        return pipeline
 
     def delete_pipeline_by_id(self, pipeline_id: str):
         """

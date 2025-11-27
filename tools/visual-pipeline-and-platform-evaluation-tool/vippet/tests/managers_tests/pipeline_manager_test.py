@@ -2,8 +2,12 @@ import unittest
 
 from managers.pipeline_manager import PipelineManager
 from api.api_schemas import (
+    Node,
+    Edge,
     PipelineType,
     PipelineSource,
+    PipelineGraph,
+    PipelineParameters,
     PipelineDefinition,
     PipelinePerformanceSpec,
 )
@@ -215,4 +219,82 @@ class TestPipelineManager(unittest.TestCase):
         self.assertIn(
             "Pipeline with id 'nonexistent-pipeline-id' not found",
             str(context.exception),
+        )
+
+    def test_update_pipeline_description_and_name(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="original-name",
+            version=1,
+            description="Original description",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        updated = manager.update_pipeline(
+            pipeline_id=added.id,
+            name="updated-name",
+            description="Updated description",
+        )
+
+        self.assertEqual(updated.id, added.id)
+        self.assertEqual(updated.name, "updated-name")
+        self.assertEqual(updated.description, "Updated description")
+
+        # Ensure the change is reflected in manager state
+        retrieved = manager.get_pipeline_by_id(added.id)
+        self.assertEqual(retrieved.name, "updated-name")
+        self.assertEqual(retrieved.description, "Updated description")
+
+    def test_update_pipeline_graph_and_parameters(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="test-pipeline",
+            version=1,
+            description="Pipeline to be updated",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        updated_graph = PipelineGraph(
+            nodes=[
+                Node(id="0", type="videotestsrc", data={}),
+                Node(id="1", type="fakesink", data={}),
+            ],
+            edges=[Edge(id="0", source="0", target="1")],
+        )
+
+        updated_params = PipelineParameters(default={"key": "value"})
+
+        updated = manager.update_pipeline(
+            pipeline_id=added.id,
+            pipeline_graph=updated_graph,
+            parameters=updated_params,
+        )
+
+        self.assertEqual(updated.id, added.id)
+        self.assertEqual(updated.pipeline_graph, updated_graph)
+        self.assertEqual(updated.parameters, updated_params)
+
+    def test_update_pipeline_not_found_raises(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        with self.assertRaises(ValueError) as context:
+            manager.update_pipeline(pipeline_id="nonexistent", name="new-name")
+
+        self.assertIn(
+            "Pipeline with id 'nonexistent' not found.", str(context.exception)
         )
