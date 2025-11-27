@@ -190,7 +190,7 @@
           "jobs"
         ],
         "summary": "Get Performance Job Status",
-        "description": "Return the detailed status of a specific performance test job.\n\nThis endpoint focuses on a single performance test job and provides the\ncomplete :class:`PerformanceJobStatus` object for it.\n\nParameters\n----------\njob_id : str\n    Identifier of the performance test job whose status should be\n    retrieved.\n\nReturns\n-------\nPerformanceJobStatus | JSONResponse\n    * On success (job exists): the full :class:`PerformanceJobStatus`\n      instance describing the current state and metrics.\n    * On failure (job unknown): a ``404`` :class:`JSONResponse` containing\n      a :class:`MessageResponse` with a human\u2011readable explanation.",
+        "description": "Return the detailed status of a specific performance test job.\n\nThis endpoint focuses on a single performance test job and provides the\ncomplete :class:`PerformanceJobStatus` object for it.\n\nParameters\n----------\njob_id : str\n    Identifier of the performance test job whose status should be\n    retrieved.\n\nReturns\n-------\nPerformanceJobStatus | JSONResponse\n    * On success (job exists): the full :class:`PerformanceJobStatus`\n      instance describing the current state and metrics.\n    * On failure (job unknown): a ``404`` :class:`JSONResponse` containing\n      a :class:`MessageResponse` with a human-readable explanation.",
         "operationId": "get_performance_job_status",
         "parameters": [
           {
@@ -294,7 +294,7 @@
           "jobs"
         ],
         "summary": "Stop Performance Test Job",
-        "description": "Stop a running performance test job.\n\nThis endpoint attempts to terminate the active runner associated with\nthe specified performance test job. The outcome of the stop request is mapped to\nexplicit HTTP status codes for straightforward client handling:\n\n* ``200`` \u2013 Job successfully stopped.\n* ``404`` \u2013 Unknown job id or no active runner (never started / purged).\n  Indicates the resource was not found.\n* ``409`` \u2013 Job exists but is not in a RUNNING state (COMPLETED, ABORTED,\n  ERROR). Represents a conflicting state transition.\n* ``500`` \u2013 Unexpected internal failure while attempting to stop\n  (e.g. thread interruption issue). Provides a diagnostic message.\n\n\nParameters\n----------\njob_id : str\n        Identifier of the performance test job whose execution should be\n        stopped.\n\nReturns\n-------\nMessageResponse | JSONResponse\n        A :class:`MessageResponse` instance (directly for success; wrapped\n        in :class:`JSONResponse` for non\u2011200 cases) describing the result\n        of the stop attempt.",
+        "description": "Stop a running performance test job.\n\nThis endpoint attempts to terminate the active runner associated with\nthe specified performance test job. The outcome of the stop request is mapped to\nexplicit HTTP status codes for straightforward client handling:\n\n* ``200`` \u2013 Job successfully stopped.\n* ``404`` \u2013 Unknown job id or no active runner (never started / purged).\n  Indicates the resource was not found.\n* ``409`` \u2013 Job exists but is not in a RUNNING state (COMPLETED, ABORTED,\n  ERROR). Represents a conflicting state transition.\n* ``500`` \u2013 Unexpected internal failure while attempting to stop\n  (e.g. thread interruption issue). Provides a diagnostic message.\n\n\nParameters\n----------\njob_id : str\n        Identifier of the performance test job whose execution should be\n        stopped.\n\nReturns\n-------\nMessageResponse | JSONResponse\n        A :class:`MessageResponse` instance (directly for success; wrapped\n        in :class:`JSONResponse` for non-200 cases) describing the result\n        of the stop attempt.",
         "operationId": "stop_performance_test_job",
         "parameters": [
           {
@@ -393,7 +393,7 @@
           "jobs"
         ],
         "summary": "Get Density Job Status",
-        "description": "Return the detailed status of a specific density test job.\n\nThis endpoint focuses on a single density test job and provides the\ncomplete :class:`DensityJobStatus` object for it.\n\nParameters\n----------\njob_id : str\n    Identifier of the density test job whose status should be\n    retrieved.\n\nReturns\n-------\nDensityJobStatus | JSONResponse\n    * On success (job exists): the full :class:`DensityJobStatus`\n      instance describing the current state and metrics.\n    * On failure (job unknown): a ``404`` :class:`JSONResponse` containing\n      a :class:`MessageResponse` with a human\u2011readable explanation.",
+        "description": "Return the detailed status of a specific density test job.\n\nThis endpoint focuses on a single density test job and provides the\ncomplete :class:`DensityJobStatus` object for it.\n\nParameters\n----------\njob_id : str\n    Identifier of the density test job whose status should be\n    retrieved.\n\nReturns\n-------\nDensityJobStatus | JSONResponse\n    * On success (job exists): the full :class:`DensityJobStatus`\n      instance describing the current state and metrics.\n    * On failure (job unknown): a ``404`` :class:`JSONResponse` containing\n      a :class:`MessageResponse` with a human-readable explanation.",
         "operationId": "get_density_job_status",
         "parameters": [
           {
@@ -497,7 +497,7 @@
           "jobs"
         ],
         "summary": "Stop Density Test Job",
-        "description": "Stop a running density test job.\n\nThis endpoint attempts to terminate the active runner associated with\nthe specified density test job. The outcome of the stop request is mapped to\nexplicit HTTP status codes for straightforward client handling:\n\n* ``200`` \u2013 Job successfully stopped.\n* ``404`` \u2013 Unknown job id or no active runner (never started / purged).\n  Indicates the resource was not found.\n* ``409`` \u2013 Job exists but is not in a RUNNING state (COMPLETED, ABORTED,\n  ERROR). Represents a conflicting state transition.\n* ``500`` \u2013 Unexpected internal failure while attempting to stop\n  (e.g. thread interruption issue). Provides a diagnostic message.\n\n\nParameters\n----------\njob_id : str\n        Identifier of the density test job whose execution should be\n        stopped.\n\nReturns\n-------\nMessageResponse | JSONResponse\n        A :class:`MessageResponse` instance (directly for success; wrapped\n        in :class:`JSONResponse` for non\u2011200 cases) describing the result\n        of the stop attempt.",
+        "description": "Stop a running density test job.\n\nThis endpoint attempts to terminate the active runner associated with\nthe specified density test job. The outcome of the stop request is mapped to\nexplicit HTTP status codes for straightforward client handling:\n\n* ``200`` \u2013 Job successfully stopped.\n* ``404`` \u2013 Unknown job id or no active runner (never started / purged).\n  Indicates the resource was not found.\n* ``409`` \u2013 Job exists but is not in a RUNNING state (COMPLETED, ABORTED,\n  ERROR). Represents a conflicting state transition.\n* ``500`` \u2013 Unexpected internal failure while attempting to stop\n  (e.g. thread interruption issue). Provides a diagnostic message.\n\n\nParameters\n----------\njob_id : str\n        Identifier of the density test job whose execution should be\n        stopped.\n\nReturns\n-------\nMessageResponse | JSONResponse\n        A :class:`MessageResponse` instance (directly for success; wrapped\n        in :class:`JSONResponse` for non-200 cases) describing the result\n        of the stop attempt.",
         "operationId": "stop_density_test_job",
         "parameters": [
           {
@@ -696,6 +696,138 @@
         }
       }
     },
+    "/jobs/validation/status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Validation Statuses",
+        "description": "Return the status of all known validation jobs.\n\nThe response is a list of :class:`ValidationJobStatus` objects\ndescribing each job, including:\n\n* job identifier,\n* current state (RUNNING, COMPLETED, ERROR, ABORTED),\n* timing information (start / elapsed),\n* final validation result (``is_valid`` flag),\n* detailed error messages (if any).",
+        "operationId": "get_validation_statuses",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ValidationJobStatus"
+                  },
+                  "type": "array",
+                  "title": "Response Get Validation Statuses"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/validation/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Validation Job Summary",
+        "description": "Return a short summary of a specific validation job.\n\nParameters\n----------\njob_id:\n    The identifier previously returned when the job was created.\n\nReturns\n-------\nValidationJobSummary | JSONResponse\n    * On success (job exists): a :class:`ValidationJobSummary`\n      instance containing the job id and the original validation\n      request.\n    * On failure (job is unknown): a ``404`` :class:`JSONResponse`\n      whose body is a :class:`MessageResponse`.",
+        "operationId": "get_validation_job_summary",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationJobSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/validation/{job_id}/status": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Validation Job Status",
+        "description": "Return the detailed status of a specific validation job.\n\nParameters\n----------\njob_id:\n    Identifier of the validation job whose status should be\n    retrieved.\n\nReturns\n-------\nValidationJobStatus | JSONResponse\n    * On success (job exists): a :class:`ValidationJobStatus`\n      instance describing the current state and outcome.\n    * On failure (job is unknown): a ``404`` :class:`JSONResponse`\n      with a :class:`MessageResponse` body.",
+        "operationId": "get_validation_job_status",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationJobStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Validation job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/models": {
       "get": {
         "tags": [
@@ -820,13 +952,13 @@
           "pipelines"
         ],
         "summary": "Validate Pipeline",
-        "description": "Validate launch string pipeline.",
+        "description": "Start an asynchronous validation job for an ad-hoc pipeline graph.\n\nThe handler:\n\n* accepts a :class:`PipelineValidation` request,\n* delegates creation of a background validation job to\n  :data:`validation_manager`,\n* returns a :class:`ValidationJobResponse` containing the job id.\n\nError handling\n--------------\n* Invalid arguments (e.g. non-positive max-runtime) result in a\n  ``400`` response.\n* Any unexpected exception results in a ``500`` response.",
         "operationId": "validate_pipeline",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PipelineValidation"
+                "$ref": "#/components/schemas/PipelineValidation-Input"
               }
             }
           },
@@ -834,7 +966,25 @@
         },
         "responses": {
           "200": {
-            "description": "Pipeline is valid",
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "202": {
+            "description": "Pipeline validation started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid validation request",
             "content": {
               "application/json": {
                 "schema": {
@@ -843,8 +993,8 @@
               }
             }
           },
-          "400": {
-            "description": "Invalid launch string",
+          "500": {
+            "description": "Internal server error",
             "content": {
               "application/json": {
                 "schema": {
@@ -1985,31 +2135,69 @@
         ],
         "title": "PipelineType"
       },
-      "PipelineValidation": {
+      "PipelineValidation-Input": {
         "properties": {
           "type": {
-            "$ref": "#/components/schemas/PipelineType"
+            "$ref": "#/components/schemas/PipelineType",
+            "default": "GStreamer"
           },
-          "pipeline_description": {
-            "type": "string",
-            "title": "Pipeline Description"
+          "pipeline_graph": {
+            "$ref": "#/components/schemas/PipelineGraph"
           },
           "parameters": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PipelineParameters"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
+              }
+            ],
+            "title": "Parameters",
+            "examples": [
+              {
+                "max-runtime": 10
               }
             ]
           }
         },
         "type": "object",
         "required": [
-          "type",
-          "pipeline_description",
-          "parameters"
+          "pipeline_graph"
+        ],
+        "title": "PipelineValidation"
+      },
+      "PipelineValidation-Output": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/PipelineType",
+            "default": "GStreamer"
+          },
+          "pipeline_graph": {
+            "$ref": "#/components/schemas/PipelineGraph"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters",
+            "examples": [
+              {
+                "max-runtime": 10
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_graph"
         ],
         "title": "PipelineValidation"
       },
@@ -2068,6 +2256,100 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValidationJobResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id"
+        ],
+        "title": "ValidationJobResponse"
+      },
+      "ValidationJobState": {
+        "type": "string",
+        "enum": [
+          "RUNNING",
+          "COMPLETED",
+          "ERROR",
+          "ABORTED"
+        ],
+        "title": "ValidationJobState"
+      },
+      "ValidationJobStatus": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start_time": {
+            "type": "integer",
+            "title": "Start Time"
+          },
+          "elapsed_time": {
+            "type": "integer",
+            "title": "Elapsed Time"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ValidationJobState"
+          },
+          "is_valid": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Valid"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start_time",
+          "elapsed_time",
+          "state",
+          "is_valid",
+          "error_message"
+        ],
+        "title": "ValidationJobStatus"
+      },
+      "ValidationJobSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "request": {
+            "$ref": "#/components/schemas/PipelineValidation-Output"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "request"
+        ],
+        "title": "ValidationJobSummary"
       },
       "Video": {
         "properties": {

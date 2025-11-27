@@ -50,7 +50,7 @@ class OptimizationJob:
     Internal representation of a single optimization job.
 
     This mirrors what is exposed through :class:`OptimizationJobStatus`
-    and :class:`OptimizationJobSummary`, with a few runtime‑only fields.
+    and :class:`OptimizationJobSummary`, with a few runtime-only fields.
     """
 
     id: str
@@ -92,7 +92,7 @@ class OptimizationRunner:
     Thin wrapper around the external optimizer module.
 
     All direct imports and calls into ``optimizer.py`` are isolated here
-    so that the manager can be easily unit‑tested by mocking this class.
+    so that the manager can be easily unit-tested by mocking this class.
     """
 
     def __init__(self) -> None:
@@ -155,7 +155,7 @@ class OptimizationManager:
 
     * create and track :class:`OptimizationJob` instances,
     * run optimizations asynchronously in background threads,
-    * expose job status and summaries in a thread‑safe manner.
+    * expose job status and summaries in a thread-safe manner.
     """
 
     def __init__(self) -> None:

@@ -6,12 +6,14 @@ from fastapi.responses import JSONResponse
 import api.api_schemas as schemas
 from managers.pipeline_manager import get_pipeline_manager
 from managers.optimization_manager import get_optimization_manager
+from managers.validation_manager import get_validation_manager
 
 TEMP_DIR = tempfile.gettempdir()
 
 router = APIRouter()
 pipeline_manager = get_pipeline_manager()
 optimization_manager = get_optimization_manager()
+validation_manager = get_validation_manager()
 
 
 @router.post(
@@ -67,14 +69,53 @@ def create_pipeline(body: schemas.PipelineDefinition):
     "/validate",
     operation_id="validate_pipeline",
     responses={
-        200: {"description": "Pipeline is valid", "model": schemas.MessageResponse},
-        400: {"description": "Invalid launch string", "model": schemas.MessageResponse},
+        202: {
+            "description": "Pipeline validation started",
+            "model": schemas.ValidationJobResponse,
+        },
+        400: {
+            "description": "Invalid validation request",
+            "model": schemas.MessageResponse,
+        },
+        500: {"description": "Internal server error", "model": schemas.MessageResponse},
     },
 )
 def validate_pipeline(body: schemas.PipelineValidation):
-    """Validate launch string pipeline."""
-    # TODO: Implement actual validation logic
-    return schemas.MessageResponse(message="Pipeline is valid")
+    """
+    Start an asynchronous validation job for an ad-hoc pipeline graph.
+
+    The handler:
+
+    * accepts a :class:`PipelineValidation` request,
+    * delegates creation of a background validation job to
+      :data:`validation_manager`,
+    * returns a :class:`ValidationJobResponse` containing the job id.
+
+    Error handling
+    --------------
+    * Invalid arguments (e.g. non-positive max-runtime) result in a
+      ``400`` response.
+    * Any unexpected exception results in a ``500`` response.
+    """
+    try:
+        job_id = validation_manager.run_validation(body)
+        return JSONResponse(
+            content=schemas.ValidationJobResponse(job_id=job_id).model_dump(),
+            status_code=202,
+        )
+    except ValueError as e:
+        # ValidationManager uses ValueError for user-level input problems.
+        return JSONResponse(
+            content=schemas.MessageResponse(message=str(e)).model_dump(),
+            status_code=400,
+        )
+    except Exception as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Unexpected error: {str(e)}"
+            ).model_dump(),
+            status_code=500,
+        )
 
 
 @router.get("", operation_id="get_pipelines", response_model=List[schemas.Pipeline])

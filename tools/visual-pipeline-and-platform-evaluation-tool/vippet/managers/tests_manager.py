@@ -52,7 +52,7 @@ class PerformanceJob:
     Internal representation of a single performance test job.
 
     This mirrors what is exposed through :class:`PerformanceJobStatus`
-    and :class:`PerformanceJobSummary`, with a few runtime‑only fields.
+    and :class:`PerformanceJobSummary`, with a few runtime-only fields.
     """
 
     id: str
@@ -73,7 +73,7 @@ class DensityJob:
     Internal representation of a single density test job.
 
     This mirrors what is exposed through :class:`DensityJobStatus`
-    and :class:`DensityJobSummary`, with a few runtime‑only fields.
+    and :class:`DensityJobSummary`, with a few runtime-only fields.
     """
 
     id: str
@@ -96,7 +96,7 @@ class TestsManager:
 
     * create and track :class:`PerformanceJob` and :class:`DensityJob` instances,
     * run tests asynchronously in background threads,
-    * expose job status and summaries in a thread‑safe manner.
+    * expose job status and summaries in a thread-safe manner.
     """
 
     def __init__(self):
@@ -475,7 +475,7 @@ class TestsManager:
         Stop a running test job by calling cancel on its runner.
 
         Returns a tuple of (success, message) indicating whether the
-        cancellation was successful and a human‑readable status message.
+        cancellation was successful and a human-readable status message.
         """
         with self.lock:
             if job_id not in self.jobs:

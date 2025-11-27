@@ -6,10 +6,12 @@ from fastapi.responses import JSONResponse
 import api.api_schemas as schemas
 from managers.optimization_manager import get_optimization_manager
 from managers.tests_manager import get_tests_manager, PerformanceJob, DensityJob
+from managers.validation_manager import get_validation_manager
 
 router = APIRouter()
 optimization_manager = get_optimization_manager()
 tests_manager = get_tests_manager()
+validation_manager = get_validation_manager()
 
 
 def get_job_status_or_404(job_id: str, job_type: str):
@@ -40,7 +42,7 @@ def stop_test_job_handler(job_id: str):
     -------
     MessageResponse | JSONResponse
         A :class:`MessageResponse` instance (directly for success; wrapped
-        in :class:`JSONResponse` for non‑200 cases) describing the result
+        in :class:`JSONResponse` for non-200 cases) describing the result
         of the stop attempt.
     """
     success, message = tests_manager.stop_job(job_id)
@@ -127,7 +129,7 @@ def get_performance_job_status(job_id: str):
         * On success (job exists): the full :class:`PerformanceJobStatus`
           instance describing the current state and metrics.
         * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
-          a :class:`MessageResponse` with a human‑readable explanation.
+          a :class:`MessageResponse` with a human-readable explanation.
     """
     return get_job_status_or_404(job_id, "Performance")
 
@@ -222,7 +224,7 @@ def stop_performance_test_job(job_id: str):
     -------
     MessageResponse | JSONResponse
             A :class:`MessageResponse` instance (directly for success; wrapped
-            in :class:`JSONResponse` for non‑200 cases) describing the result
+            in :class:`JSONResponse` for non-200 cases) describing the result
             of the stop attempt.
     """
     return stop_test_job_handler(job_id)
@@ -292,7 +294,7 @@ def get_density_job_status(job_id: str):
         * On success (job exists): the full :class:`DensityJobStatus`
           instance describing the current state and metrics.
         * On failure (job unknown): a ``404`` :class:`JSONResponse` containing
-          a :class:`MessageResponse` with a human‑readable explanation.
+          a :class:`MessageResponse` with a human-readable explanation.
     """
     return get_job_status_or_404(job_id, "Density")
 
@@ -387,7 +389,7 @@ def stop_density_test_job(job_id: str):
     -------
     MessageResponse | JSONResponse
             A :class:`MessageResponse` instance (directly for success; wrapped
-            in :class:`JSONResponse` for non‑200 cases) describing the result
+            in :class:`JSONResponse` for non-200 cases) describing the result
             of the stop attempt.
     """
     return stop_test_job_handler(job_id)
@@ -512,6 +514,113 @@ def get_optimization_job_status(job_id: str):
         return JSONResponse(
             content=schemas.MessageResponse(
                 message=f"Optimization job {job_id} not found"
+            ).model_dump(),
+            status_code=404,
+        )
+    return status
+
+
+@router.get(
+    "/validation/status",
+    operation_id="get_validation_statuses",
+    response_model=List[schemas.ValidationJobStatus],
+)
+def get_validation_statuses():
+    """
+    Return the status of all known validation jobs.
+
+    The response is a list of :class:`ValidationJobStatus` objects
+    describing each job, including:
+
+    * job identifier,
+    * current state (RUNNING, COMPLETED, ERROR, ABORTED),
+    * timing information (start / elapsed),
+    * final validation result (``is_valid`` flag),
+    * detailed error messages (if any).
+    """
+    return validation_manager.get_all_job_statuses()
+
+
+@router.get(
+    "/validation/{job_id}",
+    operation_id="get_validation_job_summary",
+    responses={
+        200: {
+            "description": "Successful Response",
+            "model": schemas.ValidationJobSummary,
+        },
+        404: {
+            "description": "Validation job not found",
+            "model": schemas.MessageResponse,
+        },
+    },
+)
+def get_validation_job_summary(job_id: str):
+    """
+    Return a short summary of a specific validation job.
+
+    Parameters
+    ----------
+    job_id:
+        The identifier previously returned when the job was created.
+
+    Returns
+    -------
+    ValidationJobSummary | JSONResponse
+        * On success (job exists): a :class:`ValidationJobSummary`
+          instance containing the job id and the original validation
+          request.
+        * On failure (job is unknown): a ``404`` :class:`JSONResponse`
+          whose body is a :class:`MessageResponse`.
+    """
+    summary = validation_manager.get_job_summary(job_id)
+    if summary is None:
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Validation job {job_id} not found"
+            ).model_dump(),
+            status_code=404,
+        )
+    return summary
+
+
+@router.get(
+    "/validation/{job_id}/status",
+    operation_id="get_validation_job_status",
+    responses={
+        200: {
+            "description": "Successful Response",
+            "model": schemas.ValidationJobStatus,
+        },
+        404: {
+            "description": "Validation job not found",
+            "model": schemas.MessageResponse,
+        },
+    },
+)
+def get_validation_job_status(job_id: str):
+    """
+    Return the detailed status of a specific validation job.
+
+    Parameters
+    ----------
+    job_id:
+        Identifier of the validation job whose status should be
+        retrieved.
+
+    Returns
+    -------
+    ValidationJobStatus | JSONResponse
+        * On success (job exists): a :class:`ValidationJobStatus`
+          instance describing the current state and outcome.
+        * On failure (job is unknown): a ``404`` :class:`JSONResponse`
+          with a :class:`MessageResponse` body.
+    """
+    status = validation_manager.get_job_status(job_id)
+    if status is None:
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Validation job {job_id} not found"
             ).model_dump(),
             status_code=404,
         )
