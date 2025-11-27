@@ -1,3 +1,4 @@
+from copy import deepcopy
 import logging
 import sys
 import threading
@@ -57,25 +58,24 @@ class PipelineManager:
                     f"Pipeline with name '{new_pipeline.name}' and version '{new_pipeline.version}' already exists."
                 )
 
-        # Generate ID with "pipeline" prefix
-        pipeline_id = generate_unique_id("pipeline")
+            # Generate ID with "pipeline" prefix
+            pipeline_id = generate_unique_id("pipeline")
 
-        pipeline_graph = Graph.from_pipeline_description(
-            new_pipeline.pipeline_description
-        ).to_dict()
+            pipeline_graph = Graph.from_pipeline_description(
+                new_pipeline.pipeline_description
+            ).to_dict()
 
-        pipeline = Pipeline(
-            id=pipeline_id,
-            name=new_pipeline.name,
-            version=new_pipeline.version,
-            description=new_pipeline.description,
-            source=new_pipeline.source,
-            type=new_pipeline.type,
-            pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
-            parameters=new_pipeline.parameters,
-        )
+            pipeline = Pipeline(
+                id=pipeline_id,
+                name=new_pipeline.name,
+                version=new_pipeline.version,
+                description=new_pipeline.description,
+                source=new_pipeline.source,
+                type=new_pipeline.type,
+                pipeline_graph=PipelineGraph.model_validate(pipeline_graph),
+                parameters=new_pipeline.parameters,
+            )
 
-        with self.lock:
             self.pipelines.append(pipeline)
         self.logger.debug(f"Pipeline added: {pipeline}")
         return pipeline
@@ -100,7 +100,7 @@ class PipelineManager:
         with self.lock:
             pipeline = self._find_pipeline_by_id(pipeline_id)
             if pipeline is not None:
-                return pipeline
+                return deepcopy(pipeline)
         raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
 
     def _pipeline_exists(self, name: str, version: int) -> bool:
