@@ -134,7 +134,7 @@ class PipelineDefinition(BaseModel):
     source: PipelineSource = PipelineSource.USER_CREATED
     type: PipelineType
     pipeline_description: str = Field(
-        ..., min_length=1, description="Non-empty pipeline description."
+        ..., min_length=1, description="GStreamer pipeline definition string (e.g., 'fakesrc ! fakesink')."
     )
     parameters: Optional[PipelineParameters]
 
