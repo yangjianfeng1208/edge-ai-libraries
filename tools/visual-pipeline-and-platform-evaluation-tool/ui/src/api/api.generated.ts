@@ -128,6 +128,29 @@ const injectedRtkApi = api
         }),
         providesTags: ["jobs"],
       }),
+      getValidationStatuses: build.query<
+        GetValidationStatusesApiResponse,
+        GetValidationStatusesApiArg
+      >({
+        query: () => ({ url: `/jobs/validation/status` }),
+        providesTags: ["jobs"],
+      }),
+      getValidationJobSummary: build.query<
+        GetValidationJobSummaryApiResponse,
+        GetValidationJobSummaryApiArg
+      >({
+        query: (queryArg) => ({ url: `/jobs/validation/${queryArg.jobId}` }),
+        providesTags: ["jobs"],
+      }),
+      getValidationJobStatus: build.query<
+        GetValidationJobStatusApiResponse,
+        GetValidationJobStatusApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/jobs/validation/${queryArg.jobId}/status`,
+        }),
+        providesTags: ["jobs"],
+      }),
       getModels: build.query<GetModelsApiResponse, GetModelsApiArg>({
         query: () => ({ url: `/models` }),
         providesTags: ["models"],
@@ -154,7 +177,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/pipelines/validate`,
           method: "POST",
-          body: queryArg.pipelineValidation,
+          body: queryArg.pipelineValidationInput,
         }),
         invalidatesTags: ["pipelines"],
       }),
@@ -190,7 +213,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/tests/performance`,
           method: "POST",
-          body: queryArg.performanceTestSpec,
+          body: queryArg.performanceTestSpecInput,
         }),
         invalidatesTags: ["tests"],
       }),
@@ -201,7 +224,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/tests/density`,
           method: "POST",
-          body: queryArg.densityTestSpec,
+          body: queryArg.densityTestSpecInput,
         }),
         invalidatesTags: ["tests"],
       }),
@@ -275,6 +298,19 @@ export type GetOptimizationJobStatusApiResponse =
 export type GetOptimizationJobStatusApiArg = {
   jobId: string;
 };
+export type GetValidationStatusesApiResponse =
+  /** status 200 Successful Response */ ValidationJobStatus[];
+export type GetValidationStatusesApiArg = void;
+export type GetValidationJobSummaryApiResponse =
+  /** status 200 Successful Response */ ValidationJobSummary;
+export type GetValidationJobSummaryApiArg = {
+  jobId: string;
+};
+export type GetValidationJobStatusApiResponse =
+  /** status 200 Successful Response */ ValidationJobStatus;
+export type GetValidationJobStatusApiArg = {
+  jobId: string;
+};
 export type GetModelsApiResponse =
   /** status 200 Successful Response */ Model[];
 export type GetModelsApiArg = void;
@@ -287,9 +323,10 @@ export type CreatePipelineApiArg = {
   pipelineDefinition: PipelineDefinition;
 };
 export type ValidatePipelineApiResponse =
-  /** status 200 Pipeline is valid */ MessageResponse;
+  /** status 200 Successful Response */
+  any | /** status 202 Pipeline validation started */ ValidationJobResponse;
 export type ValidatePipelineApiArg = {
-  pipelineValidation: PipelineValidation;
+  pipelineValidationInput: PipelineValidation2;
 };
 export type GetPipelineApiResponse =
   /** status 200 Successful Response */ Pipeline;
@@ -311,12 +348,12 @@ export type OptimizePipelineApiArg = {
 export type RunPerformanceTestApiResponse =
   /** status 202 Successful Response */ TestJobResponse;
 export type RunPerformanceTestApiArg = {
-  performanceTestSpec: PerformanceTestSpec;
+  performanceTestSpecInput: PerformanceTestSpec2;
 };
 export type RunDensityTestApiResponse =
   /** status 202 Successful Response */ TestJobResponse;
 export type RunDensityTestApiArg = {
-  densityTestSpec: DensityTestSpec;
+  densityTestSpecInput: DensityTestSpec2;
 };
 export type GetVideosApiResponse =
   /** status 200 Successful Response */ Video[];
@@ -374,10 +411,27 @@ export type PerformanceJobStatus = {
   per_stream_fps: number | null;
   total_streams: number | null;
   streams_per_pipeline: PipelinePerformanceSpec[] | null;
+  video_output_paths: {
+    [key: string]: string[];
+  } | null;
   error_message: string | null;
+};
+export type EncoderDeviceConfig = {
+  /** Name of the encoder device (e.g., 'GPU', 'CPU', 'NPU') */
+  device_name?: string;
+  /** GPU device index (only applicable when device_name indicates a GPU) */
+  gpu_id?: number | null;
+};
+export type VideoOutputConfig = {
+  /** Flag to enable or disable video output generation. */
+  enabled?: boolean;
+  /** Encoder device configuration (only applicable when video output is enabled). */
+  encoder_device?: EncoderDeviceConfig;
 };
 export type PerformanceTestSpec = {
   pipeline_performance_specs: PipelinePerformanceSpec[];
+  /** Video output configuration. */
+  video_output?: VideoOutputConfig;
 };
 export type PerformanceJobSummary = {
   id: string;
@@ -392,6 +446,9 @@ export type DensityJobStatus = {
   per_stream_fps: number | null;
   total_streams: number | null;
   streams_per_pipeline: PipelinePerformanceSpec[] | null;
+  video_output_paths: {
+    [key: string]: string[];
+  } | null;
   error_message: string | null;
 };
 export type PipelineDensitySpec = {
@@ -401,6 +458,8 @@ export type PipelineDensitySpec = {
 export type DensityTestSpec = {
   fps_floor: number;
   pipeline_density_specs: PipelineDensitySpec[];
+  /** Video output configuration. */
+  video_output?: VideoOutputConfig;
 };
 export type DensityJobSummary = {
   id: string;
@@ -435,6 +494,27 @@ export type OptimizationJobSummary = {
   id: string;
   request: PipelineRequestOptimize;
 };
+export type ValidationJobState = "RUNNING" | "COMPLETED" | "ERROR" | "ABORTED";
+export type ValidationJobStatus = {
+  id: string;
+  start_time: number;
+  elapsed_time: number;
+  state: ValidationJobState;
+  is_valid: boolean | null;
+  error_message: string[] | null;
+};
+export type PipelineType = "GStreamer" | "FFmpeg";
+export type PipelineValidation = {
+  type?: PipelineType;
+  pipeline_graph: PipelineGraph;
+  parameters?: {
+    [key: string]: any;
+  } | null;
+};
+export type ValidationJobSummary = {
+  id: string;
+  request: PipelineValidation;
+};
 export type ModelCategory = "classification" | "detection";
 export type Model = {
   name: string;
@@ -443,7 +523,6 @@ export type Model = {
   precision: string | null;
 };
 export type PipelineSource = "PREDEFINED" | "USER_CREATED";
-export type PipelineType = "GStreamer" | "FFmpeg";
 export type PipelineParameters = {
   default: {
     [key: string]: any;
@@ -468,16 +547,32 @@ export type PipelineDefinition = {
   pipeline_description: string;
   parameters: PipelineParameters | null;
 };
-export type PipelineValidation = {
-  type: PipelineType;
-  pipeline_description: string;
-  parameters: PipelineParameters | null;
+export type ValidationJobResponse = {
+  job_id: string;
+};
+export type PipelineValidation2 = {
+  type?: PipelineType;
+  pipeline_graph: PipelineGraph;
+  parameters?: {
+    [key: string]: any;
+  } | null;
 };
 export type OptimizationJobResponse = {
   job_id: string;
 };
 export type TestJobResponse = {
   job_id: string;
+};
+export type PerformanceTestSpec2 = {
+  pipeline_performance_specs: PipelinePerformanceSpec[];
+  /** Video output configuration. */
+  video_output?: VideoOutputConfig;
+};
+export type DensityTestSpec2 = {
+  fps_floor: number;
+  pipeline_density_specs: PipelineDensitySpec[];
+  /** Video output configuration. */
+  video_output?: VideoOutputConfig;
 };
 export type Video = {
   filename: string;
@@ -513,6 +608,12 @@ export const {
   useLazyGetOptimizationJobSummaryQuery,
   useGetOptimizationJobStatusQuery,
   useLazyGetOptimizationJobStatusQuery,
+  useGetValidationStatusesQuery,
+  useLazyGetValidationStatusesQuery,
+  useGetValidationJobSummaryQuery,
+  useLazyGetValidationJobSummaryQuery,
+  useGetValidationJobStatusQuery,
+  useLazyGetValidationJobStatusQuery,
   useGetModelsQuery,
   useLazyGetModelsQuery,
   useGetPipelinesQuery,

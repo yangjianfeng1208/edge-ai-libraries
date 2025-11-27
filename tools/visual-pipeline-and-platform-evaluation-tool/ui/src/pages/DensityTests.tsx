@@ -24,6 +24,8 @@ const DensityTests = () => {
   const [testResult, setTestResult] = useState<PerformanceJobStatus | null>(
     null,
   );
+  const [videoOutputEnabled, setVideoOutputEnabled] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data: jobStatus } = useGetDensityJobStatusQuery(
     { jobId: jobId! },
@@ -36,9 +38,12 @@ const DensityTests = () => {
   useEffect(() => {
     if (jobStatus?.state === "COMPLETED") {
       setTestResult(jobStatus);
+      setErrorMessage(null);
       setJobId(null);
     } else if (jobStatus?.state === "ERROR" || jobStatus?.state === "ABORTED") {
       console.error("Test failed:", jobStatus.error_message);
+      setErrorMessage(jobStatus.error_message || "Test failed");
+      setTestResult(null);
       setJobId(null);
     }
   }, [jobStatus]);
@@ -47,9 +52,13 @@ const DensityTests = () => {
     if (selectedPipelines.length === 0) return;
 
     setTestResult(null);
+    setErrorMessage(null);
     try {
       const result = await runDensityTest({
-        densityTestSpec: {
+        densityTestSpecInput: {
+          video_output: {
+            enabled: videoOutputEnabled,
+          },
           fps_floor: fpsFloor,
           pipeline_density_specs: selectedPipelines.map((pipeline) => ({
             id: pipeline.id,
@@ -107,7 +116,17 @@ const DensityTests = () => {
           <span className="text-sm text-muted-foreground">FPS</span>
         </div>
 
-        <div className="my-4">
+        <div className="my-4 flex flex-col gap-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={videoOutputEnabled}
+              onChange={(e) => setVideoOutputEnabled(e.target.checked)}
+              className="w-4 h-4 cursor-pointer"
+            />
+            <span className="text-sm font-medium">Create Video</span>
+          </label>
+
           <button
             onClick={handleRunTest}
             disabled={isRunning || selectedPipelines.length === 0 || !!jobId}
@@ -133,16 +152,17 @@ const DensityTests = () => {
                 <TestProgressIndicator />
               </div>
             )}
-            {jobStatus.state === "ERROR" && (
-              <div className="mt-2">
-                <div className="animate-pulse flex items-center gap-2">
-                  <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-xs text-blue-700 dark:text-blue-300">
-                    {jobStatus.error_message}
-                  </span>
-                </div>
-              </div>
-            )}
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
+            <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-2">
+              Test Failed
+            </p>
+            <p className="text-xs text-red-700 dark:text-red-300">
+              {errorMessage}
+            </p>
           </div>
         )}
 

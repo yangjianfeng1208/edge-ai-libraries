@@ -38,6 +38,7 @@ const Pipelines = () => {
   });
   const [editorKey, setEditorKey] = useState(0);
   const [shouldFitView, setShouldFitView] = useState(false);
+  const [videoOutputEnabled, setVideoOutputEnabled] = useState(true);
 
   const { data, isSuccess } = useGetPipelineQuery(
     {
@@ -70,7 +71,10 @@ const Pipelines = () => {
 
     try {
       const response = await runPerformanceTest({
-        performanceTestSpec: {
+        performanceTestSpecInput: {
+          video_output: {
+            enabled: videoOutputEnabled,
+          },
           pipeline_performance_specs: [
             {
               id,
@@ -187,6 +191,16 @@ const Pipelines = () => {
               nodes={currentNodes}
               viewport={currentViewport}
             />
+
+            <label className="bg-white p-2 rounded-lg shadow-lg flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={videoOutputEnabled}
+                onChange={(e) => setVideoOutputEnabled(e.target.checked)}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <span className="text-sm font-medium">Create Video</span>
+            </label>
           </div>
         </div>
       </div>
