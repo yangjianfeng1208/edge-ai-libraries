@@ -66,11 +66,6 @@ class ValidationJobState(str, Enum):
     ABORTED = "ABORTED"
 
 
-class SourceType(str, Enum):
-    URI = "uri"
-    GST = "gst"
-
-
 class DeviceType(str, Enum):
     """
     High level type of hardware device.
@@ -107,20 +102,6 @@ class ModelCategory(str, Enum):
 class OptimizationType(str, Enum):
     PREPROCESS = "preprocess"
     OPTIMIZE = "optimize"
-
-
-# Define minimal models based on schema references
-class Source(BaseModel):
-    """
-    Generic description of a pipeline source.
-
-    Attributes:
-        type: Source type (for example ``"uri"`` or ``"gst"``).
-        uri: Optional URI or launch string used as the input source.
-    """
-
-    type: SourceType
-    uri: Optional[str]
 
 
 class Node(BaseModel):
