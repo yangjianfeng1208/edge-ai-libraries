@@ -22,28 +22,28 @@ else()
   set(GVAMD_MAIN_SOURCE gvamotiondetect.cpp)
 endif()
 
-add_library(gstgvamotiondetect MODULE ${GVAMD_MAIN_SOURCE} ${GVAMD_EXTRA_SOURCES})
+add_library(gvamotiondetect MODULE ${GVAMD_MAIN_SOURCE} ${GVAMD_EXTRA_SOURCES})
 
 if(MSVC)
   # Use generator expressions so MSVC multi-config builds place DLL at:
-  #   <build>/intel64/<Config>/bin/<Config>/gstgvamotiondetect.dll
+  #   <build>/intel64/<Config>/bin/<Config>/gvamotiondetect.dll
   # Import lib (.lib) at:
-  #   <build>/intel64/<Config>/lib/<Config>/gstgvamotiondetect.lib
-  set_target_properties(gstgvamotiondetect PROPERTIES
+  #   <build>/intel64/<Config>/lib/<Config>/gvamotiondetect.lib
+  set_target_properties(gvamotiondetect PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "gstgvamotiondetect"
+    OUTPUT_NAME "gvamotiondetect"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/intel64/$<CONFIG>/bin/$<CONFIG>"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/intel64/$<CONFIG>/bin/$<CONFIG>"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/intel64/$<CONFIG>/lib/$<CONFIG>"
   )
 else()
-  set_target_properties(gstgvamotiondetect PROPERTIES OUTPUT_NAME "gvamotiondetect" PREFIX "libgst")
+  set_target_properties(gvamotiondetect PROPERTIES OUTPUT_NAME "gvamotiondetect" PREFIX "libgst")
 endif()
 
 # Disable ITT notify API to avoid linking against external instrumentation library
-target_compile_definitions(gstgvamotiondetect PRIVATE INTEL_NO_ITTNOTIFY_API)
+target_compile_definitions(gvamotiondetect PRIVATE INTEL_NO_ITTNOTIFY_API)
 
-target_include_directories(gstgvamotiondetect PRIVATE
+target_include_directories(gvamotiondetect PRIVATE
   ${PROJECT_SOURCE_DIR}/include
   ${GST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/videoanalytics/
@@ -52,11 +52,11 @@ target_include_directories(gstgvamotiondetect PRIVATE
   ${CMAKE_SOURCE_DIR}/thirdparty/itt/include  # restore ITT header path for ENABLE_ITT builds
 )
 
-target_link_libraries(gstgvamotiondetect PRIVATE PkgConfig::GST dlstreamer_gst dlstreamer_gst_meta gstvideoanalyticsmeta)
+target_link_libraries(gvamotiondetect PRIVATE PkgConfig::GST dlstreamer_gst dlstreamer_gst_meta gstvideoanalyticsmeta)
 
 if(NOT MSVC)
   # VAAPI / GstVA only for non-Windows builds
-  target_link_libraries(gstgvamotiondetect PRIVATE
+  target_link_libraries(gvamotiondetect PRIVATE
     PkgConfig::GSTVA
     dlstreamer_vaapi
   )
@@ -65,28 +65,28 @@ endif()
 if(NOT MSVC)
   pkg_check_modules(LIBVA QUIET IMPORTED_TARGET libva)
   if (LIBVA_FOUND)
-    target_link_libraries(gstgvamotiondetect PRIVATE PkgConfig::LIBVA)
+    target_link_libraries(gvamotiondetect PRIVATE PkgConfig::LIBVA)
   else()
     find_library(LIBVA_LIB va)
     if (LIBVA_LIB)
-      target_link_libraries(gstgvamotiondetect PRIVATE ${LIBVA_LIB})
+      target_link_libraries(gvamotiondetect PRIVATE ${LIBVA_LIB})
     endif()
   endif()
 endif()
 
 find_package(OpenCL QUIET)
 if (OpenCL_FOUND)
-  target_link_libraries(gstgvamotiondetect PRIVATE OpenCL::OpenCL)
-  target_compile_definitions(gstgvamotiondetect PRIVATE HAVE_OPENCL_LOADER=1)
+  target_link_libraries(gvamotiondetect PRIVATE OpenCL::OpenCL)
+  target_compile_definitions(gvamotiondetect PRIVATE HAVE_OPENCL_LOADER=1)
 endif()
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)
 if (OpenCV_FOUND)
-  target_include_directories(gstgvamotiondetect PRIVATE ${OpenCV_INCLUDE_DIRS})
-  target_link_libraries(gstgvamotiondetect PRIVATE ${OpenCV_LIBS})
-  target_compile_definitions(gstgvamotiondetect PRIVATE HAVE_OPENCV=1)
+  target_include_directories(gvamotiondetect PRIVATE ${OpenCV_INCLUDE_DIRS})
+  target_link_libraries(gvamotiondetect PRIVATE ${OpenCV_LIBS})
+  target_compile_definitions(gvamotiondetect PRIVATE HAVE_OPENCV=1)
 endif()
 
-install(TARGETS gstgvamotiondetect
+install(TARGETS gvamotiondetect
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0
 )
