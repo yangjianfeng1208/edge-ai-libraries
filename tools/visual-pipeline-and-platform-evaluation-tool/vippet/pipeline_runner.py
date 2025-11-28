@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import select
+import time
 import psutil as ps
 from dataclasses import dataclass
 from subprocess import PIPE, Popen
@@ -43,18 +44,26 @@ class PipelineRunner:
     # Default path to the FPS file
     DEFAULT_FPS_FILE_PATH = "/home/dlstreamer/vippet/.collector-signals/fps.txt"
 
-    def __init__(self, poll_interval: int = 1, fps_file_path: str | None = None):
+    def __init__(
+        self,
+        poll_interval: int = 1,
+        fps_file_path: str | None = None,
+        inactivity_timeout: int = 120,
+    ):
         """
         Initialize the PipelineRunner.
 
         Args:
             poll_interval: Interval in seconds to poll the process for metrics.
             fps_file_path: Optional path to write latest FPS values (for real-time monitoring).
+            inactivity_timeout: Max seconds to wait without new stdout/stderr logs
+                before treating the pipeline as hung and terminating it.
         """
         self.poll_interval = poll_interval
         self.fps_file_path = fps_file_path or self.DEFAULT_FPS_FILE_PATH
         self.logger = logging.getLogger("PipelineRunner")
         self.cancelled = False
+        self.inactivity_timeout = inactivity_timeout
 
     def run(self, pipeline_command: str, total_streams: int) -> PipelineRunResult:
         """
@@ -98,6 +107,9 @@ class PipelineRunner:
             avg_pattern = r"FpsCounter\(average ([\d.]+)sec\): total=([\d.]+) fps, number-streams=(\d+), per-stream=([\d.]+) fps"
             last_pattern = r"FpsCounter\(last ([\d.]+)sec\): total=([\d.]+) fps, number-streams=(\d+), per-stream=([\d.]+) fps"
 
+            # Track last activity time for inactivity timeout
+            last_activity_time = time.time()
+
             # Poll the process to check if it is still running
             while process.poll() is None:
                 if self.cancelled:
@@ -108,6 +120,11 @@ class PipelineRunner:
                 reads, _, _ = select.select(
                     [process.stdout, process.stderr], [], [], self.poll_interval
                 )
+
+                if reads:
+                    # We saw some activity on stdout/stderr
+                    last_activity_time = time.time()
+
                 for r in reads:
                     line = r.readline()
                     if not line:
@@ -155,6 +172,31 @@ class PipelineRunner:
                         # Process has already terminated
                         exit_code = process.wait()
                         break
+
+                # If there was no activity for a prolonged period, treat as hang
+                if (
+                    not self.cancelled
+                    and (time.time() - last_activity_time) > self.inactivity_timeout
+                ):
+                    self.logger.error(
+                        "No new logs on stdout/stderr for %s seconds; "
+                        "terminating pipeline as potentially hung",
+                        self.inactivity_timeout,
+                    )
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except Exception:
+                        self.logger.warning(
+                            "Process did not terminate gracefully after inactivity; killing it"
+                        )
+                        process.kill()
+                        process.wait()
+
+                    raise RuntimeError(
+                        f"Pipeline execution terminated due to inactivity timeout "
+                        f"({self.inactivity_timeout} seconds without stdout/stderr logs)."
+                    )
 
             # Capture any remaining output after process ends
             if exit_code is None:

@@ -79,6 +79,32 @@ class TestPipelineRunner(unittest.TestCase):
         self.assertEqual(results.per_stream_fps, expected_result.per_stream_fps)
         self.assertEqual(results.num_streams, expected_result.num_streams)
 
+    @patch("pipeline_runner.Popen")
+    @patch("pipeline_runner.select.select")
+    def test_pipeline_hang_raises_runtime_error(self, mock_select, mock_popen):
+        """PipelineRunner.run should raise RuntimeError on inactivity timeout (hang)."""
+
+        # Arrange a runner with very short inactivity timeout to simulate hang quickly.
+        runner = PipelineRunner(
+            poll_interval=1, fps_file_path="/tmp/fps.txt", inactivity_timeout=0
+        )
+
+        process_mock = MagicMock()
+        # Process keeps running (poll() always returns None).
+        process_mock.poll.return_value = None
+        process_mock.stdout = MagicMock()
+        process_mock.stderr = MagicMock()
+        # No data available on stdout/stderr, select returns no readable fds.
+        mock_select.return_value = ([], [], [])
+        process_mock.wait.return_value = 0
+        mock_popen.return_value = process_mock
+
+        # Act + Assert: with no activity, run() should hit inactivity timeout and raise.
+        with self.assertRaises(RuntimeError) as ctx:
+            runner.run(pipeline_command=self.test_pipeline_command, total_streams=1)
+
+        self.assertIn("inactivity timeout", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
