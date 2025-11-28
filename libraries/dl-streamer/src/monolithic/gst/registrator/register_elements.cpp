@@ -32,6 +32,7 @@
 
 #include "gvametapublish.hpp"
 #include "gvametapublishfile.hpp"
+#include "gvamotiondetect.h"
 
 static gboolean plugin_init(GstPlugin *plugin) {
     set_log_function(GST_logger);
@@ -62,6 +63,8 @@ static gboolean plugin_init(GstPlugin *plugin) {
     if (!gst_element_register(plugin, "gvametapublish", GST_RANK_NONE, GST_TYPE_GVA_META_PUBLISH))
         return FALSE;
     if (!gst_element_register(plugin, "gvametapublishfile", GST_RANK_NONE, GST_TYPE_GVA_META_PUBLISH_FILE))
+        return FALSE;
+    if (!gst_element_register(plugin, "gvamotiondetect", GST_RANK_NONE, GST_TYPE_GVA_MOTION_DETECT))
         return FALSE;
 #endif
 
