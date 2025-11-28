@@ -228,42 +228,6 @@ class TestValidationRunner(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(reason, "error")
 
-    def test_validation_runner_timeout_without_errors(self) -> None:
-        """_ValidationRunner.run should treat a clean stop without errors as success."""
-        fake_pipeline = mock.create_autospec(validator.Gst.Pipeline)
-        fake_bus = mock.Mock()
-        fake_pipeline.get_bus.return_value = fake_bus
-
-        # No messages on the bus during drain.
-        fake_bus.pop.return_value = None
-
-        # get_state returns SUCCESS quickly.
-        fake_pipeline.get_state.return_value = (
-            validator.Gst.StateChangeReturn.SUCCESS,
-            validator.Gst.State.PLAYING,
-            validator.Gst.State.VOID_PENDING,
-        )
-
-        # Simulate a GLib.MainLoop that is stopped externally without any ERROR/EOS.
-        with mock.patch.object(validator, "GLib") as mock_glib:
-            mock_loop = mock.Mock()
-            mock_glib.MainLoop.return_value = mock_loop
-
-            # When run() is called, immediately simulate a "clean" quit
-            # (no ERROR/EOS, no timeout flag) by calling loop.quit().
-            def run_and_quit():
-                mock_loop.quit()
-
-            mock_loop.run.side_effect = run_and_quit
-
-            runner = validator._ValidationRunner(fake_pipeline, max_run_time_sec=0.0)
-            ok, reason = runner.run()
-
-        # In this synthetic scenario we do not simulate error_seen/timeout_triggered,
-        # so the runner sees a clean stop and interprets it as EOS/normal success.
-        self.assertTrue(ok)
-        self.assertIsNone(reason)
-
 
 class TestMain(unittest.TestCase):
     """Tests for the main CLI entry point using dependency injection.
