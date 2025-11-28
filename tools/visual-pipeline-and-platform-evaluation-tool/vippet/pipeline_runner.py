@@ -185,13 +185,13 @@ class PipelineRunner:
                     )
                     process.terminate()
                     try:
-                        exit_code = process.wait(timeout=5)
+                        process.wait(timeout=5)
                     except Exception:
                         self.logger.warning(
                             "Process did not terminate gracefully after inactivity; killing it"
                         )
                         process.kill()
-                        exit_code = process.wait()
+                        process.wait()
 
                     raise RuntimeError(
                         f"Pipeline execution terminated due to inactivity timeout "
