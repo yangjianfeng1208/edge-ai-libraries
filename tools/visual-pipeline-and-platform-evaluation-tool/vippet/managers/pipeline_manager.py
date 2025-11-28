@@ -51,12 +51,9 @@ class PipelineManager:
         self.video_encoder = get_video_encoder()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
-        # Check for duplicate pipeline name and version
         with self.lock:
-            if self._pipeline_exists(new_pipeline.name, new_pipeline.version):
-                raise ValueError(
-                    f"Pipeline with name '{new_pipeline.name}' and version '{new_pipeline.version}' already exists."
-                )
+            # Enforce strictly increasing, consecutive pipeline versions per name.
+            self._ensure_next_version(new_pipeline.name, new_pipeline.version)
 
             # Generate ID with "pipeline" prefix
             pipeline_id = generate_unique_id("pipeline")
@@ -79,6 +76,44 @@ class PipelineManager:
             self.pipelines.append(pipeline)
         self.logger.debug(f"Pipeline added: {pipeline}")
         return pipeline
+
+    def _ensure_next_version(self, name: str, proposed_version: int) -> None:
+        """Ensure that the proposed version is exactly one greater than the
+        latest existing version for the given pipeline name.
+
+        Rules:
+        * If no pipeline with this ``name`` exists yet, only version ``1`` is allowed.
+        * If pipelines exist, the proposed version must be exactly
+          ``latest_version + 1``.
+
+        Raises:
+            ValueError: If the proposed version is not valid. The error message
+            includes the expected next version to help the caller correct
+            the request.
+        """
+
+        # Collect all versions for the given name (may be empty).
+        existing_versions = [
+            pipeline.version for pipeline in self.pipelines if pipeline.name == name
+        ]
+
+        if not existing_versions:
+            # First version for a new pipeline name must be 1.
+            if proposed_version != 1:
+                raise ValueError(
+                    f"Invalid version '{proposed_version}' for pipeline '{name}'. "
+                    "Expected version '1' for a new pipeline."
+                )
+            return
+
+        latest_version = max(existing_versions)
+        expected_version = latest_version + 1
+
+        if proposed_version != expected_version:
+            raise ValueError(
+                f"Invalid version '{proposed_version}' for pipeline '{name}'. "
+                f"Expected next version to be '{expected_version}'."
+            )
 
     def get_pipelines(self) -> list[Pipeline]:
         with self.lock:

@@ -68,7 +68,77 @@ class TestPipelineManager(unittest.TestCase):
             manager.add_pipeline(new_pipeline)
 
         self.assertIn(
-            "Pipeline with name 'user-defined-pipelines' and version '1' already exists.",
+            "Invalid version '1' for pipeline 'user-defined-pipelines'. Expected next version to be '2'.",
+            str(context.exception),
+        )
+
+    def test_add_pipeline_version_must_start_at_one_for_new_name(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        # For a new pipeline name, only version 1 is allowed.
+        invalid_pipeline = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=3,
+            description="A test pipeline",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+            parameters=None,
+        )
+
+        with self.assertRaises(ValueError) as context:
+            manager.add_pipeline(invalid_pipeline)
+
+        self.assertIn(
+            "Invalid version '3' for pipeline 'user-defined-pipelines'. Expected version '1' for a new pipeline.",
+            str(context.exception),
+        )
+
+    def test_add_pipeline_version_must_be_consecutive(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        pipeline_v1 = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=1,
+            description="v1",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        pipeline_v2 = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=2,
+            description="v2",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        pipeline_v4 = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=4,
+            description="v4",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        # v1 and v2 should be accepted
+        manager.add_pipeline(pipeline_v1)
+        manager.add_pipeline(pipeline_v2)
+
+        # Skipping directly to v4 must fail; expected next version is 3
+        with self.assertRaises(ValueError) as context:
+            manager.add_pipeline(pipeline_v4)
+
+        self.assertIn(
+            "Invalid version '4' for pipeline 'user-defined-pipelines'. Expected next version to be '3'.",
             str(context.exception),
         )
 

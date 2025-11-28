@@ -83,6 +83,10 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class PipelineCreationResponse(BaseModel):
+    id: str
+
+
 class PipelineDescription(BaseModel):
     pipeline_description: str
 
@@ -118,27 +122,26 @@ class Pipeline(BaseModel):
 
 
 class PipelineDefinition(BaseModel):
-    name: str
-    version: int = Field(default=1, ge=1)
-    description: str
+    name: str = Field(..., min_length=1, description="Non-empty pipeline name.")
+    version: int = Field(
+        default=1,
+        ge=1,
+        description="Pipeline version (must be greater than or equal to 1).",
+    )
+    description: str = Field(
+        ..., min_length=1, description="Non-empty human-readable pipeline description."
+    )
     source: PipelineSource = PipelineSource.USER_CREATED
     type: PipelineType
-    pipeline_description: str
+    pipeline_description: str = Field(
+        ...,
+        min_length=1,
+        description="GStreamer pipeline definition string (e.g., 'fakesrc ! fakesink').",
+    )
     parameters: Optional[PipelineParameters]
 
 
 class PipelineUpdate(BaseModel):
-    """Partial update payload for an existing pipeline.
-
-    Only the fields provided in the request will be updated.
-
-    Currently supported (all fields are optional and independently updatable):
-    * ``name`` – the pipeline name
-    * ``description`` – the human-readable pipeline description
-    * ``pipeline_graph`` – the pipeline graph representation
-    * ``parameters`` – pipeline parameters
-    """
-
     name: Optional[str] = None
     description: Optional[str] = None
     pipeline_graph: Optional[PipelineGraph] = None

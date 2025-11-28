@@ -180,7 +180,7 @@ class Benchmark:
                 else:
                     exponential = False
                     higher_bound = n_streams
-                    lower_bound = n_streams // 2
+                    lower_bound = max(1, n_streams // 2)
                     n_streams = (lower_bound + higher_bound) // 2
             # use bisecting search for fine tune maximum number of streams
             else:

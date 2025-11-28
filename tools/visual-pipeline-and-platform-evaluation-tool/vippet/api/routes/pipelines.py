@@ -23,13 +23,7 @@ validation_manager = get_validation_manager()
     responses={
         201: {
             "description": "Pipeline created",
-            "model": schemas.MessageResponse,
-            "headers": {
-                "Location": {
-                    "description": "URL of the created pipeline",
-                    "schema": {"type": "string"},
-                }
-            },
+            "model": schemas.PipelineCreationResponse,
         },
         400: {
             "description": "Pipeline already exists",
@@ -40,16 +34,14 @@ validation_manager = get_validation_manager()
 )
 def create_pipeline(body: schemas.PipelineDefinition):
     """Create a custom pipeline from a launch string."""
-    # TODO: Validate the launch string
     try:
         # Enforce USER_CREATED source for pipelines created via API
         body.source = schemas.PipelineSource.USER_CREATED
         pipeline = pipeline_manager.add_pipeline(body)
 
         return JSONResponse(
-            content=schemas.MessageResponse(message="Pipeline created").model_dump(),
+            content=schemas.PipelineCreationResponse(id=pipeline.id).model_dump(),
             status_code=201,
-            headers={"Location": f"/pipelines/{pipeline.id}"},
         )
     except ValueError as e:
         return JSONResponse(

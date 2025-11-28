@@ -897,18 +897,10 @@
         "responses": {
           "201": {
             "description": "Pipeline created",
-            "headers": {
-              "Location": {
-                "description": "URL of the created pipeline",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
+                  "$ref": "#/components/schemas/PipelineCreationResponse"
                 }
               }
             }
@@ -2221,21 +2213,39 @@
         ],
         "title": "Pipeline"
       },
+      "PipelineCreationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "PipelineCreationResponse"
+      },
       "PipelineDefinition": {
         "properties": {
           "name": {
             "type": "string",
-            "title": "Name"
+            "minLength": 1,
+            "title": "Name",
+            "description": "Non-empty pipeline name."
           },
           "version": {
             "type": "integer",
             "minimum": 1.0,
             "title": "Version",
+            "description": "Pipeline version (must be greater than or equal to 1).",
             "default": 1
           },
           "description": {
             "type": "string",
-            "title": "Description"
+            "minLength": 1,
+            "title": "Description",
+            "description": "Non-empty human-readable pipeline description."
           },
           "source": {
             "$ref": "#/components/schemas/PipelineSource",
@@ -2246,7 +2256,9 @@
           },
           "pipeline_description": {
             "type": "string",
-            "title": "Pipeline Description"
+            "minLength": 1,
+            "title": "Pipeline Description",
+            "description": "GStreamer pipeline definition string (e.g., 'fakesrc ! fakesink')."
           },
           "parameters": {
             "anyOf": [
@@ -2452,8 +2464,7 @@
           }
         },
         "type": "object",
-        "title": "PipelineUpdate",
-        "description": "Partial update payload for an existing pipeline.\n\nOnly the fields provided in the request will be updated.\n\nCurrently supported (all fields are optional and independently updatable):\n* ``name`` \u2013 the pipeline name\n* ``description`` \u2013 the human-readable pipeline description\n* ``pipeline_graph`` \u2013 the pipeline graph representation\n* ``parameters`` \u2013 pipeline parameters"
+        "title": "PipelineUpdate"
       },
       "PipelineValidation-Input": {
         "properties": {
