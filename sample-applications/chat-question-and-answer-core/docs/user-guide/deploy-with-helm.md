@@ -46,6 +46,8 @@ Edit the `values.yaml` file to set the necessary environment variables. Ensure y
 
 Next, choose the appropriate `values*.yaml` file based on the model framework you want to use:
 
+**Note:** Do not use special characters in configuration values.
+
 - OpenVINO toolkit: Use `values-openvino.yaml`
 
 - Ollama: Use `values-ollama.yaml`

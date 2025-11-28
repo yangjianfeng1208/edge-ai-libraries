@@ -189,7 +189,6 @@ std::shared_ptr<InferenceImpl> acquire_inference_instance(GvaBaseInference *base
 void release_inference_instance(GvaBaseInference *base_inference) {
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-
         for (auto it = inference_pool_.begin(); it != inference_pool_.end();) {
             auto infRefs = it->second;
             infRefs->refs.erase(base_inference);
