@@ -61,7 +61,6 @@ By following this guide, you will learn how to:
 4. **Access the Application Swagger UI**:
     - Open a browser and go to `http://localhost:7860/docs` to access the Swagger UI.
 
-
 ## Validation
 
 1. **Verify Build Success**:
