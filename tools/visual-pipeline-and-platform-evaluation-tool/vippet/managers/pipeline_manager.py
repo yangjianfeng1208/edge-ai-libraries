@@ -82,7 +82,7 @@ class PipelineManager:
 
     def get_pipelines(self) -> list[Pipeline]:
         with self.lock:
-            return list(self.pipelines)
+            return [deepcopy(p) for p in self.pipelines]
 
     def get_pipeline_by_id(self, pipeline_id: str) -> Pipeline:
         """
