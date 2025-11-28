@@ -109,7 +109,6 @@ class PipelineRunner:
 
             # Track last activity time for inactivity timeout
             last_activity_time = time.time()
-            inactive_terminated = False
 
             # Poll the process to check if it is still running
             while process.poll() is None:
@@ -177,7 +176,6 @@ class PipelineRunner:
                 # If there was no activity for a prolonged period, treat as hang
                 if (
                     not self.cancelled
-                    and not inactive_terminated
                     and (time.time() - last_activity_time) > self.inactivity_timeout
                 ):
                     self.logger.error(
@@ -185,7 +183,6 @@ class PipelineRunner:
                         "terminating pipeline as potentially hung",
                         self.inactivity_timeout,
                     )
-                    inactive_terminated = True
                     process.terminate()
                     try:
                         exit_code = process.wait(timeout=5)
