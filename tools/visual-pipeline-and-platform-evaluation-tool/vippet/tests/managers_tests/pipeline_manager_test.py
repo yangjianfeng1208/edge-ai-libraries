@@ -3,9 +3,13 @@ import unittest
 from videos import OUTPUT_VIDEO_DIR
 from managers.pipeline_manager import PipelineManager
 from api.api_schemas import (
+    Node,
+    Edge,
     EncoderDeviceConfig,
     PipelineType,
     PipelineSource,
+    PipelineGraph,
+    PipelineParameters,
     PipelineDefinition,
     PipelinePerformanceSpec,
     VideoOutputConfig,
@@ -64,7 +68,77 @@ class TestPipelineManager(unittest.TestCase):
             manager.add_pipeline(new_pipeline)
 
         self.assertIn(
-            "Pipeline with name 'user-defined-pipelines' and version '1' already exists.",
+            "Invalid version '1' for pipeline 'user-defined-pipelines'. Expected next version to be '2'.",
+            str(context.exception),
+        )
+
+    def test_add_pipeline_version_must_start_at_one_for_new_name(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        # For a new pipeline name, only version 1 is allowed.
+        invalid_pipeline = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=3,
+            description="A test pipeline",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="filesrc location=/tmp/dummy-video.mp4 ! decodebin3 ! autovideosink",
+            parameters=None,
+        )
+
+        with self.assertRaises(ValueError) as context:
+            manager.add_pipeline(invalid_pipeline)
+
+        self.assertIn(
+            "Invalid version '3' for pipeline 'user-defined-pipelines'. Expected version '1' for a new pipeline.",
+            str(context.exception),
+        )
+
+    def test_add_pipeline_version_must_be_consecutive(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        pipeline_v1 = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=1,
+            description="v1",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        pipeline_v2 = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=2,
+            description="v2",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        pipeline_v4 = PipelineDefinition(
+            name="user-defined-pipelines",
+            version=4,
+            description="v4",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        # v1 and v2 should be accepted
+        manager.add_pipeline(pipeline_v1)
+        manager.add_pipeline(pipeline_v2)
+
+        # Skipping directly to v4 must fail; expected next version is 3
+        with self.assertRaises(ValueError) as context:
+            manager.add_pipeline(pipeline_v4)
+
+        self.assertIn(
+            "Invalid version '4' for pipeline 'user-defined-pipelines'. Expected next version to be '3'.",
             str(context.exception),
         )
 
@@ -231,6 +305,120 @@ class TestPipelineManager(unittest.TestCase):
         self.assertIn(
             "Pipeline with id 'nonexistent-pipeline-id' not found",
             str(context.exception),
+        )
+
+    def test_update_pipeline_description_and_name(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="original-name",
+            version=1,
+            description="Original description",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        updated = manager.update_pipeline(
+            pipeline_id=added.id,
+            name="updated-name",
+            description="Updated description",
+        )
+
+        self.assertEqual(updated.id, added.id)
+        self.assertEqual(updated.name, "updated-name")
+        self.assertEqual(updated.description, "Updated description")
+
+        # Ensure the change is reflected in manager state
+        retrieved = manager.get_pipeline_by_id(added.id)
+        self.assertEqual(retrieved.name, "updated-name")
+        self.assertEqual(retrieved.description, "Updated description")
+
+    def test_update_pipeline_graph_and_parameters(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="test-pipeline",
+            version=1,
+            description="Pipeline to be updated",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        updated_graph = PipelineGraph(
+            nodes=[
+                Node(id="0", type="videotestsrc", data={}),
+                Node(id="1", type="fakesink", data={}),
+            ],
+            edges=[Edge(id="0", source="0", target="1")],
+        )
+
+        updated_params = PipelineParameters(default={"key": "value"})
+
+        updated = manager.update_pipeline(
+            pipeline_id=added.id,
+            pipeline_graph=updated_graph,
+            parameters=updated_params,
+        )
+
+        self.assertEqual(updated.id, added.id)
+        self.assertEqual(updated.pipeline_graph, updated_graph)
+        self.assertEqual(updated.parameters, updated_params)
+
+    def test_update_pipeline_invalid_graph_raises(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        new_pipeline = PipelineDefinition(
+            name="test-pipeline-invalid-graph",
+            version=1,
+            description="Pipeline with invalid graph update",
+            source=PipelineSource.USER_CREATED,
+            type=PipelineType.GSTREAMER,
+            pipeline_description="fakesrc ! fakesink",
+            parameters=None,
+        )
+
+        added = manager.add_pipeline(new_pipeline)
+
+        # Create an invalid graph that should fail validation in update_pipeline
+        invalid_graph = PipelineGraph(
+            nodes=[
+                Node(
+                    id="0",
+                    type="gvafpscounter",
+                    data={"starting-frame": "2000"},
+                ),
+            ],
+            edges=[Edge(id="1", source="0", target="0")],
+        )
+
+        with self.assertRaises(ValueError) as context:
+            manager.update_pipeline(pipeline_id=added.id, pipeline_graph=invalid_graph)
+
+        self.assertIn(
+            "Cannot convert graph to pipeline description: circular graph detected or no start nodes found",
+            str(context.exception),
+        )
+
+    def test_update_pipeline_not_found_raises(self):
+        manager = PipelineManager()
+        manager.pipelines = []
+
+        with self.assertRaises(ValueError) as context:
+            manager.update_pipeline(pipeline_id="nonexistent", name="new-name")
+
+        self.assertIn(
+            "Pipeline with id 'nonexistent' not found.", str(context.exception)
         )
 
     def test_build_pipeline_command_with_video_output_enabled(self):

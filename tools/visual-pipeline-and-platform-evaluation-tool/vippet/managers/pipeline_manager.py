@@ -14,6 +14,7 @@ from api.api_schemas import (
     PipelinePerformanceSpec,
     VideoOutputConfig,
     PipelineGraph,
+    PipelineParameters,
 )
 
 logger = logging.getLogger("pipeline_manager")
@@ -44,11 +45,8 @@ class PipelineManager:
         self.video_encoder = get_video_encoder()
 
     def add_pipeline(self, new_pipeline: PipelineDefinition):
-        # Check for duplicate pipeline name and version
-        if self._pipeline_exists(new_pipeline.name, new_pipeline.version):
-            raise ValueError(
-                f"Pipeline with name '{new_pipeline.name}' and version '{new_pipeline.version}' already exists."
-            )
+        # Enforce strictly increasing, consecutive pipeline versions per name.
+        self._ensure_next_version(new_pipeline.name, new_pipeline.version)
 
         # Generate ID with "pipeline" prefix
         pipeline_id = generate_unique_id("pipeline")
@@ -71,6 +69,44 @@ class PipelineManager:
         self.pipelines.append(pipeline)
         self.logger.debug(f"Pipeline added: {pipeline}")
         return pipeline
+
+    def _ensure_next_version(self, name: str, proposed_version: int) -> None:
+        """Ensure that the proposed version is exactly one greater than the
+        latest existing version for the given pipeline name.
+
+        Rules:
+        * If no pipeline with this ``name`` exists yet, only version ``1`` is allowed.
+        * If pipelines exist, the proposed version must be exactly
+          ``latest_version + 1``.
+
+        Raises:
+            ValueError: If the proposed version is not valid. The error message
+            includes the expected next version to help the caller correct
+            the request.
+        """
+
+        # Collect all versions for the given name (may be empty).
+        existing_versions = [
+            pipeline.version for pipeline in self.pipelines if pipeline.name == name
+        ]
+
+        if not existing_versions:
+            # First version for a new pipeline name must be 1.
+            if proposed_version != 1:
+                raise ValueError(
+                    f"Invalid version '{proposed_version}' for pipeline '{name}'. "
+                    "Expected version '1' for a new pipeline."
+                )
+            return
+
+        latest_version = max(existing_versions)
+        expected_version = latest_version + 1
+
+        if proposed_version != expected_version:
+            raise ValueError(
+                f"Invalid version '{proposed_version}' for pipeline '{name}'. "
+                f"Expected next version to be '{expected_version}'."
+            )
 
     def get_pipelines(self) -> list[Pipeline]:
         return self.pipelines
@@ -110,6 +146,58 @@ class PipelineManager:
             if pipeline.id == pipeline_id:
                 return pipeline
         return None
+
+    def update_pipeline(
+        self,
+        pipeline_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        pipeline_graph: Optional[PipelineGraph] = None,
+        parameters: Optional[PipelineParameters] = None,
+    ) -> Pipeline:
+        """Update selected fields of an existing pipeline.
+
+        Args:
+            pipeline_id: ID of the pipeline to update.
+            name: Optional new pipeline name.
+            description: Optional new human-readable description.
+            pipeline_graph: Optional new pipeline graph representation.
+            parameters: Optional new pipeline parameters.
+
+        Returns:
+            The updated :class:`Pipeline` instance.
+
+        Raises:
+            ValueError: If the pipeline with the given ID does not exist.
+        """
+
+        pipeline = self._find_pipeline_by_id(pipeline_id)
+        if pipeline is None:
+            raise ValueError(f"Pipeline with id '{pipeline_id}' not found.")
+
+        # Update fields if provided
+        if name is not None:
+            pipeline.name = name
+
+        if description is not None:
+            pipeline.description = description
+
+        # If a new pipeline graph is provided, validate and replace the existing one
+        if pipeline_graph is not None:
+            # Validate the pipeline graph by converting it to a pipeline description
+            pipeline_description = Graph.from_dict(
+                pipeline_graph.model_dump()
+            ).to_pipeline_description()
+            if not pipeline_description:
+                raise ValueError("Provided pipeline graph is invalid.")
+
+            pipeline.pipeline_graph = pipeline_graph
+
+        if parameters is not None:
+            pipeline.parameters = parameters
+
+        self.logger.debug("Pipeline updated: %s", pipeline)
+        return pipeline
 
     def delete_pipeline_by_id(self, pipeline_id: str):
         """

@@ -897,18 +897,10 @@
         "responses": {
           "201": {
             "description": "Pipeline created",
-            "headers": {
-              "Location": {
-                "description": "URL of the created pipeline",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageResponse"
+                  "$ref": "#/components/schemas/PipelineCreationResponse"
                 }
               }
             }
@@ -1047,6 +1039,87 @@
           },
           "404": {
             "description": "Pipeline not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Update Pipeline",
+        "description": "Partially update an existing pipeline.\n\nCurrently, supports updating the human-readable ``description``,\n``name``, ``parameters`` and the structured ``pipeline_graph``\nrepresentation.\n\n.. note::\n   Pipeline ``version`` is not updatable yet. It will become\n   editable via this endpoint once proper versioning semantics\n   are introduced for pipelines.",
+        "operationId": "update_pipeline",
+        "parameters": [
+          {
+            "name": "pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pipeline Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pipeline updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pipeline"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pipeline not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
             "content": {
               "application/json": {
                 "schema": {
@@ -2140,21 +2213,39 @@
         ],
         "title": "Pipeline"
       },
+      "PipelineCreationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "PipelineCreationResponse"
+      },
       "PipelineDefinition": {
         "properties": {
           "name": {
             "type": "string",
-            "title": "Name"
+            "minLength": 1,
+            "title": "Name",
+            "description": "Non-empty pipeline name."
           },
           "version": {
             "type": "integer",
             "minimum": 1.0,
             "title": "Version",
+            "description": "Pipeline version (must be greater than or equal to 1).",
             "default": 1
           },
           "description": {
             "type": "string",
-            "title": "Description"
+            "minLength": 1,
+            "title": "Description",
+            "description": "Non-empty human-readable pipeline description."
           },
           "source": {
             "$ref": "#/components/schemas/PipelineSource",
@@ -2165,7 +2256,9 @@
           },
           "pipeline_description": {
             "type": "string",
-            "title": "Pipeline Description"
+            "minLength": 1,
+            "title": "Pipeline Description",
+            "description": "GStreamer pipeline definition string (e.g., 'fakesrc ! fakesink')."
           },
           "parameters": {
             "anyOf": [
@@ -2324,6 +2417,54 @@
           "FFmpeg"
         ],
         "title": "PipelineType"
+      },
+      "PipelineUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "pipeline_graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineGraph"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineParameters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "PipelineUpdate"
       },
       "PipelineValidation-Input": {
         "properties": {

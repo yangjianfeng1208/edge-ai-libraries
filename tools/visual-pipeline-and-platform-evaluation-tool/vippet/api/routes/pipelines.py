@@ -23,13 +23,7 @@ validation_manager = get_validation_manager()
     responses={
         201: {
             "description": "Pipeline created",
-            "model": schemas.MessageResponse,
-            "headers": {
-                "Location": {
-                    "description": "URL of the created pipeline",
-                    "schema": {"type": "string"},
-                }
-            },
+            "model": schemas.PipelineCreationResponse,
         },
         400: {
             "description": "Pipeline already exists",
@@ -40,16 +34,14 @@ validation_manager = get_validation_manager()
 )
 def create_pipeline(body: schemas.PipelineDefinition):
     """Create a custom pipeline from a launch string."""
-    # TODO: Validate the launch string
     try:
         # Enforce USER_CREATED source for pipelines created via API
         body.source = schemas.PipelineSource.USER_CREATED
         pipeline = pipeline_manager.add_pipeline(body)
 
         return JSONResponse(
-            content=schemas.MessageResponse(message="Pipeline created").model_dump(),
+            content=schemas.PipelineCreationResponse(id=pipeline.id).model_dump(),
             status_code=201,
-            headers={"Location": f"/pipelines/{pipeline.id}"},
         )
     except ValueError as e:
         return JSONResponse(
@@ -135,6 +127,91 @@ def get_pipelines():
 def get_pipeline(pipeline_id: str):
     try:
         return pipeline_manager.get_pipeline_by_id(pipeline_id)
+    except ValueError as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(message=str(e)).model_dump(),
+            status_code=404,
+        )
+    except Exception as e:
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message=f"Unexpected error: {str(e)}"
+            ).model_dump(),
+            status_code=500,
+        )
+
+
+@router.patch(
+    "/{pipeline_id}",
+    operation_id="update_pipeline",
+    responses={
+        200: {"description": "Pipeline updated", "model": schemas.Pipeline},
+        404: {"description": "Pipeline not found", "model": schemas.MessageResponse},
+        400: {"description": "Invalid request", "model": schemas.MessageResponse},
+        500: {"description": "Unexpected error", "model": schemas.MessageResponse},
+    },
+)
+def update_pipeline(pipeline_id: str, body: schemas.PipelineUpdate):
+    """Partially update an existing pipeline.
+
+    Currently, supports updating the human-readable ``description``,
+    ``name``, ``parameters`` and the structured ``pipeline_graph``
+    representation.
+
+    .. note::
+       Pipeline ``version`` is not updatable yet. It will become
+       editable via this endpoint once proper versioning semantics
+       are introduced for pipelines.
+    """
+
+    if (
+        body.name is None
+        and body.description is None
+        and body.parameters is None
+        and body.pipeline_graph is None
+    ):
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message="At least one of 'name', 'description', 'parameters' or 'pipeline_graph' must be provided."
+            ).model_dump(),
+            status_code=400,
+        )
+
+    # Additional lightweight validation to avoid accepting empty values.
+    if body.name is not None and body.name.strip() == "":
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message="Field 'name' must not be empty."
+            ).model_dump(),
+            status_code=400,
+        )
+
+    if body.description is not None and body.description.strip() == "":
+        return JSONResponse(
+            content=schemas.MessageResponse(
+                message="Field 'description' must not be empty."
+            ).model_dump(),
+            status_code=400,
+        )
+
+    if body.pipeline_graph is not None:
+        if not body.pipeline_graph.nodes or not body.pipeline_graph.edges:
+            return JSONResponse(
+                content=schemas.MessageResponse(
+                    message="Field 'pipeline_graph' must contain at least one node and one edge."
+                ).model_dump(),
+                status_code=400,
+            )
+
+    try:
+        updated_pipeline = pipeline_manager.update_pipeline(
+            pipeline_id=pipeline_id,
+            name=body.name,
+            description=body.description,
+            pipeline_graph=body.pipeline_graph,
+            parameters=body.parameters,
+        )
+        return updated_pipeline
     except ValueError as e:
         return JSONResponse(
             content=schemas.MessageResponse(message=str(e)).model_dump(),

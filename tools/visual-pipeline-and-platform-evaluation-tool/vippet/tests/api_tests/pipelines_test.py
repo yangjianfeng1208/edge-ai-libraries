@@ -127,12 +127,10 @@ class TestPipelinesAPI(unittest.TestCase):
         response = self.client.post("/pipelines", json=new_pipeline)
 
         self.assertEqual(response.status_code, 201)
-        self.assertIn("Location", response.headers)
         self.assertEqual(
-            response.headers["Location"],
-            "/pipelines/pipeline-newtest",
+            response.json(),
+            schemas.PipelineCreationResponse(id="pipeline-newtest").model_dump(),
         )
-        self.assertEqual(response.json(), {"message": "Pipeline created"})
 
     @patch("api.routes.pipelines.pipeline_manager")
     def test_create_pipeline_duplicate(self, mock_pipeline_manager):
@@ -228,6 +226,157 @@ class TestPipelinesAPI(unittest.TestCase):
         )
 
         response = self.client.get("/pipelines/pipeline-test123")
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message="Unexpected error: Unexpected error"
+            ).model_dump(),
+        )
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_description(self, mock_pipeline_manager):
+        updated_pipeline = schemas.Pipeline(
+            id="pipeline-ghi789",
+            name="updated-name",
+            version=1,
+            description="Updated description",
+            source=schemas.PipelineSource.USER_CREATED,
+            type=schemas.PipelineType.GSTREAMER,
+            pipeline_graph=schemas.PipelineGraph.model_validate_json(self.test_graph),
+            parameters=None,
+        )
+        mock_pipeline_manager.update_pipeline.return_value = updated_pipeline
+
+        payload = {"name": "updated-name", "description": "Updated description"}
+        response = self.client.patch("/pipelines/pipeline-ghi789", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], "pipeline-ghi789")
+        self.assertEqual(data["name"], "updated-name")
+        self.assertEqual(data["description"], "Updated description")
+        mock_pipeline_manager.update_pipeline.assert_called_once_with(
+            pipeline_id="pipeline-ghi789",
+            name="updated-name",
+            description="Updated description",
+            pipeline_graph=None,
+            parameters=None,
+        )
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_pipeline_graph(self, mock_pipeline_manager):
+        updated_pipeline = schemas.Pipeline(
+            id="pipeline-ghi789",
+            name="user-defined-pipelines",
+            version=1,
+            description="A custom test pipeline",
+            source=schemas.PipelineSource.USER_CREATED,
+            type=schemas.PipelineType.GSTREAMER,
+            pipeline_graph=schemas.PipelineGraph.model_validate_json(self.test_graph),
+            parameters=None,
+        )
+        mock_pipeline_manager.update_pipeline.return_value = updated_pipeline
+
+        payload = {
+            "pipeline_graph": schemas.PipelineGraph.model_validate_json(
+                self.test_graph
+            ).model_dump()
+        }
+        response = self.client.patch("/pipelines/pipeline-ghi789", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], "pipeline-ghi789")
+        mock_pipeline_manager.update_pipeline.assert_called_once_with(
+            pipeline_id="pipeline-ghi789",
+            name=None,
+            description=None,
+            pipeline_graph=schemas.PipelineGraph.model_validate_json(self.test_graph),
+            parameters=None,
+        )
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_empty_payload(self, mock_pipeline_manager):
+        response = self.client.patch("/pipelines/pipeline-ghi789", json={})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message="At least one of 'name', 'description', 'parameters' or 'pipeline_graph' must be provided."
+            ).model_dump(),
+        )
+        mock_pipeline_manager.update_pipeline.assert_not_called()
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_empty_name_rejected(self, mock_pipeline_manager):
+        payload = {"name": ""}
+        response = self.client.patch("/pipelines/pipeline-ghi789", json=payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message="Field 'name' must not be empty."
+            ).model_dump(),
+        )
+        mock_pipeline_manager.update_pipeline.assert_not_called()
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_empty_description_rejected(self, mock_pipeline_manager):
+        payload = {"description": "   "}
+        response = self.client.patch("/pipelines/pipeline-ghi789", json=payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message="Field 'description' must not be empty."
+            ).model_dump(),
+        )
+        mock_pipeline_manager.update_pipeline.assert_not_called()
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_empty_pipeline_graph_rejected(self, mock_pipeline_manager):
+        payload = {"pipeline_graph": {"nodes": [], "edges": []}}
+        response = self.client.patch("/pipelines/pipeline-ghi789", json=payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message="Field 'pipeline_graph' must contain at least one node and one edge."
+            ).model_dump(),
+        )
+        mock_pipeline_manager.update_pipeline.assert_not_called()
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_not_found(self, mock_pipeline_manager):
+        mock_pipeline_manager.update_pipeline.side_effect = ValueError(
+            "Pipeline with id 'nonexistent-id' not found."
+        )
+
+        payload = {"description": "Updated description"}
+        response = self.client.patch("/pipelines/nonexistent-id", json=payload)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json(),
+            schemas.MessageResponse(
+                message="Pipeline with id 'nonexistent-id' not found."
+            ).model_dump(),
+        )
+
+    @patch("api.routes.pipelines.pipeline_manager")
+    def test_update_pipeline_server_error(self, mock_pipeline_manager):
+        mock_pipeline_manager.update_pipeline.side_effect = Exception(
+            "Unexpected error"
+        )
+
+        payload = {"description": "Updated description"}
+        response = self.client.patch("/pipelines/pipeline-ghi789", json=payload)
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(
