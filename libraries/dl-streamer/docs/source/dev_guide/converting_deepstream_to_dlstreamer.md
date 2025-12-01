@@ -81,7 +81,9 @@ element.set_property(...)
 pipeline.add(element)
 element.link(next_element)
 ```
-Specifically, two examples discussed here would translate to: 
+
+Please note DeepStream and DLStreamer applications use same set of regular GStreamer library functions to construct pipelines. 
+The elements being used are different. In addition, DLStreamer `decodebin3` element requires late element linking withing a callback function.
 
 <table>
 <thead>
@@ -92,9 +94,9 @@ Specifically, two examples discussed here would translate to:
 </thead>
 <tbody>
 <tr>
-<td><code>
+<td><pre><code>
 pipeline = Gst.Pipeline()
-
+...
 source = Gst.ElementFactory.make("filesrc", "file-source")
 h264parser = Gst.ElementFactory.make("h264parse", "h264-parser")
 ...
@@ -105,26 +107,31 @@ pipeline.add(source)
 pipeline.add(h264parser)
 ...
 source.link(h264parser)
-</code></td>
-<td><code>
+h264parser.link(decoder)
+</code></pre></td>
+<td><pre><code>
 pipeline = Gst.Pipeline()
-
+...
 source = Gst.ElementFactory.make("filesrc", "file-source")
 decoder = Gst.ElementFactory.make("decodebin3", "media-decoder")
-
+...
 source.set_property('location', args[1])
 detect.set_property('batch-size', 1)
-
+...
 pipeline.add(source)
 pipeline.add(decoder)
-
+...
 source.link(decoder)
-</code></td>
+decoder.connect("pad-added",
+  lambda element, pad, data: element.link(data) if pad.get_name().find("video") != -1 and not pad.is_linked() else None, 
+  detect)
+</code></pre></td>
 </tr>
 </tbody>
 </table>
 
-Once the pipeline is created, both samples register a custom probe handler and attach it to the sink pad of the overlay element. 
+Once the pipeline is created, both applications register a custom probe handler and attach it to the sink pad of the overlay element.
+This code sequence is (again) very similar, except different elements are used: `nvosd` and `gstwatermark`
 
 <table>
 <thead>
@@ -147,7 +154,7 @@ watermarksinkpad.add_probe(Gst.PadProbeType.BUFFER, watermark_sink_pad_buffer_pr
 </tbody>
 </table>
 
-The main difference is how the probe handler inspects the analytics results. DeepStream sample uses DeepStream-specific structures for frames and metadata. On the contrary, DLStreamer sample uses regular GStreamer data structures from [GstAnalytics metadata library](https://gstreamer.freedesktop.org/documentation/analytics/index.html?gi-language=python#analytics-metadata-library). In addition, DLStreamer handler runs on per-frame frequency while DeepStream sample runs on per-batch (of frames) frequency. 
+However, an internal implementation of the probe callback varies significantly. DeepStream sample uses DeepStream-specific structures for frames and metadata. On the contrary, DLStreamer sample uses regular GStreamer data structures from [GstAnalytics metadata library](https://gstreamer.freedesktop.org/documentation/analytics/index.html?gi-language=python#analytics-metadata-library). In addition, DLStreamer handler runs on per-frame frequency while DeepStream sample runs on per-batch (of frames) frequency. 
 
 <table>
 <thead>
@@ -180,7 +187,56 @@ for obj in frame_meta:
 </tr>
 </tbody>
 </table>
-  
+
+The last table compares pipeline exectuion logic. Both applications set the pipeline state to 'PLAYING' and enter the main program loop.
+DeepStream sample invokes a predefined program loop from a DeepStream library, while DLStreamer application explicitly implements the message processing loop. 
+Both implementations keep running the pipeline until end-of-stream message is received.
+
+<table>
+<thead>
+<tr>
+<th>DeepStream Pipeline Execution</th>
+<th>DLStreamer Pipeline Execution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><pre><code>
+# create an event loop and feed gstreamer bus mesages to it
+loop = GLib.MainLoop()
+bus = pipeline.get_bus()
+bus.add_signal_watch()
+bus.connect ("message", bus_call, loop)
+
+# start play back and listen to events
+pipeline.set_state(Gst.State.PLAYING)
+  try:
+    loop.run()
+  except:
+    pass
+    
+pipeline.set_state(Gst.State.NULL)
+</code></pre></td>
+<td><pre><code>
+bus = pipeline.get_bus()
+
+# run explicit pipeline loop, handle ERROR and EOS messages
+pipeline.set_state(Gst.State.PLAYING)
+terminate = False
+while not terminate:
+  msg = bus.timed_pop_filtered(Gst.CLOCK_TIME_NONE, Gst.MessageType.EOS | Gst.MessageType.ERROR)
+  if msg:
+    if msg.type == Gst.MessageType.ERROR:
+      ... handle errors
+      terminate = True                
+    if msg.type == Gst.MessageType.EOS:
+      terminate = True
+pipeline.set_state(Gst.State.NULL)
+</code></pre></td>
+</tr>
+</tbody>
+</table>
+
 ## Conversion Rules
 
 ### Mux and Demux Elements
