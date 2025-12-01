@@ -83,7 +83,7 @@ element.link(next_element)
 ```
 
 Please note DeepStream and DLStreamer applications use same set of regular GStreamer library functions to construct pipelines. 
-The elements being used are different. In addition, DLStreamer `decodebin3` element requires late element linking withing a callback function.
+The difference is mostly in the set of elements created and linked. In addition, DLStreamer `decodebin3` element uses late linking within a callback function.
 
 <table>
 <thead>
@@ -131,7 +131,7 @@ decoder.connect("pad-added",
 </table>
 
 Once the pipeline is created, both applications register a custom probe handler and attach it to the sink pad of the overlay element.
-This code sequence is (again) very similar, except different elements are used: `nvosd` and `gstwatermark`
+This code sequence is (again) very similar, except different elements are used: `nvosd` and `gvawatermark`
 
 <table>
 <thead>
@@ -154,7 +154,7 @@ watermarksinkpad.add_probe(Gst.PadProbeType.BUFFER, watermark_sink_pad_buffer_pr
 </tbody>
 </table>
 
-However, an internal implementation of the probe callback varies significantly. DeepStream sample uses DeepStream-specific structures for frames and metadata. On the contrary, DLStreamer sample uses regular GStreamer data structures from [GstAnalytics metadata library](https://gstreamer.freedesktop.org/documentation/analytics/index.html?gi-language=python#analytics-metadata-library). In addition, DLStreamer handler runs on per-frame frequency while DeepStream sample runs on per-batch (of frames) frequency. 
+The probe function implementation differs significantly. DeepStream sample uses DeepStream-specific structures for frames and metadata. On the contrary, DLStreamer sample uses regular GStreamer data structures from [GstAnalytics metadata library](https://gstreamer.freedesktop.org/documentation/analytics/index.html?gi-language=python#analytics-metadata-library). In addition, DLStreamer handler runs on per-frame frequency while DeepStream sample runs on per-batch (of frames) frequency. 
 
 <table>
 <thead>
@@ -165,7 +165,7 @@ However, an internal implementation of the probe callback varies significantly. 
 </thead>
 <tbody>
 <tr>
-<td><code>
+<td><pre><code>
 batch_meta = pyds.gst_buffer_get_nvds_batch_meta(hash(gst_buffer))
 ...
 l_frame = batch_meta.frame_meta_list
@@ -175,20 +175,20 @@ while l_frame is not None:
   ...
   l_obj=frame_meta.obj_meta_list
     while l_obj is not None:
-      ... proces object metadata
-</code></td>
-<td><code>
+      ... process object metadata
+</code></pre></td>
+<td><pre><code>
 # no batch meta in DLStreamer
-
+...
 frame_meta = GstAnalytics.buffer_get_analytics_relation_meta(buffer)
 for obj in frame_meta:
   ... process object metadata
-</code></td>
+</code></pre></td>
 </tr>
 </tbody>
 </table>
 
-The last table compares pipeline exectuion logic. Both applications set the pipeline state to 'PLAYING' and enter the main program loop.
+The last table compares pipeline execution logic. Both applications set the pipeline state to 'PLAYING' and enter the main program loop.
 DeepStream sample invokes a predefined program loop from a DeepStream library, while DLStreamer application explicitly implements the message processing loop. 
 Both implementations keep running the pipeline until end-of-stream message is received.
 
@@ -202,24 +202,24 @@ Both implementations keep running the pipeline until end-of-stream message is re
 <tbody>
 <tr>
 <td><pre><code>
-# create an event loop and feed gstreamer bus mesages to it
+# create an event loop and feed gstreamer bus messages to it
 loop = GLib.MainLoop()
 bus = pipeline.get_bus()
 bus.add_signal_watch()
 bus.connect ("message", bus_call, loop)
-
+&nbsp
 # start play back and listen to events
 pipeline.set_state(Gst.State.PLAYING)
   try:
     loop.run()
   except:
     pass
-    
+&nbsp
 pipeline.set_state(Gst.State.NULL)
 </code></pre></td>
 <td><pre><code>
 bus = pipeline.get_bus()
-
+&nbsp
 # run explicit pipeline loop, handle ERROR and EOS messages
 pipeline.set_state(Gst.State.PLAYING)
 terminate = False
@@ -478,4 +478,5 @@ configuration properties to Deep Learning Streamer settings.
 | num-detected-classes | &nbsp; | &nbsp; | &nbsp; | The number of classes detected by the model, inferred from a label file by Deep Learning Streamer. |
 | interval <N> | interval <N> | &nbsp; | inference-interval <N+1> | An inference action executed every Nth frame. Note that Deep Learning Streamer value is greater by 1. |
 | &nbsp; | threshold | &nbsp; | threshold | The threshold for detection results. |
+
 
