@@ -126,7 +126,6 @@ services:
       - "9997:9997"
     networks:
       - app_network
-    network_mode: host
 
   coturn:
     image: coturn/coturn:latest
