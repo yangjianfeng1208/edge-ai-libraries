@@ -87,7 +87,7 @@ def get_models():
         logger.error("Failed to list models", exc_info=True)
         return JSONResponse(
             content=schemas.MessageResponse(
-                message=f"Unexpected error while listing models: {exc}"
+                message=f"Unexpected error while listing models"
             ).model_dump(),
             status_code=500,
         )
