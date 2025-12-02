@@ -97,6 +97,7 @@ class Graph:
         logger.debug(f"Edges:\n{self.edges}")
 
         nodes = self.nodes[:]
+        _validate_models_supported_on_devices(nodes)
         _model_display_name_to_path(nodes)
         _input_video_name_to_path(nodes)
 
@@ -387,6 +388,24 @@ def _model_display_name_to_path(nodes: list[Node]) -> None:
         logger.debug(
             f"Converted model display name to path: {name} -> {model.model_path_full}"
         )
+
+
+def _validate_models_supported_on_devices(nodes: list[Node]) -> None:
+    for node in nodes:
+        name = node.data.get("model")
+        if name is None:
+            continue
+
+        device = node.data.get("device")
+        if device is None:
+            continue
+
+        if not models_manager.is_model_supported_on_device(name, device):
+            raise ValueError(
+                f"Node {node.type}: model '{name}' is not supported on the '{device}' device"
+            )
+
+        logger.debug(f"Model '{name}' is supported on the '{device}' device")
 
 
 def _input_video_path_to_display_name(nodes: list[Node]) -> None:
