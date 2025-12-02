@@ -67,19 +67,23 @@ def get_videos():
             ]
     """
     logger.info("Received request for all videos.")
-    videos_manager = get_videos_manager()
-    videos_dict = videos_manager.get_all_videos()
-    logger.info(f"Found {len(videos_dict)} videos.")
-    # Convert Video objects to schemas.Video
-    return [
-        schemas.Video(
-            filename=v.filename,
-            width=v.width,
-            height=v.height,
-            fps=v.fps,
-            frame_count=v.frame_count,
-            codec=v.codec,
-            duration=v.duration,
-        )
-        for v in videos_dict.values()
-    ]
+    try:
+        videos_manager = get_videos_manager()
+        videos_dict = videos_manager.get_all_videos()
+        logger.info(f"Found {len(videos_dict)} videos.")
+        # Convert Video objects to schemas.Video
+        return [
+            schemas.Video(
+                filename=v.filename,
+                width=v.width,
+                height=v.height,
+                fps=v.fps,
+                frame_count=v.frame_count,
+                codec=v.codec,
+                duration=v.duration,
+            )
+            for v in videos_dict.values()
+        ]
+    except Exception:
+        logger.error("Failed to list videos", exc_info=True)
+        raise
