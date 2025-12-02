@@ -127,6 +127,6 @@ make run-videogenerator
 
         ```bash
         docker compose logs videogenerator -f
-       ```
+        ```
 
 - Expected result: An MP4 file is created under the `shared/videos/video-generator` folder.
