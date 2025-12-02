@@ -160,6 +160,7 @@ jobs:
           --test-configs="docker/aliveness_tests.json" \
           --results-path="$DLS_TESTS_RESULTS_PATH" \
           --report-name="DLS_functional_tests_${{ matrix.runner_print_label }}_docker_${{ matrix.ubuntu_version }}_results" \
+          --volume="/home/dlstreamer/dlstreamer/tests/functional_tests:$PWD"
           --image-name="${deb_final_img}"
 
     - name: Upload Docker test results
