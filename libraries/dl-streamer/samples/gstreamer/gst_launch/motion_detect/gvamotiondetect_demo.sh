@@ -26,7 +26,7 @@
 #   ./gvamotiondetect_demo.sh --output json --md-opts "motion-threshold=0.05"  # writes output.json
 #
 # Notes:
-# - GPU mode requires VAAPI enabled GStreamer build; decodebin3 should negotiate VAMemory caps if hw decode is available.
+# - decodebin3 should negotiate VAMemory caps if hw decode is available.
 # - Ensure gst-video-analytics plugins are discoverable (gst-inspect-1.0 gvamotiondetect).
 # - Set GST_DEBUG=gvamotiondetect:4 for verbose motion detection logs.
 
