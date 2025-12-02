@@ -1,27 +1,26 @@
 import { useParams } from "react-router";
 import {
+  useGetOptimizationJobStatusQuery,
+  useGetPerformanceJobStatusQuery,
   useGetPipelineQuery,
+  useGetValidationJobStatusQuery,
+  useOptimizePipelineMutation,
   useRunPerformanceTestMutation,
   useStopPerformanceTestJobMutation,
   useUpdatePipelineMutation,
-  useGetPerformanceJobStatusQuery,
   useValidatePipelineMutation,
-  useGetValidationJobStatusQuery,
-  useOptimizePipelineMutation,
-  useGetOptimizationJobStatusQuery,
 } from "@/api/api.generated";
 import {
   type Edge as ReactFlowEdge,
   type Node as ReactFlowNode,
   type Viewport,
 } from "@xyflow/react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import PipelineEditor from "@/features/pipeline-editor/PipelineEditor.tsx";
 import FpsDisplay from "@/features/pipeline-editor/FpsDisplay.tsx";
 import { toast } from "sonner";
 import RunPerformanceTestButton from "@/features/pipeline-editor/RunPerformanceTestButton.tsx";
 import StopPerformanceTestButton from "@/features/pipeline-editor/StopPerformanceTestButton.tsx";
-import StatePreviewButton from "@/features/pipeline-editor/StatePreviewButton.tsx";
 import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
 import OpenPipelineButton from "@/features/pipeline-editor/OpenPipelineButton.tsx";
 import ImportPipelineButton from "@/features/pipeline-editor/ImportPipelineButton.tsx";
@@ -560,12 +559,6 @@ const Pipelines = () => {
               nodes={currentNodes}
               viewport={currentViewport}
               pipelineName={data.name}
-            />
-
-            <StatePreviewButton
-              edges={currentEdges}
-              nodes={currentNodes}
-              viewport={currentViewport}
             />
 
             <label className="bg-white p-2 rounded-lg shadow-lg flex items-center gap-2 cursor-pointer">

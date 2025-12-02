@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   type PipelinePerformanceSpec,
   useGetDensityJobStatusQuery,
-  useGetPipelinesQuery,
   useRunDensityTestMutation,
 } from "@/api/api.generated.ts";
 import {
@@ -11,9 +10,12 @@ import {
 } from "@/components/shared/PipelinesDensityDataTable.tsx";
 import { TestProgressIndicator } from "@/components/shared/TestProgressIndicator.tsx";
 import { PipelineStreamsSummary } from "@/components/shared/PipelineStreamsSummary.tsx";
+import { PipelineName } from "@/components/shared/PipelineName.tsx";
+import { useAppSelector } from "@/store/hooks";
+import { selectPipelines } from "@/store/reducers/pipelines";
 
 const DensityTests = () => {
-  const { data: pipelines, isLoading, error } = useGetPipelinesQuery();
+  const pipelines = useAppSelector(selectPipelines);
   const [runDensityTest, { isLoading: isRunning }] =
     useRunDensityTestMutation();
   const [selectedPipelines, setSelectedPipelines] = useState<
@@ -89,18 +91,10 @@ const DensityTests = () => {
     }
   };
 
-  if (isLoading) {
+  if (pipelines.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <p>Loading pipelines...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-red-500">Error loading pipelines</p>
       </div>
     );
   }
@@ -235,9 +229,6 @@ const DensityTests = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {Object.entries(testResult.video_output_paths).map(
                         ([pipelineId, paths]) => {
-                          const pipeline = pipelines?.find(
-                            (p) => p.id === pipelineId,
-                          );
                           const videoPath =
                             paths && paths.length > 0 ? [...paths].pop() : null;
 
@@ -248,7 +239,7 @@ const DensityTests = () => {
                             >
                               <div className="bg-green-100 dark:bg-green-900 px-3 py-2">
                                 <p className="text-xs font-medium text-green-900 dark:text-green-100">
-                                  {pipeline?.name || pipelineId}
+                                  <PipelineName pipelineId={pipelineId} />
                                 </p>
                               </div>
                               {videoPath ? (

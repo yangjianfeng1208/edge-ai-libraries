@@ -1,4 +1,3 @@
-import { useGetPipelinesQuery } from "@/api/api.generated.ts";
 import { Link } from "react-router";
 import {
   Card,
@@ -10,11 +9,13 @@ import {
 import { CpuUsageProgress } from "@/features/metrics/CpuUsageProgress.tsx";
 import { GpuUsageProgress } from "@/features/metrics/GpuUsageProgress.tsx";
 import AddPipelineButton from "@/components/shared/AddPipelineButton.tsx";
+import { useAppSelector } from "@/store/hooks";
+import { selectPipelines } from "@/store/reducers/pipelines";
 
 const Home = () => {
-  const { data: pipelines, isSuccess } = useGetPipelinesQuery();
+  const pipelines = useAppSelector(selectPipelines);
 
-  if (isSuccess && pipelines) {
+  if (pipelines.length > 0) {
     return (
       <div className="flex h-full">
         <div className="flex-1 overflow-auto">

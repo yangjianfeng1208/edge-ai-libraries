@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
+import { PipelineName } from "@/components/shared/PipelineName";
 
 const Jobs = () => {
   const location = useLocation();
@@ -102,6 +103,7 @@ const Jobs = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Job ID</TableHead>
+                        <TableHead>Input Streams</TableHead>
                         <TableHead>State</TableHead>
                         <TableHead>Start Time</TableHead>
                         <TableHead>Elapsed Time</TableHead>
@@ -120,6 +122,18 @@ const Jobs = () => {
                             >
                               {job.id}
                             </Link>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              {job.streams_per_pipeline?.map((pipeline) => (
+                                <div key={pipeline.id} className="text-sm">
+                                  <PipelineName pipelineId={pipeline.id} />
+                                  <span className="text-muted-foreground ml-1">
+                                    ({pipeline.streams})
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span
@@ -180,7 +194,7 @@ const Jobs = () => {
                         <TableHead>Elapsed Time</TableHead>
                         <TableHead>Total FPS</TableHead>
                         <TableHead>Per Stream FPS</TableHead>
-                        <TableHead>Total Streams</TableHead>
+                        <TableHead>Stream Distribution</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -225,7 +239,18 @@ const Jobs = () => {
                               ? job.per_stream_fps.toFixed(2)
                               : "-"}
                           </TableCell>
-                          <TableCell>{job.total_streams ?? "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              {job.streams_per_pipeline?.map((pipeline) => (
+                                <div key={pipeline.id} className="text-sm">
+                                  <PipelineName pipelineId={pipeline.id} />
+                                  <span className="text-muted-foreground ml-1">
+                                    ({pipeline.streams})
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
