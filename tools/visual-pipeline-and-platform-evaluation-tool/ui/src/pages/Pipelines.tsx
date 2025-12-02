@@ -22,8 +22,8 @@ import { toast } from "sonner";
 import RunPerformanceTestButton from "@/features/pipeline-editor/RunPerformanceTestButton.tsx";
 import StopPerformanceTestButton from "@/features/pipeline-editor/StopPerformanceTestButton.tsx";
 import ExportPipelineButton from "@/features/pipeline-editor/ExportPipelineButton.tsx";
-import OpenPipelineButton from "@/features/pipeline-editor/OpenPipelineButton.tsx";
 import ImportPipelineButton from "@/features/pipeline-editor/ImportPipelineButton.tsx";
+import { Zap } from "lucide-react";
 
 type UrlParams = {
   id: string;
@@ -512,17 +512,7 @@ const Pipelines = () => {
         />
 
         <div className="absolute top-4 right-4 flex flex-col gap-2 items-center">
-          <div className="flex flex-row gap-2">
-            <button
-              className="bg-gray-600 text-white p-2 rounded-lg shadow-lg transition-colors disabled:opacity-50 hover:bg-gray-700 disabled:hover:bg-gray-600"
-              title="Optimize Pipeline"
-              disabled={isOptimizing || !!performanceTestJobId}
-              onClick={handleOptimizePipeline}
-            >
-              {isOptimizing ? "Optimizing..." : "Optimize"}
-            </button>
-            <FpsDisplay />
-          </div>
+          <FpsDisplay />
           {completedVideoPath && (
             <div className="bg-white p-2 rounded-lg shadow-lg">
               <video
@@ -550,7 +540,15 @@ const Pipelines = () => {
               />
             )}
 
-            <OpenPipelineButton onImport={handleImport} />
+            <button
+              className="bg-white hover:bg-carbon border border-classic-blue text-primary hover:text-white px-3 py-2 transition-colors disabled:opacity-50 disabled:hover:bg-orange-600 flex items-center gap-2"
+              title="Optimize Pipeline"
+              disabled={isOptimizing || !!performanceTestJobId}
+              onClick={handleOptimizePipeline}
+            >
+              <Zap className="w-5 h-5" />
+              <span>{isOptimizing ? "Optimizing..." : "Optimize"}</span>
+            </button>
 
             <ImportPipelineButton onImport={handleImport} />
 

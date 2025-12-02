@@ -176,10 +176,7 @@ const AddPipelineButton = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
-          className="w-full h-full min-h-[200px] border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-          title="Add Pipeline"
-        >
+        <button className="w-full h-full min-h-[200px] border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-classic-blue hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-3 text-carbon-tint-1 dark:text-gray-400 hover:text-classic-blue dark:hover:text-blue-400">
           <Plus className="w-12 h-12" />
           <span className="text-lg font-medium">Add New Pipeline</span>
         </button>
@@ -265,10 +262,13 @@ const AddPipelineButton = () => {
               Cancel
             </button>
             <button
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-classic-blue hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleAdd}
               disabled={
-                isLoading || !name.trim() || !pipelineDescription.trim()
+                isLoading ||
+                !name.trim() ||
+                !description.trim() ||
+                !pipelineDescription.trim()
               }
             >
               {validationStatus
