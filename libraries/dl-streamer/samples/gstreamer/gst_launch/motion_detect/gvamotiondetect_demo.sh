@@ -94,8 +94,9 @@ if ! gst-inspect-1.0 gvamotiondetect >/dev/null 2>&1; then
   exit 1
 fi
 
-# Convert MD_OPTS 'a=1 b=2' into 'a=1 b=2'
+# Capture motion detect properties (space-separated key=value) as array tokens
 MD_PROP_STRING="${MD_OPTS}"
+IFS=' ' read -r -a MD_PROP_ARRAY <<< "${MD_PROP_STRING}"
 
 echo "Running gvamotiondetect demo";
 echo " Device : $DEVICE";
@@ -107,29 +108,35 @@ echo " MD opts: ${MD_PROP_STRING:-<none>}";
 echo " Press Ctrl+C to stop.";
 
 if [[ "$SRC" == *"://"* ]]; then
-  BASE_PIPE="urisourcebin buffer-size=4096 uri=\"$SRC\" ! decodebin3"
+  BASE_PIPE=(urisourcebin buffer-size=4096 "uri=$SRC" ! decodebin3)
 else
-  BASE_PIPE="filesrc location=\"$SRC\" ! decodebin3"
+  BASE_PIPE=(filesrc "location=$SRC" ! decodebin3)
 fi
 
-GVAMD="gvamotiondetect ${MD_PROP_STRING}"  # properties appended
-GVADET="gvadetect model=\"$MODEL\" device=$( [[ $DEVICE == GPU ]] && echo GPU || echo CPU pre-process-backend=opencv) inference-region=1"
+GVAMD=(gvamotiondetect "${MD_PROP_ARRAY[@]}")
+if [[ "$DEVICE" == "GPU" ]]; then
+  GVADET=(gvadetect "model=$MODEL" device=GPU inference-region=1)
+else
+  GVADET=(gvadetect "model=$MODEL" device=CPU pre-process-backend=opencv inference-region=1)
+fi
 if [[ "$OUTPUT" == "json" ]]; then
   rm -f output.json
-  TAIL="gvametaconvert format=json ! gvametapublish method=file file-format=json-lines file-path=output.json ! gvafpscounter ! fakesink"
+  # Insert '!' tokens to separate elements; properties remain adjacent to their element.
+  TAIL=(gvametaconvert format=json ! gvametapublish method=file file-format=json-lines file-path=output.json ! gvafpscounter ! fakesink)
 else
-  TAIL="gvafpscounter ! gvawatermark ! vapostproc ! autovideosink"
+  TAIL=(gvafpscounter ! gvawatermark ! vapostproc ! autovideosink)
 fi
 
 if [[ "$DEVICE" == "GPU" ]]; then
-  CAPS="video/x-raw(memory:VAMemory)"
+  CAPS=(video/x-raw\(memory:VAMemory\))
 else
-  CAPS="video/x-raw(memory:SystemMemory)"
+  CAPS=(video/x-raw\(memory:SystemMemory\))
 fi
 
-PIPELINE="${BASE_PIPE} ! ${CAPS} ! ${GVAMD} ! ${GVADET} ! ${TAIL}"
+# Assemble full pipeline tokens array
+PIPELINE=("${BASE_PIPE[@]}" ! "${CAPS[@]}" ! "${GVAMD[@]}" ! "${GVADET[@]}" ! "${TAIL[@]}")
 
 echo "Launching pipeline:";
-echo gst-launch-1.0 -e ${PIPELINE}
+printf 'gst-launch-1.0 -e'; for t in "${PIPELINE[@]}"; do printf ' %s' "$t"; done; printf '\n' 
 echo
-exec gst-launch-1.0 -e ${PIPELINE}
+exec gst-launch-1.0 -e "${PIPELINE[@]}"
