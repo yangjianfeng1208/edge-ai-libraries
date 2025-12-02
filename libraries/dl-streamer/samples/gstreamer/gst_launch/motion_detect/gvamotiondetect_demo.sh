@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Copyright (C) 2021-2025 Intel Corporation
+# Copyright (C) 2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
