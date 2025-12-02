@@ -142,24 +142,10 @@ jobs:
           exit 1
         fi
 
-    - name: Init test environemtnt
-      run: |
-        sudo apt install -y libcairo2-dev libgirepository1.0-dev
-        if [[ ${{ matrix.ubuntu_version }} == "ubuntu24" ]]; then
-            sudo apt install -y libopencv-dev
-        fi
-        if [ -d "$HOME/.virtualenvs" ]; then
-          echo "Directory $HOME/.virtualenvs exists - removing it"
-          rm -rf $HOME/.virtualenvs
-        fi
-        mkdir -p $HOME/.virtualenvs/dlstreamer
-        python3 -m venv $HOME/.virtualenvs/dlstreamer
-        $HOME/.virtualenvs/dlstreamer/bin/pip install --no-cache-dir --upgrade pip -r $DLS_REL_PATH/requirements.txt
-
     - name: 🚀 Run Docker tests
       id: run_docker_tests
       env:
-        deb_final_img: ghcr.io/${{ github.repository }}/deb-final-img-${{ matrix.ubuntu_version }}:${{ github.sha }}
+        deb_final_testing_img: ghcr.io/${{ github.repository }}/deb-final-testing-img-${{ matrix.ubuntu_version }}:${{ github.sha }}
       run: |
         cd $PWD/$DLS_REL_PATH/tests
         mkdir functional_tests_results
@@ -168,15 +154,13 @@ jobs:
         echo "DLS_TESTS_RESULTS_PATH=$DLS_TESTS_RESULTS_PATH" >> $GITHUB_ENV
         cd ../functional_tests
 
-        source $HOME/.virtualenvs/dlstreamer/bin/activate
         ./run_tests.sh \
           --models-path=${{ env.MODELS_PATH }} \
           --video-examples-path=${{ env.VIDEO_INPUTS_PATH }} \
           --test-configs="docker/aliveness_tests.json" \
           --results-path="$DLS_TESTS_RESULTS_PATH" \
           --report-name="DLS_functional_tests_${{ matrix.runner_print_label }}_docker_${{ matrix.ubuntu_version }}_results" \
-          --image-name="${deb_final_img}"
-        deactivate
+          --image-name="${deb_final_testing_img}"
 
     - name: Upload Docker test results
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #4.6.2
@@ -264,19 +248,19 @@ jobs:
     #   run: |
     #     ln -s $PWD/$DLS_REL_PATH $HOME
 
-    # - name: Init host test environemtnt
-    #   run: |
-    #     sudo apt install -y libcairo2-dev libgirepository1.0-dev
-    #     if [[ ${{ matrix.ubuntu_version }} == "ubuntu24" ]]; then
-    #         sudo apt install -y libopencv-dev
-    #     fi
-    #     if [ -d "$HOME/.virtualenvs" ]; then
-    #       echo "Directory $HOME/.virtualenvs exists - removing it"
-    #       rm -rf $HOME/.virtualenvs
-    #     fi
-    #     mkdir -p $HOME/.virtualenvs/dlstreamer
-    #     python3 -m venv $HOME/.virtualenvs/dlstreamer
-    #     $HOME/.virtualenvs/dlstreamer/bin/pip install --no-cache-dir --upgrade pip -r $DLS_REL_PATH/requirements.txt
+    - name: Init host test environemtnt
+      run: |
+        sudo apt install -y libcairo2-dev libgirepository1.0-dev
+        if [[ ${{ matrix.ubuntu_version }} == "ubuntu24" ]]; then
+            sudo apt install -y libopencv-dev
+        fi
+        if [ -d "$HOME/.virtualenvs" ]; then
+          echo "Directory $HOME/.virtualenvs exists - removing it"
+          rm -rf $HOME/.virtualenvs
+        fi
+        mkdir -p $HOME/.virtualenvs/dlstreamer
+        python3 -m venv $HOME/.virtualenvs/dlstreamer
+        $HOME/.virtualenvs/dlstreamer/bin/pip install --no-cache-dir --upgrade pip -r $DLS_REL_PATH/requirements.txt
 
     - name: 🚀 Run on host tests
       id: run_onhost_tests
