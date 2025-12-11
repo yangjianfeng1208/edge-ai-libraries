@@ -7,14 +7,14 @@ on:
         description: "Branch in dl-streamer-tests repo (default is main)"
         required: false
         type: string
-        default: "main"
+        default: "dls_cicd_test"
   workflow_dispatch:
     inputs:
       test-repo-branch:
         description: "Branch in dl-streamer-tests repo (default is main)"
         required: false
         type: string
-        default: "main"
+        default: "dls_cicd_test"
 permissions: {}
 env:
   DLS_TARGET_DIRECTORY: C:\dlstreamer
@@ -31,7 +31,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner_labels: [self-hosted, dlstreamer, ARL, windows] # Build and run tests on Arrow Lake system with Ubuntu 24
+          - runner_labels: [self-hosted, Windows, X64] # Build and run tests on Arrow Lake system with Ubuntu 24
             runner_print_label: ARL
     steps:
     - name: Checkout repository
