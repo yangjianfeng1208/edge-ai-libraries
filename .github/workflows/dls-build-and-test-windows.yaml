@@ -43,6 +43,7 @@ jobs:
         fetch-depth: 1
 
     - name: Init submodules
+      shell: powershell
       run: |
         cd edge-ai-libraries-repo
         git submodule update --init libraries/dl-streamer/thirdparty/spdlog
