@@ -31,7 +31,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner_labels: [self-hosted, dlstreamer, ARL, windows] # Build and run tests on Arrow Lake system with Ubuntu 24
+          - runner_labels: [self-hosted, ARL, Windows] # Build and run tests on Arrow Lake system with Ubuntu 24
             runner_print_label: ARL
     steps:
     - name: Checkout repository
