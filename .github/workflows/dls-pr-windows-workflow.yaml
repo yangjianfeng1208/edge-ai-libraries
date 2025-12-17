@@ -1,0 +1,55 @@
+name: "[DLS] PR windows workflow"
+run-name: "[DLS] PR  workflow (by @${{ github.actor }} via ${{ github.event_name }})"
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'libraries/dl-streamer/*'
+      - 'libraries/dl-streamer/cmake/**'
+      - 'libraries/dl-streamer/docker/**'
+      - 'libraries/dl-streamer/include/**'
+      - 'libraries/dl-streamer/python/**'
+      - 'libraries/dl-streamer/samples/**'
+      - 'libraries/dl-streamer/scripts/**'
+      - 'libraries/dl-streamer/src/**'
+      - 'libraries/dl-streamer/tests/**'
+      - 'libraries/dl-streamer/thirdparty/**'
+  pull_request:
+    paths:
+      - 'libraries/dl-streamer/*'
+      - 'libraries/dl-streamer/cmake/**'
+      - 'libraries/dl-streamer/docker/**'
+      - 'libraries/dl-streamer/include/**'
+      - 'libraries/dl-streamer/python/**'
+      - 'libraries/dl-streamer/samples/**'
+      - 'libraries/dl-streamer/scripts/**'
+      - 'libraries/dl-streamer/src/**'
+      - 'libraries/dl-streamer/tests/**'
+      - 'libraries/dl-streamer/thirdparty/**'
+  workflow_call:
+    inputs:
+      test-repo-branch:
+        description: "Branch in dl-streamer-tests repo (default is main)"
+        required: false
+        type: string
+        default: "main"
+  workflow_dispatch:
+    inputs:
+      test-repo-branch:
+        description: "Branch in dl-streamer-tests repo (default is main)"
+        required: false
+        type: string
+        default: "main"
+permissions: {}
+
+jobs:
+  # ------------------------------------------------------------- SCANs -------------------------------------------------------------
+  dls-build-and-test-windows:
+    permissions:
+      contents: read
+      packages: read
+    name: "DLS BUILD & TEST: Windows DLLs"
+    uses: ./.github/workflows/dls-build-and-test-windows.yaml
+    with:
+      test-repo-branch: ${{ inputs.test-repo-branch }}
