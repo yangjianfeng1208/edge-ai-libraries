@@ -62,7 +62,8 @@ jobs:
       shell: powershell
       run: |
         cd ${{ env.DLS_REPO_TARGET_DIRECTORY }}
-        & ./scripts/build_dlstreamer_dlls.ps1
+        cd scripts\windows
+        & .\win_dls_build.ps1
 
     - name: Copy DLLs
       shell: powershell
