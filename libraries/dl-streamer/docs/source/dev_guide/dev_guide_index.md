@@ -55,6 +55,16 @@
   - [GStreamer Pipeline Adjustments](./converting_deepstream_to_dlstreamer.md#gstreamer-pipeline-adjustments)
   - [Multiple Input Streams](./converting_deepstream_to_dlstreamer.md#multiple-input-streams)
   - [DeepStream to DLStreamer Elements Mapping Cheetsheet](./converting_deepstream_to_dlstreamer.md#deepstream-to-dlstreamer-elements-mapping-cheetsheet)
+- [Testing Guide](./testing.md)
+  - [Overview](./testing.md#overview)
+  - [Test Types](./testing.md#test-types)
+  - [Running Tests Locally](./testing.md#running-tests-locally)
+  - [CI/CD Test Execution](./testing.md#cicd-test-execution)
+  - [Understanding Test Results](./testing.md#understanding-test-results)
+  - [Test Standards and Best Practices](./testing.md#test-standards-and-best-practices)
+  - [Debugging Test Failures](./testing.md#debugging-test-failures)
+  - [Code Coverage](./testing.md#code-coverage)
+  - [Adding New Tests](./testing.md#adding-new-tests)
 - [How to Contribute](./how_to_contribute.md)
   - [Coding Style](./coding_style.md)
 - [Latency Tracer](./latency_tracer.md)
@@ -87,6 +97,7 @@ gpu_device_selection
 performance_guide
 profiling
 converting_deepstream_to_dlstreamer
+testing
 how_to_contribute
 latency_tracer
 model_proc_file
