@@ -42,6 +42,11 @@ jobs:
         submodules: false
         fetch-depth: 1
 
+    - name: test power shell
+      shell: powershell
+      run: |
+        ls
+
     - name: Init submodules
       shell: powershell
       run: |
