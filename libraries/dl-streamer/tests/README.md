@@ -203,7 +203,7 @@ In continuous integration environments (GitHub Actions), tests are evaluated by:
 #### Success Criteria:
 - ✅ All C/C++ unit tests pass
 - ✅ All Python unit tests pass
-- ✅ Code coverage meets threshold (if enabled)
+- ✅ Code coverage meets the threshold (if enabled)
 - ✅ No memory leaks or crashes
 - ✅ Performance tests within acceptable range
 
@@ -222,7 +222,7 @@ To enable code coverage:
 HTML coverage report generated:
 - Location: `results/code_coverage/index.html`
 - Tool: gcovr
-- Coverage scope: Excludes thirdparty, tests, and samples directories
+- Coverage scope: Excludes third-party, tests, and samples directories
 
 ## Test Coverage
 
